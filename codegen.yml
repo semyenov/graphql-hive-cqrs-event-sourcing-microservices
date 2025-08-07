@@ -1,0 +1,56 @@
+overwrite: true
+generates:
+  # Generate types from read schema
+  src/types/generated/read-schema.ts:
+    schema: src/schemas/read.graphql
+    plugins:
+      - typescript
+    config:
+      enumsAsTypes: true
+      scalars:
+        ID: string
+        String: string
+        Int: number
+        Float: number
+        Boolean: boolean
+      avoidOptionals: false
+      maybeValue: T | null | undefined
+      
+  # Generate types from write schema
+  src/types/generated/write-schema.ts:
+    schema: src/schemas/write.graphql
+    plugins:
+      - typescript
+    config:
+      enumsAsTypes: true
+      scalars:
+        ID: string
+        String: string
+        Int: number
+        Float: number
+        Boolean: boolean
+      avoidOptionals: false
+      maybeValue: T | null | undefined
+      
+  # Generate resolver types for server implementation
+  src/types/generated/resolvers.ts:
+    schema:
+      - src/schemas/read.graphql
+      - src/schemas/write.graphql
+    plugins:
+      - typescript
+      - typescript-resolvers
+    config:
+      enumsAsTypes: true
+      useIndexSignature: true
+      contextType: ../../server#GraphQLContext
+      scalars:
+        ID: string
+        String: string
+        Int: number
+        Float: number
+        Boolean: boolean
+      avoidOptionals: false
+      maybeValue: T | null | undefined
+      mappers:
+        User: ../../models/User#UserModel

@@ -1,0 +1,8 @@
+{
+  "getUserById": "",
+  "listUsersWithPagination": "",
+  "searchUsersByQuery": "",
+  "createNewUser": "",
+  "updateExistingUser": "",
+  "deleteUserById": ""
+}

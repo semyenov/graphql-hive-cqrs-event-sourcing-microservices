@@ -1,0 +1,48 @@
+{
+  "compilerOptions": {
+    // Environment setup & latest features
+    "lib": ["ESNext"],
+    "target": "ESNext",
+    "module": "Preserve",
+    "moduleDetection": "force",
+    "jsx": "react-jsx",
+    "allowJs": true,
+
+    // Bundler mode
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "noEmit": true,
+
+    // Best practices
+    "strict": true,
+    "skipLibCheck": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+
+    // Some stricter flags (disabled by default)
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noPropertyAccessFromIndexSignature": false,
+
+    // gql.tada configuration for multiple schemas
+    "plugins": [
+      {
+        "name": "gql.tada/ts-plugin",
+        "schemas": [
+          {
+            "name": "read",
+            "schema": "./src/schemas/read.graphql",
+            "tadaOutputLocation": "./src/graphql/read-env.d.ts"
+          },
+          {
+            "name": "write",
+            "schema": "./src/schemas/write.graphql",
+            "tadaOutputLocation": "./src/graphql/write-env.d.ts"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,60 @@
+# Combined schema for gql.tada type generation
+# This represents the full API surface
+
+type Query {
+  getUser(id: ID!): User
+  listUsers(limit: Int = 10, offset: Int = 0): UserList!
+  searchUsers(query: String!): [User!]!
+}
+
+type Mutation {
+  createUser(input: CreateUserInput!): CreateUserPayload!
+  updateUser(id: ID!, input: UpdateUserInput!): UpdateUserPayload!
+  deleteUser(id: ID!): DeleteUserPayload!
+}
+
+type User {
+  id: ID!
+  name: String!
+  email: String!
+  createdAt: String!
+  updatedAt: String!
+}
+
+type UserList {
+  users: [User!]!
+  total: Int!
+  hasMore: Boolean!
+}
+
+input CreateUserInput {
+  name: String!
+  email: String!
+}
+
+input UpdateUserInput {
+  name: String
+  email: String
+}
+
+type CreateUserPayload {
+  success: Boolean!
+  user: User
+  errors: [Error!]
+}
+
+type UpdateUserPayload {
+  success: Boolean!
+  user: User
+  errors: [Error!]
+}
+
+type DeleteUserPayload {
+  success: Boolean!
+  errors: [Error!]
+}
+
+type Error {
+  field: String
+  message: String!
+}

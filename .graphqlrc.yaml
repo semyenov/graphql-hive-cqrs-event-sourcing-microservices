@@ -1,0 +1,10 @@
+schema:
+  - ./src/schema.graphql
+  - ./src/**/*.graphql
+documents:
+  - ./src/**/*.ts
+  - ./src/**/*.tsx
+extensions:
+  tada:
+    generateOutput: true
+    outputLocation: ./src/graphql-env.d.ts
