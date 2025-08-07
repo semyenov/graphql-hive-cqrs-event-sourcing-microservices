@@ -1,5 +1,6 @@
 import type { Event } from './generic-types';
 import type { IEventStore } from './interfaces';
+import type { AggregateId } from '../types/branded';
 
 // Generic in-memory event store implementation
 export class InMemoryEventStore<TEvent extends Event = Event> implements IEventStore<TEvent> {
@@ -37,7 +38,7 @@ export class InMemoryEventStore<TEvent extends Event = Event> implements IEventS
     }
   }
 
-  async getEvents<TAggregateId extends string>(
+  async getEvents<TAggregateId extends AggregateId>(
     aggregateId: TAggregateId,
     fromVersion?: number
   ): Promise<Array<Extract<TEvent, { aggregateId: TAggregateId }>>> {
@@ -80,12 +81,12 @@ export class InMemoryEventStore<TEvent extends Event = Event> implements IEventS
   }
 
   // Check if aggregate exists
-  async aggregateExists(aggregateId: string): Promise<boolean> {
+  async aggregateExists(aggregateId: AggregateId): Promise<boolean> {
     return this.eventsByAggregate.has(aggregateId);
   }
 
   // Get latest event for aggregate
-  async getLatestEvent<TAggregateId extends string>(
+  async getLatestEvent<TAggregateId extends AggregateId>(
     aggregateId: TAggregateId
   ): Promise<Extract<TEvent, { aggregateId: TAggregateId }> | null> {
     const events = await this.getEvents(aggregateId);
@@ -93,7 +94,7 @@ export class InMemoryEventStore<TEvent extends Event = Event> implements IEventS
   }
 
   // Get aggregate version
-  async getAggregateVersion(aggregateId: string): Promise<number> {
+  async getAggregateVersion(aggregateId: AggregateId): Promise<number> {
     const latestEvent = await this.getLatestEvent(aggregateId);
     return latestEvent?.version || 0;
   }
@@ -180,4 +181,4 @@ export const createEventStore = <TEvent extends Event>(): InMemoryEventStore<TEv
 };
 
 // Type helper to infer event type from event store
-export type InferEventType<T> = T extends EventStore<infer E> ? E : never;
+export type InferEventType<T> = T extends InMemoryEventStore<infer E> ? E : never;

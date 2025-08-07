@@ -1,5 +1,5 @@
-import type { Event, UserCreatedEvent, UserUpdatedEvent, UserDeletedEvent } from './types';
-import { isUserCreatedEvent, isUserUpdatedEvent, isUserDeletedEvent } from './typed-events';
+import type { Event, UserCreatedEvent, UserUpdatedEvent, UserDeletedEvent } from './generic-types';
+import { isUserCreatedEvent, isUserUpdatedEvent, isUserDeletedEvent } from './generic-types';
 
 // Event handler type definitions
 export type EventHandlerFunction<T extends Event> = (event: T) => Promise<void> | void;
@@ -17,12 +17,13 @@ export class EventHandlerRegistry {
   // Register a handler for a specific event type
   on<T extends keyof EventHandlers>(
     eventType: T,
-    handler: NonNullable<EventHandlers[T]>[number]
+    handler: NonNullable<EventHandlers[T]> extends Array<infer H> ? H : never
   ): void {
     if (!this.handlers[eventType]) {
-      this.handlers[eventType] = [];
+      this.handlers[eventType] = [] as NonNullable<EventHandlers[T]>;
     }
-    this.handlers[eventType]!.push(handler as any);
+    const handlers = this.handlers[eventType]!;
+    (handlers as Array<typeof handler>).push(handler);
   }
 
   // Handle an event with type safety
@@ -42,16 +43,26 @@ export class EventHandlerRegistry {
   }
 }
 
+// User projection type
+interface UserProjection {
+  id: string;
+  name: string;
+  email: string;
+  createdAt: Date;
+  updatedAt: Date;
+  deleted: boolean;
+}
+
 // Example projection handler
 export class UserProjectionHandler {
-  private projections = new Map<string, any>();
+  private projections = new Map<string, UserProjection>();
 
   constructor(private registry: EventHandlerRegistry) {
     this.setupHandlers();
   }
 
   private setupHandlers(): void {
-    this.registry.on('UserCreated', async (event) => {
+    this.registry.on('UserCreated', async (event: UserCreatedEvent) => {
       this.projections.set(event.aggregateId, {
         id: event.aggregateId,
         name: event.data.name,
@@ -62,18 +73,19 @@ export class UserProjectionHandler {
       });
     });
 
-    this.registry.on('UserUpdated', async (event) => {
+    this.registry.on('UserUpdated', async (event: UserUpdatedEvent) => {
       const existing = this.projections.get(event.aggregateId);
       if (existing) {
         this.projections.set(event.aggregateId, {
           ...existing,
-          ...event.data,
+          ...(event.data.name && { name: event.data.name }),
+          ...(event.data.email && { email: event.data.email }),
           updatedAt: event.timestamp,
         });
       }
     });
 
-    this.registry.on('UserDeleted', async (event) => {
+    this.registry.on('UserDeleted', async (event: UserDeletedEvent) => {
       const existing = this.projections.get(event.aggregateId);
       if (existing) {
         this.projections.set(event.aggregateId, {
@@ -85,11 +97,11 @@ export class UserProjectionHandler {
     });
   }
 
-  getProjection(aggregateId: string): any {
+  getProjection(aggregateId: string): UserProjection | undefined {
     return this.projections.get(aggregateId);
   }
 
-  getAllProjections(): any[] {
+  getAllProjections(): UserProjection[] {
     return Array.from(this.projections.values()).filter(p => !p.deleted);
   }
 }

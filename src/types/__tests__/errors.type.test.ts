@@ -97,7 +97,7 @@ describe('ErrorFactory', () => {
     describe('validation', () => {
       it('should create validation error', () => {
         const error = ErrorFactory.validation({
-          code: 'FIELD_REQUIRED',
+          code: ErrorCodes.FIELD_REQUIRED,
           message: 'Email is required',
           field: 'email',
           correlationId: 'test-123'
@@ -105,7 +105,7 @@ describe('ErrorFactory', () => {
         
         expect(error.type).toBe('DOMAIN');
         expect(error.category).toBe('VALIDATION');
-        expect(error.code).toBe('FIELD_REQUIRED');
+        expect(error.code).toBe(ErrorCodes.FIELD_REQUIRED);
         expect(error.field).toBe('email');
         expect(error.correlationId).toBe('test-123');
         expect(error.timestamp).toBeInstanceOf(Date);
@@ -115,7 +115,7 @@ describe('ErrorFactory', () => {
     describe('businessRule', () => {
       it('should create business rule error', () => {
         const error = ErrorFactory.businessRule({
-          code: 'INVARIANT_VIOLATION',
+          code: ErrorCodes.INVARIANT_VIOLATION,
           message: 'User must have unique email',
           rule: 'unique_email',
           aggregate: 'User',
@@ -135,7 +135,7 @@ describe('ErrorFactory', () => {
     describe('notFound', () => {
       it('should create not found error', () => {
         const error = ErrorFactory.notFound({
-          code: 'ENTITY_NOT_FOUND',
+          code: ErrorCodes.ENTITY_NOT_FOUND,
           message: 'User not found',
           resourceType: 'User',
           resourceId: 'user-123'
@@ -151,7 +151,7 @@ describe('ErrorFactory', () => {
     describe('conflict', () => {
       it('should create conflict error', () => {
         const error = ErrorFactory.conflict({
-          code: 'VERSION_MISMATCH',
+          code: ErrorCodes.VERSION_MISMATCH,
           message: 'Version mismatch',
           conflictType: 'VERSION_MISMATCH',
           currentValue: 2,
@@ -171,7 +171,7 @@ describe('ErrorFactory', () => {
     describe('database', () => {
       it('should create database error', () => {
         const error = ErrorFactory.database({
-          code: 'CONNECTION_FAILED',
+          code: ErrorCodes.CONNECTION_FAILED,
           message: 'Database connection failed',
           operation: 'connect',
           retryable: true
@@ -187,7 +187,7 @@ describe('ErrorFactory', () => {
     describe('network', () => {
       it('should create network error', () => {
         const error = ErrorFactory.network({
-          code: 'NETWORK_TIMEOUT',
+          code: ErrorCodes.NETWORK_TIMEOUT,
           message: 'Request timeout',
           url: 'https://api.example.com/users',
           method: 'GET',
@@ -209,7 +209,7 @@ describe('ErrorFactory', () => {
     describe('stateTransition', () => {
       it('should create state transition error', () => {
         const error = ErrorFactory.stateTransition({
-          code: 'INVALID_STATE_TRANSITION',
+          code: ErrorCodes.INVALID_STATE_TRANSITION,
           message: 'Cannot transition from draft to published',
           operation: 'publish',
           fromState: 'draft',
@@ -228,7 +228,7 @@ describe('ErrorFactory', () => {
     describe('concurrency', () => {
       it('should create concurrency error', () => {
         const error = ErrorFactory.concurrency({
-          code: 'CONCURRENCY_CONFLICT',
+          code: ErrorCodes.CONCURRENCY_CONFLICT,
           message: 'Version mismatch',
           operation: 'update',
           expectedVersion: 2,
@@ -248,7 +248,7 @@ describe('ErrorFactory', () => {
       it('should create rate limit error', () => {
         const retryAfter = new Date(Date.now() + 60000);
         const error = ErrorFactory.rateLimit({
-          code: 'RATE_LIMIT_EXCEEDED',
+          code: ErrorCodes.RATE_LIMIT_EXCEEDED,
           message: 'Rate limit exceeded',
           operation: 'createUser',
           limit: 100,
@@ -336,7 +336,7 @@ describe('Result helpers', () => {
     
     it('should create error result', () => {
       const error = ErrorFactory.validation({
-        code: 'INVALID',
+        code: 'INVALID' as ErrorCode,
         message: 'Invalid',
         field: 'test'
       });
@@ -348,7 +348,7 @@ describe('Result helpers', () => {
   describe('type guards', () => {
     const okResult = ResultHelpers.ok('value');
     const errResult = ResultHelpers.err(
-      ErrorFactory.validation({ code: 'ERROR', message: 'Error', field: 'test' })
+      ErrorFactory.validation({ code: 'ERROR' as ErrorCode, message: 'Error', field: 'test' })
     );
     
     it('should identify ok results', () => {
@@ -371,7 +371,7 @@ describe('Result helpers', () => {
     });
     
     it('should pass through errors', () => {
-      const error = ErrorFactory.validation({ code: 'ERROR', message: 'Error', field: 'test' });
+      const error = ErrorFactory.validation({ code: 'ERROR' as ErrorCode, message: 'Error', field: 'test' });
       const result = ResultHelpers.err(error);
       const mapped = ResultHelpers.map(result, x => x * 2);
       
@@ -381,11 +381,11 @@ describe('Result helpers', () => {
   
   describe('mapErr', () => {
     it('should map error values', () => {
-      const error = ErrorFactory.validation({ code: 'ERROR', message: 'Error', field: 'test' });
+      const error = ErrorFactory.validation({ code: 'ERROR' as ErrorCode, message: 'Error', field: 'test' });
       const result = ResultHelpers.err(error);
       const mapped = ResultHelpers.mapErr(result, err => 
         ErrorFactory.businessRule({
-          code: 'MAPPED',
+          code: 'MAPPED' as ErrorCode,
           message: err.message,
           rule: 'mapped'
         })
@@ -400,7 +400,7 @@ describe('Result helpers', () => {
     it('should pass through success values', () => {
       const result = ResultHelpers.ok('value');
       const mapped = ResultHelpers.mapErr(result, err => 
-        ErrorFactory.businessRule({ code: 'MAPPED', message: 'Mapped', rule: 'mapped' })
+        ErrorFactory.businessRule({ code: 'MAPPED' as ErrorCode, message: 'Mapped', rule: 'mapped' })
       );
       
       expect(mapped).toEqual({ success: true, value: 'value' });
@@ -416,7 +416,7 @@ describe('Result helpers', () => {
     });
     
     it('should short-circuit on error', () => {
-      const error = ErrorFactory.validation({ code: 'ERROR', message: 'Error', field: 'test' });
+      const error = ErrorFactory.validation({ code: 'ERROR' as ErrorCode, message: 'Error', field: 'test' });
       const result = ResultHelpers.err(error);
       const chained = ResultHelpers.chain(result, x => ResultHelpers.ok(x * 2));
       
@@ -425,7 +425,7 @@ describe('Result helpers', () => {
     
     it('should propagate errors from chained function', () => {
       const result = ResultHelpers.ok(5);
-      const error = ErrorFactory.validation({ code: 'ERROR', message: 'Error', field: 'test' });
+      const error = ErrorFactory.validation({ code: 'ERROR' as ErrorCode, message: 'Error', field: 'test' });
       const chained = ResultHelpers.chain(result, x => ResultHelpers.err(error));
       
       expect(chained).toEqual({ success: false, error });
@@ -437,14 +437,14 @@ describe('Result helpers', () => {
       const result = ResultHelpers.ok('success');
       const matched = ResultHelpers.match(result, {
         ok: value => `OK: ${value}`,
-        err: error => `ERROR: ${error.message}`
+        err: (error: AppError) => `ERROR: ${error.message}`
       });
       
       expect(matched).toBe('OK: success');
     });
     
     it('should match error case', () => {
-      const error = ErrorFactory.validation({ code: 'ERROR', message: 'Test error', field: 'test' });
+      const error = ErrorFactory.validation({ code: 'ERROR' as ErrorCode, message: 'Test error', field: 'test' });
       const result = ResultHelpers.err(error);
       const matched = ResultHelpers.match(result, {
         ok: value => `OK: ${value}`,
@@ -459,12 +459,12 @@ describe('Result helpers', () => {
 // Test ErrorCodes constants
 describe('ErrorCodes', () => {
   it('should have all expected error codes', () => {
-    expect(ErrorCodes.FIELD_REQUIRED).toBe('FIELD_REQUIRED');
-    expect(ErrorCodes.INVALID_FORMAT).toBe('INVALID_FORMAT');
-    expect(ErrorCodes.ENTITY_NOT_FOUND).toBe('ENTITY_NOT_FOUND');
-    expect(ErrorCodes.VERSION_MISMATCH).toBe('VERSION_MISMATCH');
-    expect(ErrorCodes.CONNECTION_FAILED).toBe('CONNECTION_FAILED');
-    expect(ErrorCodes.RATE_LIMIT_EXCEEDED).toBe('RATE_LIMIT_EXCEEDED');
+    expect(ErrorCodes.FIELD_REQUIRED).toBe(ErrorCodes.FIELD_REQUIRED);
+    expect(ErrorCodes.INVALID_FORMAT).toBe(ErrorCodes.INVALID_FORMAT);
+    expect(ErrorCodes.ENTITY_NOT_FOUND).toBe(ErrorCodes.ENTITY_NOT_FOUND);
+    expect(ErrorCodes.VERSION_MISMATCH).toBe(ErrorCodes.VERSION_MISMATCH);
+    expect(ErrorCodes.CONNECTION_FAILED).toBe(ErrorCodes.CONNECTION_FAILED);
+    expect(ErrorCodes.RATE_LIMIT_EXCEEDED).toBe(ErrorCodes.RATE_LIMIT_EXCEEDED);
   });
 });
 

@@ -128,3 +128,108 @@ The fix uses `as any` to bypass the complex type checking while maintaining the 
 
 ---
 
+_**User**_
+
+For the code present, we get this error:
+```
+Argument of type 'Partial<UpdateUserInput>' is not assignable to parameter of type '(DeepReadonly<CreateUserInput> & { email: string; name: string; }) | (DeepReadonly<Partial<UpdateUserInput>> & { ...; }) | (DeepReadonly<...> & { ...; })'.
+  Type 'Partial<UpdateUserInput>' is not assignable to type 'DeepReadonly<Record<string, never>> & { [x: string]: never; }'.
+    Type 'Partial<UpdateUserInput>' is not assignable to type 'DeepReadonly<Record<string, never>>'.
+      Property 'email' is incompatible with index signature.
+        Type 'string | null' is not assignable to type 'never'.
+          Type 'null' is not assignable to type 'never'.
+```
+How can I resolve this? If you propose a fix, please make it concise.
+
+---
+
+_**Assistant**_
+
+The error is occurring because the `createEvent` function has overly strict type constraints that don't properly handle `Partial<UpdateUserInput>`. The issue is in the `EventDataConstraints` type and how it's being applied to the event data.
+
+Let me fix this by adjusting the type constraints:
+
+
+---
+
+<details><summary>Edit file: src/events/generic-types.ts</summary>
+
+undefined
+
+**Chunk 1**
+Lines added: 1, lines removed: 1
+
+```diff
+@@ -122,5 +122,5 @@
+  // Strict event data constraints
+  type EventDataConstraints<T> = T extends object
+-   ? DeepReadonly<T> & { [K in keyof T]: NonNullable<T[K]> }
++   ? DeepReadonly<T>
+    : DeepReadonly<T>;
+  
+```
+
+</details>
+
+---
+
+The fix removes the overly strict `NonNullable` constraint that was causing the type error. The `Partial<UpdateUserInput>` type allows properties to be `undefined`, but the original constraint was trying to make all properties non-nullable, which conflicted with the `Partial` type.
+
+Now the `createUserUpdated` function should work correctly with `Partial<UpdateUserInput>` data.
+
+---
+
+_**User**_
+
+For the code present, we get this error:
+```
+Argument of type '(state: { exists: false; version: number; }, event: UserEvent) => Promise<UserState>' is not assignable to parameter of type '(state: { exists: false; version: number; }, event: UserEvent) => Promise<{ exists: false; version: number; }>'.
+  Type 'Promise<UserState>' is not assignable to type 'Promise<{ exists: false; version: number; }>'.
+    Type 'UserState' is not assignable to type '{ exists: false; version: number; }'.
+      Types of property 'exists' are incompatible.
+        Type 'boolean' is not assignable to type 'false'.
+```
+How can I resolve this? If you propose a fix, please make it concise.
+
+---
+
+_**Assistant**_
+
+The error occurs because TypeScript is inferring the initial state type too strictly. The `foldEventsAsync` function expects the reducer to return the same type as the initial state, but the initial state has `exists: false` while the reducer can return `exists: true`.
+
+Let me fix this by properly typing the initial state:
+
+
+---
+
+<details><summary>Edit file: src/events/examples/enhanced-usage.ts</summary>
+
+undefined
+
+**Chunk 1**
+Lines added: 2, lines removed: 1
+
+```diff
+@@ -222,10 +222,11 @@
+  // Async folding for IO-bound operations
+  const buildUserStateWithSideEffects = async (events: UserEvent[]): Promise<UserState> => {
++   const initialState: UserState = { exists: false, version: 0 };
+    return foldEventsAsync(events, async (state, event) => {  
+      // Simulate async side effect (e.g., logging, external API call)
+      await new Promise(resolve => setTimeout(resolve, 10));
+      console.log(`Processing event ${event.type} for aggregate ${event.aggregateId}`);
+      return userReducer(state, event);
+-   }, { exists: false, version: 0 });
++   }, initialState);
+  };
+  
+```
+
+</details>
+
+---
+
+The fix explicitly types the initial state as `UserState` instead of letting TypeScript infer it as `{ exists: false; version: number; }`. This allows the reducer to return the full `UserState` type which can have `exists: true` when a user is created.
+
+---
+

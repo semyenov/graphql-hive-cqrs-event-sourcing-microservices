@@ -7,7 +7,7 @@ export type MakeEmpty<T extends { [key: string]: unknown }, K extends keyof T> =
 export type Incremental<T> = T | { [P in keyof T]?: P extends ' $fragmentName' | '__typename' ? T[P] : never };
 /** All built-in and custom scalars, mapped to their actual values */
 export type Scalars = {
-  ID: { input: string; output: string; }
+  ID: { input: import("../branded").AggregateId; output: import("../branded").AggregateId; }
   String: { input: string; output: string; }
   Boolean: { input: boolean; output: boolean; }
   Int: { input: number; output: number; }
@@ -15,34 +15,34 @@ export type Scalars = {
 };
 
 export type CreateUserInput = {
-  email: Scalars['String']['input'];
-  name: Scalars['String']['input'];
+  readonly email: Scalars['String']['input'];
+  readonly name: Scalars['String']['input'];
 };
 
 export type CreateUserPayload = {
-  __typename?: 'CreateUserPayload';
-  errors?: Maybe<Array<Error>>;
-  success: Scalars['Boolean']['output'];
-  user?: Maybe<User>;
+  readonly __typename: 'CreateUserPayload';
+  readonly errors: Maybe<ReadonlyArray<Error>>;
+  readonly success: Scalars['Boolean']['output'];
+  readonly user: Maybe<User>;
 };
 
 export type DeleteUserPayload = {
-  __typename?: 'DeleteUserPayload';
-  errors?: Maybe<Array<Error>>;
-  success: Scalars['Boolean']['output'];
+  readonly __typename: 'DeleteUserPayload';
+  readonly errors: Maybe<ReadonlyArray<Error>>;
+  readonly success: Scalars['Boolean']['output'];
 };
 
 export type Error = {
-  __typename?: 'Error';
-  field?: Maybe<Scalars['String']['output']>;
-  message: Scalars['String']['output'];
+  readonly __typename: 'Error';
+  readonly field: Maybe<Scalars['String']['output']>;
+  readonly message: Scalars['String']['output'];
 };
 
 export type Mutation = {
-  __typename?: 'Mutation';
-  createUser: CreateUserPayload;
-  deleteUser: DeleteUserPayload;
-  updateUser: UpdateUserPayload;
+  readonly __typename: 'Mutation';
+  readonly createUser: CreateUserPayload;
+  readonly deleteUser: DeleteUserPayload;
+  readonly updateUser: UpdateUserPayload;
 };
 
 
@@ -62,27 +62,27 @@ export type MutationUpdateUserArgs = {
 };
 
 export type Query = {
-  __typename?: 'Query';
-  _empty?: Maybe<Scalars['String']['output']>;
+  readonly __typename: 'Query';
+  readonly _empty: Maybe<Scalars['String']['output']>;
 };
 
 export type UpdateUserInput = {
-  email?: InputMaybe<Scalars['String']['input']>;
-  name?: InputMaybe<Scalars['String']['input']>;
+  readonly email?: InputMaybe<Scalars['String']['input']>;
+  readonly name?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type UpdateUserPayload = {
-  __typename?: 'UpdateUserPayload';
-  errors?: Maybe<Array<Error>>;
-  success: Scalars['Boolean']['output'];
-  user?: Maybe<User>;
+  readonly __typename: 'UpdateUserPayload';
+  readonly errors: Maybe<ReadonlyArray<Error>>;
+  readonly success: Scalars['Boolean']['output'];
+  readonly user: Maybe<User>;
 };
 
 export type User = {
-  __typename?: 'User';
-  createdAt: Scalars['String']['output'];
-  email: Scalars['String']['output'];
-  id: Scalars['ID']['output'];
-  name: Scalars['String']['output'];
-  updatedAt: Scalars['String']['output'];
+  readonly __typename: 'User';
+  readonly createdAt: Scalars['String']['output'];
+  readonly email: Scalars['String']['output'];
+  readonly id: Scalars['ID']['output'];
+  readonly name: Scalars['String']['output'];
+  readonly updatedAt: Scalars['String']['output'];
 };

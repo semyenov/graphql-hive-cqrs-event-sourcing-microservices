@@ -5,7 +5,7 @@ import { BrandedTypes } from '../branded';
 import type { ValidationResult, Validator } from '../validation';
 import { ValidationBuilder, validate, ValidationException } from '../validation';
 
-import type { AppError, Result, ValidationError as ErrorValidation } from '../errors';
+import type { AppError, Result, ValidationError as ErrorValidation, ErrorCode } from '../errors';
 import { ErrorFactory, ErrorGuards, Result as ResultHelpers } from '../errors';
 
 import type {
@@ -63,7 +63,7 @@ describe('Type System Integration', () => {
       if (result.valid) {
         // TypeScript knows this is Email type
         const email: Email = result.value;
-        expect(email).toBe('user@example.com');
+        expect(email).toBe(BrandedTypes.email('user@example.com'));
       }
     });
     
@@ -82,8 +82,8 @@ describe('Type System Integration', () => {
       if (!result.valid) {
         return ResultHelpers.err(
           ErrorFactory.validation({
-            code: 'INVALID_EMAIL',
-            message: result.errors[0].message,
+            code: 'INVALID_EMAIL' as ErrorCode,
+            message: result.errors[0]?.message || 'Validation failed',
             field: 'email',
             value: input
           })
@@ -96,7 +96,7 @@ describe('Type System Integration', () => {
       } catch (error) {
         return ResultHelpers.err(
           ErrorFactory.validation({
-            code: 'INVALID_EMAIL',
+            code: 'INVALID_EMAIL' as ErrorCode,
             message: error instanceof Error ? error.message : 'Invalid email',
             field: 'email',
             value: input
@@ -110,7 +110,7 @@ describe('Type System Integration', () => {
       expect(ResultHelpers.isOk(result)).toBe(true);
       if (result.success) {
         const email: Email = result.value;
-        expect(email).toBe('user@example.com');
+        expect(email).toBe(BrandedTypes.email('user@example.com'));
       }
     });
     
@@ -119,7 +119,9 @@ describe('Type System Integration', () => {
       expect(ResultHelpers.isErr(result)).toBe(true);
       if (!result.success) {
         expect(ErrorGuards.isValidationError(result.error)).toBe(true);
-        expect(result.error.field).toBe('email');
+        if (ErrorGuards.isValidationError(result.error)) {
+          expect(result.error.field).toBe('email');
+        }
       }
     });
   });
@@ -161,7 +163,7 @@ describe('Type System Integration', () => {
         if (message.includes('email')) {
           return ResultHelpers.err(
             ErrorFactory.validation({
-              code: 'INVALID_EMAIL',
+              code: 'INVALID_EMAIL' as ErrorCode,
               message,
               field: 'email',
               value: email
@@ -199,9 +201,9 @@ describe('Type System Integration', () => {
       
       expect(ResultHelpers.isOk(result)).toBe(true);
       if (result.success) {
-        expect(result.value.id).toBe('user-123');
-        expect(result.value.email).toBe('user@example.com');
-        expect(result.value.version).toBe(1);
+        expect(result.value.id).toBe(BrandedTypes.userId('user-123'));
+        expect(result.value.email).toBe(BrandedTypes.email('user@example.com'));
+        expect(result.value.version).toBe(BrandedTypes.eventVersion(1));
       }
     });
     
@@ -216,7 +218,9 @@ describe('Type System Integration', () => {
       expect(ResultHelpers.isErr(result)).toBe(true);
       if (!result.success) {
         expect(ErrorGuards.isValidationError(result.error)).toBe(true);
-        expect(result.error.field).toBe('email');
+        if (ErrorGuards.isValidationError(result.error)) {
+          expect(result.error.field).toBe('email');
+        }
       }
     });
     
@@ -231,7 +235,9 @@ describe('Type System Integration', () => {
       expect(ResultHelpers.isErr(result)).toBe(true);
       if (!result.success) {
         expect(ErrorGuards.isValidationError(result.error)).toBe(true);
-        expect(result.error.field).toBe('version');
+        if (ErrorGuards.isValidationError(result.error)) {
+          expect(result.error.field).toBe('version');
+        }
       }
     });
   });
@@ -318,9 +324,9 @@ describe('Type System Integration', () => {
       if (result.valid) {
         // TypeScript knows these are branded types
         const command: CreateUserCommand = result.value;
-        expect(command.userId).toBe('user-123');
-        expect(command.email).toBe('user@example.com');
-        expect(command.aggregateId).toBe('agg-123');
+        expect(command.userId).toBe(BrandedTypes.userId('user-123'));
+        expect(command.email).toBe(BrandedTypes.email('user@example.com'));
+        expect(command.aggregateId).toBe(BrandedTypes.aggregateId('agg-123'));
       }
     });
     
@@ -334,9 +340,9 @@ describe('Type System Integration', () => {
       expect(result.valid).toBe(false);
       if (!result.valid) {
         expect(result.errors).toHaveLength(3);
-        expect(result.errors.find(e => e.field.includes('userId'))).toBeDefined();
-        expect(result.errors.find(e => e.field.includes('email'))).toBeDefined();
-        expect(result.errors.find(e => e.field.includes('aggregateId'))).toBeDefined();
+        expect(result.errors.find(e => e.field?.includes('userId'))).toBeDefined();
+        expect(result.errors.find(e => e.field?.includes('email'))).toBeDefined();
+        expect(result.errors.find(e => e.field?.includes('aggregateId'))).toBeDefined();
       }
     });
   });
@@ -385,7 +391,7 @@ describe('Type System Integration', () => {
       if (!emailResult.valid) {
         return ResultHelpers.err(
           ErrorFactory.validation({
-            code: 'INVALID_EMAIL',
+            code: 'INVALID_EMAIL' as ErrorCode,
             message: 'Invalid email format',
             field: 'email',
             value: email
@@ -429,7 +435,7 @@ describe('Type System Integration', () => {
       expect(ResultHelpers.isOk(result)).toBe(true);
       if (result.success) {
         expect(result.value.message).toContain('registered successfully');
-        expect(result.value.user.email).toBe('user@example.com');
+        expect(result.value.user.email).toBe(BrandedTypes.email('user@example.com'));
       }
     });
     
@@ -448,7 +454,9 @@ describe('Type System Integration', () => {
       expect(ResultHelpers.isErr(result)).toBe(true);
       if (!result.success) {
         expect(ErrorGuards.isBusinessRuleError(result.error)).toBe(true);
-        expect(result.error.rule).toBe('reserved_email_check');
+        if (ErrorGuards.isBusinessRuleError(result.error)) {
+          expect(result.error.rule).toBe('reserved_email_check');
+        }
       }
     });
   });
@@ -479,7 +487,7 @@ class UserService {
         ErrorFactory.validation({
           code: 'INVALID_INPUT',
           message: 'Invalid user input',
-          field: validationResult.errors[0].field,
+          field: validationResult.errors[0]?.field || 'unknown',
           value: { id, email }
         })
       );

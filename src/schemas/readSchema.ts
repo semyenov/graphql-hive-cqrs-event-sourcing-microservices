@@ -1,8 +1,8 @@
 import { makeExecutableSchema } from '@graphql-tools/schema';
 import { gql } from 'graphql-tag';
-import { eventStore } from './writeSchema';
+import { eventStore } from '../repositories';
 import { UserAggregate, UserRepository } from '../events/UserAggregate';
-import type { UserEvent } from '../events/generic-types';
+import type { UserEvent, AllEvents } from '../events/generic-types';
 import type { 
   User, 
   UserList, 
@@ -80,13 +80,19 @@ interface IProjectionRebuilder {
 // Implementation of projection rebuilder
 class UserProjectionRebuilder implements IProjectionRebuilder {
   constructor(
-    private readonly eventStore: { getAllEvents(): Promise<UserEvent[]> },
+    private readonly eventStore: { getAllEvents(): Promise<AllEvents[]> },
     private readonly projectionBuilder: IProjectionBuilder<UserEvent, User>
   ) {}
 
   async rebuild(): Promise<void> {
-    const allEvents = await this.eventStore.getAllEvents() as UserEvent[];
-    await this.projectionBuilder.rebuild(allEvents);
+    const allEvents = await this.eventStore.getAllEvents();
+    // Filter to only user events
+    const userEvents = allEvents.filter(event => 
+      event.type === 'UserCreated' || 
+      event.type === 'UserUpdated' || 
+      event.type === 'UserDeleted'
+    ) as UserEvent[];
+    await this.projectionBuilder.rebuild(userEvents);
   }
 }
 
@@ -154,6 +160,7 @@ export const readResolvers: RequiredBy<QueryResolvers, 'getUser' | 'listUsers' |
       const paginatedUsers = allUsers.slice(offset, offset + limit);
       
       return {
+        __typename: 'UserList',
         users: paginatedUsers,
         total: allUsers.length,
         hasMore: offset + limit < allUsers.length,

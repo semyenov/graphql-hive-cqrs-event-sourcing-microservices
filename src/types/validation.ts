@@ -440,7 +440,7 @@ export class ValidationBuilder {
   };
 
   // Object validator
-  static object = <T extends Record<string, unknown>>(
+  static object = <T>(
     schema: ValidationSchema<T>
   ): Validator<T> => (value) => {
     if (typeof value !== 'object' || value === null) {

@@ -1,5 +1,9 @@
-export type Maybe<T> = T | null | undefined;
-export type InputMaybe<T> = T | null | undefined;
+// Auto-generated projection types for CQRS read models
+import type { Projection, MaterializedView } from '../../events/generic-types';
+import type { UserEvent } from '../../events/generic-types';
+
+export type Maybe<T> = T | null;
+export type InputMaybe<T> = Maybe<T>;
 export type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] };
 export type MakeOptional<T, K extends keyof T> = Omit<T, K> & { [SubKey in K]?: Maybe<T[SubKey]> };
 export type MakeMaybe<T, K extends keyof T> = Omit<T, K> & { [SubKey in K]: Maybe<T[SubKey]> };
@@ -15,10 +19,10 @@ export type Scalars = {
 };
 
 export type Query = {
-  readonly __typename: 'Query';
-  readonly getUser: Maybe<User>;
-  readonly listUsers: UserList;
-  readonly searchUsers: ReadonlyArray<User>;
+  __typename?: 'Query';
+  getUser?: Maybe<User>;
+  listUsers: UserList;
+  searchUsers: Array<User>;
 };
 
 
@@ -38,17 +42,17 @@ export type QuerySearchUsersArgs = {
 };
 
 export type User = {
-  readonly __typename: 'User';
-  readonly createdAt: Scalars['String']['output'];
-  readonly email: Scalars['String']['output'];
-  readonly id: Scalars['ID']['output'];
-  readonly name: Scalars['String']['output'];
-  readonly updatedAt: Scalars['String']['output'];
+  __typename?: 'User';
+  createdAt: Scalars['String']['output'];
+  email: Scalars['String']['output'];
+  id: Scalars['ID']['output'];
+  name: Scalars['String']['output'];
+  updatedAt: Scalars['String']['output'];
 };
 
 export type UserList = {
-  readonly __typename: 'UserList';
-  readonly hasMore: Scalars['Boolean']['output'];
-  readonly total: Scalars['Int']['output'];
-  readonly users: ReadonlyArray<User>;
+  __typename?: 'UserList';
+  hasMore: Scalars['Boolean']['output'];
+  total: Scalars['Int']['output'];
+  users: Array<User>;
 };

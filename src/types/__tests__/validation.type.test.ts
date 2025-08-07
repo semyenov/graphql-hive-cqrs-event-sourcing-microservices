@@ -96,7 +96,8 @@ describe('ValidationBuilder', () => {
         const result = validator('');
         expect(result.valid).toBe(false);
         if (!result.valid) {
-          expect(result.errors[0].code).toBe('REQUIRED');
+          expect(result.errors.length).toBeGreaterThan(0);
+          expect(result.errors[0]?.code).toBe('REQUIRED');
         }
       });
       
@@ -104,7 +105,8 @@ describe('ValidationBuilder', () => {
         const result = validator(123);
         expect(result.valid).toBe(false);
         if (!result.valid) {
-          expect(result.errors[0].code).toBe('REQUIRED');
+          expect(result.errors.length).toBeGreaterThan(0);
+          expect(result.errors[0]?.code).toBe('REQUIRED');
         }
       });
     });
@@ -124,8 +126,9 @@ describe('ValidationBuilder', () => {
         const result = validator('hi');
         expect(result.valid).toBe(false);
         if (!result.valid) {
-          expect(result.errors[0].code).toBe('MIN_LENGTH');
-          expect(result.errors[0].message).toBe('Minimum length is 5');
+          expect(result.errors.length).toBeGreaterThan(0);
+          expect(result.errors[0]?.code).toBe('MIN_LENGTH');
+          expect(result.errors[0]?.message).toBe('Minimum length is 5');
         }
       });
     });
@@ -162,7 +165,8 @@ describe('ValidationBuilder', () => {
           const result = validator(email);
           expect(result.valid).toBe(false);
           if (!result.valid) {
-            expect(result.errors[0].code).toBe('INVALID_FORMAT');
+            expect(result.errors.length).toBeGreaterThan(0);
+            expect(result.errors[0]?.code).toBe('INVALID_FORMAT');
           }
         });
       });
@@ -230,7 +234,7 @@ describe('ValidationBuilder', () => {
         const result1 = validator(-1);
         expect(result1.valid).toBe(false);
         if (!result1.valid) {
-          expect(result1.errors[0].message).toBe('Value must be between 0 and 100');
+          expect(result1.errors[0]?.message).toBe('Value must be between 0 and 100');
         }
         
         const result2 = validator(101);
@@ -271,8 +275,9 @@ describe('ValidationBuilder', () => {
         const result = validator(['user1@example.com', 'invalid']);
         expect(result.valid).toBe(false);
         if (!result.valid) {
-          expect(result.errors[0].field).toBe('[1]');
-          expect(result.errors[0].code).toBe('INVALID_FORMAT');
+          expect(result.errors.length).toBeGreaterThan(0);
+          expect(result.errors[0]?.field).toBe('[1]');
+          expect(result.errors[0]?.code).toBe('INVALID_FORMAT');
         }
       });
     });
@@ -393,7 +398,7 @@ describe('validate helpers', () => {
         expect(error).toBeInstanceOf(ValidationException);
         if (error instanceof ValidationException) {
           expect(error.errors).toHaveLength(1);
-          expect(error.errors[0].code).toBe('INVALID_FORMAT');
+          expect(error.errors[0]?.code).toBe('INVALID_FORMAT');
         }
       }
     });

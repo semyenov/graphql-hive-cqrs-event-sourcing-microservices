@@ -14,7 +14,7 @@ import type {
   UserDeletedEvent,
   EventReducer,
 } from './generic-types';
-import type { CreateUserInput, UpdateUserInput, User, AggregateId } from '../types';
+import type { CreateUserInput, UpdateUserInput, User, AggregateId, IEventStore } from '../types';
 import { BrandedTypes } from '../types';
 
 // User aggregate state with proper typing
@@ -138,7 +138,8 @@ export class UserAggregate extends Aggregate<UserAggregateState, UserEvent> {
     }
 
     const { deleted, version, ...user } = this.state;
-    return user;
+    // Return domain model without GraphQL __typename
+    return user as User;
   }
 
   getUserWithTimestamps(): User | null {
@@ -147,7 +148,8 @@ export class UserAggregate extends Aggregate<UserAggregateState, UserEvent> {
     }
 
     const { deleted, version, ...user } = this.state;
-    return user;
+    // Return domain model without GraphQL __typename
+    return user as User;
   }
 
   // Static factory method with type inference
@@ -180,11 +182,7 @@ export class UserRepository extends AggregateRepository<UserAggregateState, User
   private aggregates = new Map<string, UserAggregate>();
 
   constructor(
-    protected override eventStore: {
-      append(event: UserEvent): Promise<void>;
-      appendBatch(events: UserEvent[]): Promise<void>;
-      getEvents(aggregateId: AggregateId): Promise<UserEvent[]>;
-    }
+    protected override eventStore: Pick<IEventStore<UserEvent>, 'append' | 'appendBatch' | 'getEvents'>
   ) {
     super(eventStore);
   }

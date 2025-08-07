@@ -1,7 +1,7 @@
 import type { Plugin } from '@envelop/core';
 import { type GraphQLSchema, type OperationDefinitionNode, Kind, execute, subscribe } from 'graphql';
 import { readSchema } from '../schemas/readSchema';
-import { writeSchema } from '../schemas/writeSchema';
+import { writeSchemaV2 as writeSchema } from '../schemas/writeSchemaV2';
 
 export interface CQRSPluginOptions {
   readSchema: GraphQLSchema;

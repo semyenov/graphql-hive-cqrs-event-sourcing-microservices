@@ -102,8 +102,8 @@ generates:
         User: 'import("../../models/User").UserModel'
         CreateUserInput: 'import("../../events/generic-types").ExtractEventData<import("../../events/generic-types").UserCreatedEvent>'
         UpdateUserInput: 'import("../../events/generic-types").ExtractEventData<import("../../events/generic-types").UserUpdatedEvent>'
-        # Error handling with simple GraphQL error type
-        Error: 'import("../graphql-error-adapter").SimpleGraphQLError'
+        # Error handling with branded types
+        Error: 'import("../errors").DomainError'
       # Type-safe resolver signatures
       defaultMapper: 'Partial<{T}>'
       

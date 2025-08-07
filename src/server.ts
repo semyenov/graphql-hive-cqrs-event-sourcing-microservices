@@ -2,13 +2,36 @@ import { createYoga } from 'graphql-yoga';
 import { useHive } from '@graphql-hive/envelop';
 import { mergeSchemas } from '@graphql-tools/schema';
 import { readSchema } from './schemas/readSchema';
-import { writeSchema } from './schemas/writeSchema';
+import { writeSchemaV2 as writeSchema } from './schemas/writeSchemaV2';
 import { useCQRS } from './plugins/cqrsPlugin';
+import { userRepository, eventStore } from './repositories';
 
-// GraphQL Context type for resolvers
+// Enhanced GraphQL Context with domain services
 export interface GraphQLContext {
   request: Request;
-  // Add other context properties as needed
+  userId?: import('./types/branded').UserId;
+  requestId: string;
+  correlationId?: import('./types/branded').CorrelationId;
+  traceId?: string;
+  clientInfo: {
+    name: string;
+    version: string;
+  };
+  services: {
+    userRepository: import('./events/UserAggregate').UserRepository;
+    eventStore: import('./events/interfaces').IEventStore<import('./events/generic-types').AllEvents>;
+    commandBus?: import('./events/generic-types').EventBus;
+  };
+  timing: {
+    requestStart: number;
+  };
+}
+
+// GraphQL Root Value type for additional type safety
+export interface GraphQLRootValue {
+  // Add root value properties if needed
+  version: string;
+  environment: 'development' | 'staging' | 'production';
 }
 
 // Merge schemas for Hive reporting (not for execution)
@@ -41,6 +64,18 @@ const yoga = createYoga({
   maskedErrors: process.env.NODE_ENV === 'production',
   context: async ({ request }): Promise<GraphQLContext> => ({
     request,
+    requestId: crypto.randomUUID(),
+    clientInfo: {
+      name: request.headers.get('client-name') || 'unknown',
+      version: request.headers.get('client-version') || 'unknown',
+    },
+    services: {
+      userRepository,
+      eventStore,
+    },
+    timing: {
+      requestStart: Date.now(),
+    },
   }),
 });
 

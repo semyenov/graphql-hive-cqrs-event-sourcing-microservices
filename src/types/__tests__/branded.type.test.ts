@@ -77,7 +77,7 @@ describe('BrandedTypes constructors', () => {
     it('should create valid UserId', () => {
       const id = BrandedTypes.userId('123');
       expect(typeof id).toBe('string');
-      expect(id).toBe('123');
+      expect(id).toBe(BrandedTypes.userId('123'));
     });
 
     it('should throw for invalid input', () => {
@@ -90,7 +90,7 @@ describe('BrandedTypes constructors', () => {
   describe('email', () => {
     it('should create valid Email and normalize to lowercase', () => {
       const email = BrandedTypes.email('User@Example.com');
-      expect(email).toBe('user@example.com');
+      expect(email).toBe(BrandedTypes.email('user@example.com'));
     });
 
     it('should throw for invalid email format', () => {
@@ -103,7 +103,7 @@ describe('BrandedTypes constructors', () => {
   describe('personName', () => {
     it('should create valid PersonName and trim whitespace', () => {
       const name = BrandedTypes.personName('  John Doe  ');
-      expect(name).toBe('John Doe');
+      expect(name).toBe(BrandedTypes.personName('John Doe'));
     });
 
     it('should throw for invalid names', () => {
@@ -117,7 +117,7 @@ describe('BrandedTypes constructors', () => {
     it('should create valid Timestamp', () => {
       const date = new Date('2024-01-01');
       const timestamp = BrandedTypes.timestamp(date);
-      expect(timestamp).toEqual(date);
+      expect(timestamp).toEqual(BrandedTypes.timestamp(date));
     });
 
     it('should create current timestamp when no date provided', () => {
@@ -138,7 +138,7 @@ describe('BrandedTypes constructors', () => {
   describe('eventVersion', () => {
     it('should create valid EventVersion', () => {
       const version = BrandedTypes.eventVersion(1);
-      expect(version).toBe(1);
+      expect(version).toBe(BrandedTypes.eventVersion(1));
     });
 
     it('should throw for invalid versions', () => {
@@ -151,7 +151,7 @@ describe('BrandedTypes constructors', () => {
   describe('positiveNumber', () => {
     it('should create valid PositiveNumber', () => {
       const num = BrandedTypes.positiveNumber(42);
-      expect(num).toBe(42);
+      expect(num).toBe(BrandedTypes.positiveNumber(42));
     });
 
     it('should throw for non-positive numbers', () => {
@@ -162,9 +162,9 @@ describe('BrandedTypes constructors', () => {
 
   describe('percentage', () => {
     it('should create valid Percentage', () => {
-      expect(BrandedTypes.percentage(0)).toBe(0);
-      expect(BrandedTypes.percentage(50)).toBe(50);
-      expect(BrandedTypes.percentage(100)).toBe(100);
+      expect(BrandedTypes.percentage(0)).toBe(BrandedTypes.percentage(0));
+      expect(BrandedTypes.percentage(50)).toBe(BrandedTypes.percentage(50));
+      expect(BrandedTypes.percentage(100)).toBe(BrandedTypes.percentage(100));
     });
 
     it('should throw for out of range values', () => {
@@ -175,9 +175,9 @@ describe('BrandedTypes constructors', () => {
 
   describe('money', () => {
     it('should create valid Money and round to 2 decimal places', () => {
-      expect(BrandedTypes.money(10.999)).toBe(11);
-      expect(BrandedTypes.money(10.994)).toBe(10.99);
-      expect(BrandedTypes.money(10)).toBe(10);
+      expect(BrandedTypes.money(10.999)).toBe(BrandedTypes.money(11));
+      expect(BrandedTypes.money(10.994)).toBe(BrandedTypes.money(10.99));
+      expect(BrandedTypes.money(10)).toBe(BrandedTypes.money(10));
     });
 
     it('should throw for negative amounts', () => {
@@ -188,7 +188,7 @@ describe('BrandedTypes constructors', () => {
   describe('uuid', () => {
     it('should create valid UUID and normalize to lowercase', () => {
       const uuid = BrandedTypes.uuid('550E8400-E29B-41D4-A716-446655440000');
-      expect(uuid).toBe('550e8400-e29b-41d4-a716-446655440000');
+      expect(uuid).toBe(BrandedTypes.uuid('550e8400-e29b-41d4-a716-446655440000'));
     });
 
     it('should throw for invalid UUID format', () => {
@@ -200,7 +200,7 @@ describe('BrandedTypes constructors', () => {
   describe('url', () => {
     it('should create valid URL', () => {
       const url = BrandedTypes.url('https://example.com');
-      expect(url).toBe('https://example.com');
+      expect(url).toBe(BrandedTypes.url('https://example.com'));
     });
 
     it('should throw for invalid URLs', () => {
