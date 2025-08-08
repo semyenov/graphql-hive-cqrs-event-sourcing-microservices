@@ -1,9 +1,9 @@
-import type { Event } from './generic-types';
-import type { IEventStore } from './interfaces';
-import type { AggregateId } from '../types/branded';
+import type { IEvent } from '../../core/types';
+import type { IEventStore } from '../../domain/interfaces';
+import type { AggregateId } from '../../core/branded';
 
 // Generic in-memory event store implementation
-export class InMemoryEventStore<TEvent extends Event = Event> implements IEventStore<TEvent> {
+export class InMemoryEventStore<TEvent extends IEvent = IEvent> implements IEventStore<TEvent> {
   private events: TEvent[] = [];
   private eventsByAggregate = new Map<string, TEvent[]>();
   private eventsByType = new Map<TEvent['type'], TEvent[]>();

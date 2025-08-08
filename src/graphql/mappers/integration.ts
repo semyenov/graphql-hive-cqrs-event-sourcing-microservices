@@ -7,19 +7,16 @@ import type {
   MutationCreateUserArgs,
   MutationUpdateUserArgs,
   MutationDeleteUserArgs,
-} from './generated/resolvers';
+} from '../../types/generated/resolvers';
 
+import type { ICommand, ICommandResult } from '../../core/types';
 import type {
   UserCreatedEvent,
   UserUpdatedEvent,
   UserDeletedEvent,
-  Event,
-  Command,
-  CommandResult,
-  EventHandler,
-} from '../events/generic-types';
+} from '../../domain/events/user-events';
 
-import type { AggregateId, UserId } from './branded';
+import type { AggregateId, UserId } from '../../core/branded';
 
 // ============================================================================
 // GraphQL Input to Domain Event Data Mapping
@@ -54,8 +51,8 @@ export const updateUserMapper: GraphQLToDomainMapper<
 // Enhanced command interface with GraphQL metadata
 export interface GraphQLCommand<
   TArgs extends Record<string, unknown>,
-  TEvent extends Event
-> extends Command {
+  TEvent
+> extends ICommand {
   graphqlArgs: TArgs;
   operationName?: string;
   clientInfo?: {
@@ -164,8 +161,8 @@ export type EventToGraphQLMapper<TEvent, TGraphQLResponse> = (
 
 // Response builders for GraphQL mutations
 export const buildCreateUserResponse = (
-  result: CommandResult<UserCreatedEvent>
-): import('./generated/resolvers').CreateUserPayload => ({
+  result: ICommandResult<UserCreatedEvent[]>
+): import('../../types/generated/resolvers').CreateUserPayload => ({
   success: result.success,
   user: result.success && result.events?.[0] ? {
     id: result.events[0].aggregateId,
@@ -181,9 +178,9 @@ export const buildCreateUserResponse = (
 });
 
 export const buildUpdateUserResponse = (
-  result: CommandResult<UserUpdatedEvent>,
-  currentUser?: import('./generated/resolvers').User
-): import('./generated/resolvers').UpdateUserPayload => ({
+  result: ICommandResult<UserUpdatedEvent[]>,
+  currentUser?: import('../../types/generated/resolvers').User
+): import('../../types/generated/resolvers').UpdateUserPayload => ({
   success: result.success,
   user: result.success && result.events?.[0] && currentUser ? {
     ...currentUser,
@@ -198,8 +195,8 @@ export const buildUpdateUserResponse = (
 });
 
 export const buildDeleteUserResponse = (
-  result: CommandResult<UserDeletedEvent>
-): import('./generated/resolvers').DeleteUserPayload => ({
+  result: ICommandResult<UserDeletedEvent[]>
+): import('../../types/generated/resolvers').DeleteUserPayload => ({
   success: result.success,
   errors: result.error ? [{
     message: result.error.message,

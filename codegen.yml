@@ -25,8 +25,8 @@ generates:
       nonOptionalTypename: true
       scalars:
         ID: 
-          input: 'import("../branded").AggregateId'
-          output: 'import("../branded").AggregateId'
+          input: 'import("../../core/branded").AggregateId'
+          output: 'import("../../core/branded").AggregateId'
         String: string
         Int: number
         Float: number
@@ -54,8 +54,8 @@ generates:
       rootValueType: 'import("../../server").GraphQLRootValue'
       scalars:
         ID:
-          input: 'import("../branded").AggregateId'
-          output: 'import("../branded").AggregateId'
+          input: 'import("../../core/branded").AggregateId'
+          output: 'import("../../core/branded").AggregateId'
         String: string
         Int: number
         Float: number
@@ -72,48 +72,7 @@ generates:
       mappers:
         # Map GraphQL types to domain models
         User: 'import("../../models/User").UserModel'
-        CreateUserInput: 'import("../../events/generic-types").ExtractEventData<import("../../events/generic-types").UserCreatedEvent>'
-        UpdateUserInput: 'import("../../events/generic-types").ExtractEventData<import("../../events/generic-types").UserUpdatedEvent>'
         # Error handling with simple GraphQL error type
         Error: 'import("../graphql-error-adapter").SimpleGraphQLError'
       # Type-safe resolver signatures
       defaultMapper: 'Partial<{T}>'
-      
-  # Command type generation for write operations
-  src/types/generated/commands.ts:
-    schema: src/schema.graphql
-    plugins:
-      - typescript
-      - add:
-          content: |
-            // Auto-generated command types for CQRS
-            import type { Command, CommandResult } from '../../events/generic-types';
-            import type { AggregateId } from '../branded';
-            import type { UserEvent } from '../../events/generic-types';
-            
-    config:
-      enumsAsTypes: true
-      scalars:
-        ID: 'import("../branded").AggregateId'
-      customResolverFn: |
-        (parent: TParent, args: TArgs, context: TContext, info: GraphQLResolveInfo) =>
-          Promise<CommandResult<TResult>> | CommandResult<TResult>
-          
-  # Query projection types for read operations
-  src/types/generated/projections.ts:
-    schema: src/schema.graphql
-    plugins:
-      - typescript
-      - add:
-          content: |
-            // Auto-generated projection types for CQRS read models
-            import type { Projection, MaterializedView } from '../../events/generic-types';
-            import type { UserEvent } from '../../events/generic-types';
-            
-    config:
-      enumsAsTypes: true
-      scalars:
-        ID: 'import("../branded").AggregateId'
-      customResolverFn: |
-        (parent: TParent, args: TArgs, context: TContext, info: GraphQLResolveInfo) =>
-          Promise<TResult> | TResult

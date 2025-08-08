@@ -1,4 +1,4 @@
-import type { GraphQLResolveInfo } from 'graphql';
+import { GraphQLResolveInfo } from 'graphql';
 export type Maybe<T> = T | null | undefined;
 export type InputMaybe<T> = T | null | undefined;
 export type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] };
@@ -10,7 +10,7 @@ export type Omit<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>;
 export type RequireFields<T, K extends keyof T> = Omit<T, K> & { [P in K]-?: NonNullable<T[P]> };
 /** All built-in and custom scalars, mapped to their actual values */
 export type Scalars = {
-  ID: { input: import("../branded").AggregateId; output: import("../branded").AggregateId; }
+  ID: { input: import("../../core/branded").AggregateId; output: import("../../core/branded").AggregateId; }
   String: { input: string; output: string; }
   Boolean: { input: boolean; output: boolean; }
   Int: { input: number; output: number; }
@@ -187,7 +187,7 @@ export type DirectiveResolverFn<TResult = {}, TParent = {}, TContext = {}, TArgs
 /** Mapping between all available schema types and the resolvers types */
 export type ResolversTypes = {
   Boolean: ResolverTypeWrapper<Partial<Scalars['Boolean']['output']>>;
-  CreateUserInput: ResolverTypeWrapper<import("../../events/generic-types").ExtractEventData<import("../../events/generic-types").UserCreatedEvent>>;
+  CreateUserInput: ResolverTypeWrapper<Partial<CreateUserInput>>;
   CreateUserPayload: ResolverTypeWrapper<Partial<Omit<CreateUserPayload, 'errors' | 'user'> & { errors?: Maybe<ReadonlyArray<ResolversTypes['Error']>>, user?: Maybe<ResolversTypes['User']> }>>;
   DeleteUserPayload: ResolverTypeWrapper<Partial<Omit<DeleteUserPayload, 'errors'> & { errors?: Maybe<ReadonlyArray<ResolversTypes['Error']>> }>>;
   Error: ResolverTypeWrapper<import("../graphql-error-adapter").SimpleGraphQLError>;
@@ -196,7 +196,7 @@ export type ResolversTypes = {
   Mutation: ResolverTypeWrapper<import("../../server").GraphQLRootValue>;
   Query: ResolverTypeWrapper<import("../../server").GraphQLRootValue>;
   String: ResolverTypeWrapper<Partial<Scalars['String']['output']>>;
-  UpdateUserInput: ResolverTypeWrapper<import("../../events/generic-types").ExtractEventData<import("../../events/generic-types").UserUpdatedEvent>>;
+  UpdateUserInput: ResolverTypeWrapper<Partial<UpdateUserInput>>;
   UpdateUserPayload: ResolverTypeWrapper<Partial<Omit<UpdateUserPayload, 'errors' | 'user'> & { errors?: Maybe<ReadonlyArray<ResolversTypes['Error']>>, user?: Maybe<ResolversTypes['User']> }>>;
   User: ResolverTypeWrapper<import("../../models/User").UserModel>;
   UserList: ResolverTypeWrapper<Partial<Omit<UserList, 'users'> & { users: ReadonlyArray<ResolversTypes['User']> }>>;
@@ -205,7 +205,7 @@ export type ResolversTypes = {
 /** Mapping between all available schema types and the resolvers parents */
 export type ResolversParentTypes = {
   Boolean: Partial<Scalars['Boolean']['output']>;
-  CreateUserInput: import("../../events/generic-types").ExtractEventData<import("../../events/generic-types").UserCreatedEvent>;
+  CreateUserInput: Partial<CreateUserInput>;
   CreateUserPayload: Partial<Omit<CreateUserPayload, 'errors' | 'user'> & { errors?: Maybe<ReadonlyArray<ResolversParentTypes['Error']>>, user?: Maybe<ResolversParentTypes['User']> }>;
   DeleteUserPayload: Partial<Omit<DeleteUserPayload, 'errors'> & { errors?: Maybe<ReadonlyArray<ResolversParentTypes['Error']>> }>;
   Error: import("../graphql-error-adapter").SimpleGraphQLError;
@@ -214,7 +214,7 @@ export type ResolversParentTypes = {
   Mutation: import("../../server").GraphQLRootValue;
   Query: import("../../server").GraphQLRootValue;
   String: Partial<Scalars['String']['output']>;
-  UpdateUserInput: import("../../events/generic-types").ExtractEventData<import("../../events/generic-types").UserUpdatedEvent>;
+  UpdateUserInput: Partial<UpdateUserInput>;
   UpdateUserPayload: Partial<Omit<UpdateUserPayload, 'errors' | 'user'> & { errors?: Maybe<ReadonlyArray<ResolversParentTypes['Error']>>, user?: Maybe<ResolversParentTypes['User']> }>;
   User: import("../../models/User").UserModel;
   UserList: Partial<Omit<UserList, 'users'> & { users: ReadonlyArray<ResolversParentTypes['User']> }>;

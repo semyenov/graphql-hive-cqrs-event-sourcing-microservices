@@ -1,16 +1,19 @@
 import type {
-  CreateUserInput,
-  UpdateUserInput,
-  User,
   AggregateId,
   EventVersion,
   Timestamp,
   CorrelationId,
   CausationId,
   UserId,
-} from '../types';
+} from '../../core/branded';
 
-import { BrandedTypes } from '../types';
+import { BrandedTypes } from '../../core/branded';
+
+import type {
+  CreateUserInput,
+  UpdateUserInput,
+  User,
+} from '../../types/generated/resolvers';
 
 // ============================================================================
 // Core Event Interface with Enhanced Generics
@@ -28,6 +31,13 @@ export interface Event<
   timestamp: Timestamp;
   data: TData;
 }
+
+// Export IEvent as alias for compatibility with core types
+export type IEvent<
+  TType extends string = string,
+  TData = unknown,
+  TAggregateId extends AggregateId = AggregateId
+> = Event<TType, TData, TAggregateId>;
 
 // ============================================================================
 // Template Literal Types for Event Naming

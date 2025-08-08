@@ -1,27 +1,26 @@
 import type {
-  Event,
+  IEvent,
   EventReducer,
   EventPattern,
-  Snapshot,
-  Command,
-} from './generic-types';
+  ISnapshot,
+  ICommand,
+} from '../../core/types';
 import type {
-  IAggregate,
-  IAggregateInternal,
+  IAggregateBehavior,
   IAggregateConstructor,
   ICommandHandler,
   IEventStore,
   IAggregateRepository,
   IAggregateFactory,
-} from './interfaces';
-import { BrandedTypes, type AggregateId, type EventVersion, type Timestamp } from '../types';
+} from '../interfaces';
+import { BrandedTypes, type AggregateId, type EventVersion, type Timestamp } from '../../core/branded';
 
 // Generic aggregate base class with full type inference
 export abstract class Aggregate<
   TState,
-  TEvent extends Event,
+  TEvent extends IEvent,
   TAggregateId extends AggregateId = AggregateId
-> implements IAggregate<TState, TEvent, TAggregateId> {
+> implements IAggregateBehavior<TState, TEvent, TAggregateId> {
   protected state: TState | null = null;
   protected version = 0;
   protected uncommittedEvents: TEvent[] = [];
@@ -65,10 +64,24 @@ export abstract class Aggregate<
     }
   }
 
+  // Load aggregate from event history
+  loadFromHistory(events: TEvent[]): void {
+    events.forEach(event => this.applyEvent(event, false));
+  }
+
+  // Load aggregate from snapshot
+  loadFromSnapshot(snapshot: ISnapshot<TState, TAggregateId>): void {
+    if (snapshot.aggregateId !== this.id) {
+      throw new Error(`Snapshot aggregate ID mismatch: ${snapshot.aggregateId} !== ${this.id}`);
+    }
+    this.state = snapshot.state;
+    this.version = snapshot.version;
+  }
+
   // Load aggregate from events
   static async fromEvents<
     TState,
-    TEvent extends Event,
+    TEvent extends IEvent,
     TAggregateId extends AggregateId,
     TAggregate extends Aggregate<TState, TEvent, TAggregateId>
   >(
@@ -84,12 +97,12 @@ export abstract class Aggregate<
   // Load from snapshot and events
   static async fromSnapshot<
     TState,
-    TEvent extends Event,
+    TEvent extends IEvent,
     TAggregateId extends AggregateId,
     TAggregate extends Aggregate<TState, TEvent, TAggregateId>
   >(
     this: new (id: TAggregateId) => TAggregate,
-    snapshot: Snapshot<TState, TAggregateId>,
+    snapshot: ISnapshot<TState, TAggregateId>,
     events: TEvent[]
   ): Promise<TAggregate> {
     const aggregate = new this(snapshot.aggregateId);
@@ -112,7 +125,7 @@ export abstract class Aggregate<
   }
 
   // Create snapshot of current state
-  createSnapshot(): Snapshot<TState, TAggregateId> {
+  createSnapshot(): ISnapshot<TState, TAggregateId> {
     if (!this.state) {
       throw new Error('Cannot create snapshot of aggregate without state');
     }
@@ -126,7 +139,7 @@ export abstract class Aggregate<
   }
 
   // Generic command execution with type inference
-  protected execute<TCommand extends Command>(
+  protected execute<TCommand extends ICommand>(
     command: TCommand,
     handler: (payload: TCommand['payload']) => TEvent | TEvent[]
   ): void {
@@ -150,21 +163,21 @@ export abstract class Aggregate<
 }
 
 // Type helper to infer state type from aggregate
-export type InferAggregateState<T> = T extends Aggregate<infer S, Event, AggregateId> ? S : never;
+export type InferAggregateState<T> = T extends Aggregate<infer S, IEvent, AggregateId> ? S : never;
 
 // Type helper to infer event type from aggregate
-export type InferAggregateEvent<T> = T extends Aggregate<unknown, infer E extends Event, AggregateId> ? E : never;
+export type InferAggregateEvent<T> = T extends Aggregate<unknown, infer E extends IEvent, AggregateId> ? E : never;
 
 // Type helper to infer aggregate ID type
-export type InferAggregateId<T> = T extends Aggregate<unknown, Event, infer I extends AggregateId> ? I : never;
+export type InferAggregateId<T> = T extends Aggregate<unknown, IEvent, infer I extends AggregateId> ? I : never;
 
 // Re-export command handler interface
-export type { ICommandHandler as CommandHandler } from './interfaces';
+export type { ICommandHandler as CommandHandler } from '../interfaces';
 
 // Factory for creating typed aggregates
 export class AggregateFactory<
   TState,
-  TEvent extends Event,
+  TEvent extends IEvent,
   TAggregateId extends AggregateId = AggregateId
 > implements IAggregateFactory<Aggregate<TState, TEvent, TAggregateId>, TAggregateId> {
   constructor(
@@ -185,7 +198,7 @@ export class AggregateFactory<
 // Repository pattern for aggregates with generics
 export abstract class AggregateRepository<
   TState,
-  TEvent extends Event,
+  TEvent extends IEvent,
   TAggregateId extends AggregateId,
   TAggregate extends Aggregate<TState, TEvent, TAggregateId>
 > implements IAggregateRepository<TAggregate, TAggregateId> {

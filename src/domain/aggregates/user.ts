@@ -1,4 +1,4 @@
-import { Aggregate, AggregateRepository } from './GenericAggregate';
+import { Aggregate, AggregateRepository } from './base';
 import {
   EventFactories,
   EventTypes,
@@ -6,16 +6,18 @@ import {
   isUserCreatedEvent,
   isUserUpdatedEvent,
   isUserDeletedEvent,
-} from './generic-types';
+} from '../events/types';
 import type {
   UserEvent,
   UserCreatedEvent,
   UserUpdatedEvent,
   UserDeletedEvent,
   EventReducer,
-} from './generic-types';
-import type { CreateUserInput, UpdateUserInput, User, AggregateId, IEventStore } from '../types';
-import { BrandedTypes } from '../types';
+} from '../events/types';
+import type { IEventStore } from '../interfaces';
+import type { CreateUserInput, UpdateUserInput, User } from '../../types/generated/resolvers';
+import type { AggregateId } from '../../core/branded';
+import { BrandedTypes } from '../../core/branded';
 
 // User aggregate state with proper typing
 export interface UserAggregateState {

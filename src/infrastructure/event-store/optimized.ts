@@ -1,33 +1,29 @@
 // Optimized Event Store implementation with performance enhancements
 // This addresses event sourcing performance bottlenecks identified in the architecture
 
+import type { IEvent, ISnapshot } from '../../core/types';
 import type {
-  Event,
-  AllEvents,
-  UserEvent,
-  Snapshot,
-  SnapshotStrategy,
   EventIndex,
   AggregateIndex,
   CompoundIndex,
-} from './generic-types';
-
-import type { AggregateId, EventVersion } from '../types/branded';
-import { BrandedTypes } from '../types/branded';
-import type { IEventStore } from './interfaces';
+  SnapshotStrategy,
+} from '../../domain/events/types';
+import type { AggregateId, EventVersion } from '../../core/branded';
+import { BrandedTypes } from '../../core/branded';
+import type { IEventStore } from '../../domain/interfaces';
 
 // ============================================================================
 // Performance-Optimized Event Store
 // ============================================================================
 
-export interface OptimizedEventStore<TEvent extends Event> extends IEventStore<TEvent> {
+export interface OptimizedEventStore<TEvent extends IEvent> extends IEventStore<TEvent> {
   // Batch operations for better throughput
   appendBatch(events: readonly TEvent[]): Promise<void>;
   getEventsBatch(aggregateIds: AggregateId[]): Promise<Map<AggregateId, TEvent[]>>;
 
   // Snapshot support for faster aggregate loading
-  saveSnapshot(snapshot: Snapshot): Promise<void>;
-  getSnapshot(aggregateId: AggregateId): Promise<Snapshot | null>;
+  saveSnapshot(snapshot: ISnapshot): Promise<void>;
+  getSnapshot(aggregateId: AggregateId): Promise<ISnapshot | null>;
   getEventsFromSnapshot(aggregateId: AggregateId, fromVersion: EventVersion): Promise<TEvent[]>;
 
   // Streaming for large event sets
@@ -53,20 +49,20 @@ export interface OptimizedEventStore<TEvent extends Event> extends IEventStore<T
 // In-Memory Optimized Implementation (for development/testing)
 // ============================================================================
 
-export class InMemoryOptimizedEventStore implements OptimizedEventStore<AllEvents> {
-  private events = new Map<AggregateId, AllEvents[]>();
-  private snapshots = new Map<AggregateId, Snapshot>();
-  private subscribers = new Set<(event: AllEvents) => Promise<void>>();
+export class InMemoryOptimizedEventStore<TEvent extends IEvent = IEvent> implements OptimizedEventStore<TEvent> {
+  private events = new Map<AggregateId, TEvent[]>();
+  private snapshots = new Map<AggregateId, ISnapshot>();
+  private subscribers = new Set<(event: TEvent) => Promise<void>>();
 
   // Performance indexes
-  private eventTypeIndex: EventIndex<AllEvents> = new Map();
-  private aggregateIndex: AggregateIndex<AllEvents> = new Map();
-  private compoundIndex: CompoundIndex<AllEvents> = new Map();
+  private eventTypeIndex: EventIndex<TEvent> = new Map();
+  private aggregateIndex: AggregateIndex<TEvent> = new Map();
+  private compoundIndex: CompoundIndex<TEvent> = new Map();
 
   // Snapshot strategy
   private snapshotStrategy: SnapshotStrategy = { type: 'count', threshold: 20 };
 
-  async append(event: AllEvents): Promise<void> {
+  async append(event: TEvent): Promise<void> {
     await this.appendBatch([event]);
   }
 

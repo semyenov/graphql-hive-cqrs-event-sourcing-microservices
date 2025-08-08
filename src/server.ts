@@ -6,18 +6,18 @@ import { userRepository, eventStore } from './repositories';
 // Enhanced GraphQL Context with domain services
 export interface GraphQLContext {
   request: Request;
-  userId?: import('./types/branded').UserId;
+  userId?: import('./core/branded').UserId;
   requestId: string;
-  correlationId?: import('./types/branded').CorrelationId;
+  correlationId?: import('./core/branded').CorrelationId;
   traceId?: string;
   clientInfo: {
     name: string;
     version: string;
   };
   services: {
-    userRepository: import('./events/UserAggregate').UserRepository;
-    eventStore: import('./events/interfaces').IEventStore<import('./events/generic-types').UserEvent>;
-    commandBus?: import('./events/generic-types').EventBus;
+    userRepository: import('./domain/aggregates/user').UserRepository;
+    eventStore: import('./domain/interfaces').IEventStore<import('./domain/events/types').UserEvent>;
+    commandBus?: import('./domain/events/types').EventBus;
   };
   timing: {
     requestStart: number;

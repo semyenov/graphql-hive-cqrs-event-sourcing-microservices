@@ -1,5 +1,5 @@
-import type { Event, UserCreatedEvent, UserUpdatedEvent, UserDeletedEvent } from './generic-types';
-import { isUserCreatedEvent, isUserUpdatedEvent, isUserDeletedEvent } from './generic-types';
+import type { Event, UserCreatedEvent, UserUpdatedEvent, UserDeletedEvent } from '../events/types';
+import { isUserCreatedEvent, isUserUpdatedEvent, isUserDeletedEvent } from '../events/types';
 
 // Event handler type definitions
 export type EventHandlerFunction<T extends Event> = (event: T) => Promise<void> | void;

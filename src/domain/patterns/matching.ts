@@ -1,7 +1,7 @@
 // Type-safe pattern matching system without 'any' types
 // This replaces the unsafe pattern matching in generic-types.ts
 
-import type { Event, AllEvents, UserEvent, SystemEvent, IntegrationEvent } from './generic-types';
+import type { Event, AllEvents, UserEvent, SystemEvent, IntegrationEvent } from '../events/types';
 
 // ============================================================================
 // Type-Safe Pattern Matching Implementation

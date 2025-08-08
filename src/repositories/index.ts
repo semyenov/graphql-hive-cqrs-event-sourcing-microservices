@@ -1,6 +1,6 @@
-import { InMemoryEventStore } from '../events/InMemoryEventStore';
-import { UserRepository } from '../events/UserAggregate';
-import type { AllEvents, UserEvent } from '../events/generic-types';
+import { InMemoryEventStore } from '../infrastructure/event-store/memory';
+import { UserRepository } from '../domain/aggregates/user';
+import type { AllEvents, UserEvent } from '../domain/events/types';
 
 // Create a shared event store instance with proper typing for all events
 export const eventStore = new InMemoryEventStore<UserEvent>();

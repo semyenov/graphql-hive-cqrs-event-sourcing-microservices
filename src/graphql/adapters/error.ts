@@ -1,4 +1,4 @@
-import type { DomainError } from './errors';
+import type { DomainError } from '../../core/errors';
 
 // Simple GraphQL error type matching our schema
 export interface SimpleGraphQLError {

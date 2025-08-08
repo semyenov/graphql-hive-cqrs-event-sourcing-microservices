@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 
 import { eventStore } from './repositories';
-import { UserAggregate } from './events/UserAggregate';
-import { BrandedTypes } from './types';
+import { UserAggregate } from './domain/aggregates/user';
+import { BrandedTypes } from './core/branded';
 import { 
   isUserCreatedEvent, 
   isUserUpdatedEvent, 
@@ -10,7 +10,7 @@ import {
   matchEvent,
   foldEvents,
   type UserEvent,
-} from './events/generic-types';
+} from './domain/events/types';
 
 // Test Event Sourcing functionality
 const testEventSourcing = async () => {
