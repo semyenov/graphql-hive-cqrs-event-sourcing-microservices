@@ -116,9 +116,9 @@ export class CommandBus<TCommand extends ICommand = ICommand> implements IComman
   /**
    * Register a command handler with explicit type
    */
-  registerWithType<TSpecificCommand extends TCommand>(
+  registerWithType<TSpecificCommand extends ICommand>(
     commandType: TSpecificCommand['type'],
-    handler: ICommandHandler<TSpecificCommand>
+    handler: ICommandHandler<TSpecificCommand, ICommandResult<unknown, Error>>
   ): void {
     this.handlers.set(commandType, handler as ICommandHandler<ICommand>);
   }

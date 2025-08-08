@@ -6,12 +6,12 @@
  */
 
 import {
-  createCommandValidatorV2,
-  ValidationRulesV2,
-  ValidationBuilderV2,
-  validatorV2,
-  type ICommandValidatorV2,
-} from '../../../framework/core/validation-enhanced';
+  createCommandValidator,
+  ValidationRules,
+  ValidationBuilder,
+  validator,
+  type ICommandValidator,
+} from '../../../framework/core/validation'; // Fixed: using unified validation
 import type { ICommand } from '../../../framework/core/command';
 import type * as Commands from '../commands/types';
 

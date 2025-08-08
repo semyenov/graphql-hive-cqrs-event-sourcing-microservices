@@ -7,7 +7,7 @@
 
 import type { ICommand, ICommandBus } from '../core/command';
 import type { IQuery, IQueryBus } from '../core/query';
-import type { IValidatorV2 } from '../core/validation-enhanced';
+import type { IValidator } from '../core/validation'; // Fixed: using unified validation
 import type { GraphQLFieldConfig, GraphQLResolveInfo } from 'graphql';
 
 /**
@@ -16,7 +16,7 @@ import type { GraphQLFieldConfig, GraphQLResolveInfo } from 'graphql';
 export interface IResolverContext {
   commandBus: ICommandBus;
   queryBus: IQueryBus;
-  validators?: Map<string, IValidatorV2<unknown>>;
+  validators?: Map<string, IValidator<unknown>>;
   userId?: string;
   requestId?: string;
   permissions?: string[];
@@ -122,7 +122,7 @@ export class CommandResolverBuilder<TCommand extends ICommand> {
   /**
    * Enable validation
    */
-  withValidation(validator?: IValidatorV2<unknown>): this {
+  withValidation(validator?: IValidator<unknown>): this {
     this.config.enableValidation = true;
     return this;
   }
@@ -159,7 +159,8 @@ export class CommandResolverBuilder<TCommand extends ICommand> {
    */
   build(): GraphQLFieldConfig<unknown, IResolverContext> {
     return {
-      resolve: async (parent, args, context, info) => {
+      type: require('graphql').GraphQLString,
+      resolve: async (parent: unknown, args: any, context: IResolverContext, info: any) => {
         const executionContext: IResolverExecutionContext = {
           operation: 'mutation',
           fieldName: info.fieldName,
@@ -421,7 +422,8 @@ export class QueryResolverBuilder<TQuery extends IQuery> {
    */
   build(): GraphQLFieldConfig<unknown, IResolverContext> {
     return {
-      resolve: async (parent, args, context, info) => {
+      type: require('graphql').GraphQLString,
+      resolve: async (parent: unknown, args: any, context: IResolverContext, info: any) => {
         const executionContext: IResolverExecutionContext = {
           operation: 'query',
           fieldName: info.fieldName,

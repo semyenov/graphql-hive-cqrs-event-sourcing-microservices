@@ -23,8 +23,8 @@ export function createUserDomainResolvers(_context: UserDomainContext) {
       // Get single user by ID
       user: createQueryResolver({
         queryType: UserQueryTypes.GetUserById,
-        mapParams: (args: { id: string }) => ({
-          userId: BrandedTypes.aggregateId(args.id),
+        mapParams: (args: unknown) => ({
+          userId: BrandedTypes.aggregateId((args as { id: string }).id),
         }),
       }),
       
@@ -39,33 +39,39 @@ export function createUserDomainResolvers(_context: UserDomainContext) {
       // List users with pagination
       users: createQueryResolver({
         queryType: UserQueryTypes.ListUsers,
-        mapParams: (args: { 
-          pagination: { offset: number; limit: number; sortBy?: string; sortOrder?: string };
-          includeDeleted?: boolean;
-        }) => ({
-          pagination: {
-            offset: args.pagination.offset,
-            limit: args.pagination.limit,
-            sortBy: args.pagination.sortBy,
-            sortOrder: args.pagination.sortOrder as 'asc' | 'desc' | undefined,
-          },
-          includeDeleted: args.includeDeleted,
-        }),
+        mapParams: (args: unknown) => {
+          const typedArgs = args as { 
+            pagination: { offset: number; limit: number; sortBy?: string; sortOrder?: string };
+            includeDeleted?: boolean;
+          };
+          return {
+            pagination: {
+              offset: typedArgs.pagination.offset,
+              limit: typedArgs.pagination.limit,
+              sortBy: typedArgs.pagination.sortBy,
+              sortOrder: typedArgs.pagination.sortOrder as 'asc' | 'desc' | undefined,
+            },
+            includeDeleted: typedArgs.includeDeleted,
+          };
+        },
       }),
       
       // Search users
       searchUsers: createQueryResolver({
         queryType: UserQueryTypes.SearchUsers,
-        mapParams: (args: { input: { searchTerm: string; fields?: string[] } }) => ({
-          searchTerm: args.input.searchTerm,
-          fields: args.input.fields as ('name' | 'email')[] | undefined,
-        }),
+        mapParams: (args: unknown) => {
+          const typedArgs = args as { input: { searchTerm: string; fields?: string[] } };
+          return {
+            searchTerm: typedArgs.input.searchTerm,
+            fields: typedArgs.input.fields as ('name' | 'email')[] | undefined,
+          };
+        },
       }),
       
       // Get user statistics
       userStats: createQueryResolver({
         queryType: UserQueryTypes.GetUserStats,
-        mapParams: (_args: Record<string, never>) => ({}),
+        mapParams: (_args: unknown) => ({}),
         cache: {
           ttl: 30000, // Cache for 30 seconds
           key: () => 'user-stats',
@@ -77,26 +83,32 @@ export function createUserDomainResolvers(_context: UserDomainContext) {
       // Create user
       createUser: createMutationResolver({
         commandType: UserCommandTypes.CreateUser,
-        mapInput: (args: { input: { name: string; email: string } }) => ({
-          aggregateId: BrandedTypes.aggregateId(crypto.randomUUID()),
-          payload: {
-            name: args.input.name,
-            email: args.input.email,
-          },
-        }),
-        mapResult: (result, args) => ({
-          success: result.success,
-          user: result.success && result.data ? {
-            id: (result.data as { userId?: string; user?: any }).userId,
-            name: (result.data as { user?: any }).user?.name || args.input.name,
-            email: (result.data as { user?: any }).user?.email || args.input.email,
-            emailVerified: (result.data as { user?: any }).user?.emailVerified || false,
-            deleted: (result.data as { user?: any }).user?.deleted || false,
-            createdAt: (result.data as { user?: any }).user?.createdAt || new Date().toISOString(),
-            updatedAt: (result.data as { user?: any }).user?.updatedAt || new Date().toISOString(),
+        mapInput: (args: unknown) => {
+          const typedArgs = args as { input: { name: string; email: string } };
+          return {
+            aggregateId: BrandedTypes.aggregateId(crypto.randomUUID()),
+            payload: {
+              name: typedArgs.input.name,
+              email: typedArgs.input.email,
+            },
+          };
+        },
+        mapResult: (result: unknown, args: unknown) => {
+          const typedArgs = args as { input: { name: string; email: string } };
+          return {
+            success: (result as any).success,
+            user: (result as any).success && (result as any).data ? {
+              id: ((result as any).data as { userId?: string; user?: any }).userId,
+              name: ((result as any).data as { user?: any }).user?.name || typedArgs.input.name,
+              email: ((result as any).data as { user?: any }).user?.email || typedArgs.input.email,
+              emailVerified: ((result as any).data as { user?: any }).user?.emailVerified || false,
+              deleted: ((result as any).data as { user?: any }).user?.deleted || false,
+              createdAt: ((result as any).data as { user?: any }).user?.createdAt || new Date().toISOString(),
+              updatedAt: ((result as any).data as { user?: any }).user?.updatedAt || new Date().toISOString(),
           } : null,
-          errors: result.error ? [{ message: result.error.message }] : undefined,
-        }),
+          errors: (result as any).error ? [{ message: (result as any).error.message }] : undefined,
+        };
+        },
       }),
       
       // Update user

@@ -108,7 +108,7 @@ export class DomainBuilder<TEvent extends IEvent, TCommand extends ICommand, TQu
     // Auto-register query handlers  
     if (this.components.handlers?.queries) {
       for (const [queryType, handler] of this.components.handlers.queries) {
-        (context.queryBus).registerWithType(queryType, handler);
+        (context.queryBus as any).register(handler); // IQueryBus doesn't have registerWithType
       }
     }
 

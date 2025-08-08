@@ -155,8 +155,44 @@ export {
   subscribeToEvents,
 } from './infrastructure/bus';
 
+// Simple domain builder (recommended for new projects)
+export {
+  type ISimpleRegistry,
+  type IDomainContext,
+  type ISimpleDomainOptions,
+  SimpleDomainBuilder,
+  createSimpleDomainBuilder,
+  SimpleDiscovery,
+  createSimpleDiscovery,
+  DiscoveryHelpers,
+  DomainBuilder,
+} from './core';
+
+// GraphQL integration (simple resolvers + middleware)
+export {
+  type ISimpleResolverContext,
+  createCommandResolver,
+  createQueryResolver,
+  createBatchResolver,
+  SimpleResolverBuilder,
+  createResolverBuilder,
+  ResolverHelpers,
+} from './graphql/simple-resolvers';
+
+export {
+  type ResolverMiddleware,
+  withValidation,
+  withErrorHandling,
+  withMetrics,
+  withAuth,
+  withCache,
+  withRateLimit,
+  compose,
+  MiddlewarePresets,
+} from './graphql/resolver-middleware';
+
 // Framework version
-export const VERSION = '1.0.0';
+export const VERSION = '2.0.0'; // Bumped for KISS refactoring
 
 /**
  * Framework configuration helper

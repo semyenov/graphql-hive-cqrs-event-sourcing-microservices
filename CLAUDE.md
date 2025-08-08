@@ -192,3 +192,60 @@ NODE_ENV=development         # Environment mode
 - Unit tests: `bun test src/types/__tests__/`
 - Integration tests: Run example scripts in `src/examples/`
 - Type checking: `bun run typecheck` before commits
+
+## Framework Refactoring Guidelines
+
+### Clean Code Principles for CQRS Framework
+
+#### Core Design Patterns to Follow
+- **Single Responsibility**: Each class should have one reason to change
+  - Split large domain builders (`enhanced-domain-builder.ts` 400+ lines)
+  - Separate discovery concerns from registration logic
+  - Extract type conversion logic into dedicated utilities
+
+#### Framework Architecture Patterns
+- **Builder Pattern**: Use for complex object construction (Domain, Schema, Context builders)
+- **Strategy Pattern**: Implement for different discovery strategies and validation approaches
+- **Factory Pattern**: Create consistent APIs for framework components
+- **Chain of Responsibility**: Use for middleware and validation pipelines
+
+#### Refactoring Priorities
+1. **Extract Strategy Interfaces**: Replace hardcoded discovery patterns with pluggable strategies
+2. **Split Large Classes**: Break down `EnhancedDomainBuilder` into focused components
+3. **Eliminate Code Duplication**: Consolidate similar type extraction logic across handlers
+4. **Improve Error Handling**: Implement Result types consistently across all operations
+5. **Enhance Type Safety**: Use more specific branded types instead of generic ones
+
+#### Framework Extension Points
+- **IDiscoveryStrategy**: For custom component discovery patterns
+- **IValidationStrategy**: For domain-specific validation approaches  
+- **IProjectionStrategy**: For different read model building approaches
+- **IMiddlewareStrategy**: For cross-cutting concerns (logging, metrics, auth)
+
+### Refactoring Commands
+
+```bash
+# Before refactoring - run full test suite
+bun test
+bun run typecheck
+
+# After refactoring - verify framework integrity
+bun run src/examples/test-cqrs.ts
+bun run generate:all
+bun test --coverage
+```
+
+### Framework Component Guidelines
+
+#### When Refactoring Core Components:
+1. **Maintain Backward Compatibility**: Existing domains should work without changes
+2. **Extract Interfaces First**: Define contracts before implementation
+3. **Use Composition Over Inheritance**: Favor strategies and builders over class hierarchies
+4. **Test Framework Changes**: Run both unit tests and integration examples
+5. **Update Type Exports**: Ensure new interfaces are properly exported in `index.ts`
+
+#### Code Organization Rules:
+- **Core**: Abstract interfaces and contracts only
+- **Infrastructure**: Concrete implementations with clear boundaries  
+- **Utils**: Pure functions with no framework dependencies
+- **Patterns**: Reusable implementation strategies

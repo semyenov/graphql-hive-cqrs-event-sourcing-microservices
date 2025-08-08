@@ -9,7 +9,7 @@ import type { IEvent, IEventBus } from './event';
 import type { ICommand, ICommandBus, ICommandHandler } from './command';
 import type { IQuery, IQueryBus, IQueryHandler } from './query';
 import type { IEventStore } from './event';
-import type { IValidatorV2, ICommandValidatorV2, IQueryValidatorV2 } from './validation-enhanced';
+import type { IValidator, ICommandValidator, IQueryValidator } from './validation';
 
 /**
  * Discovery configuration options
@@ -90,7 +90,7 @@ export interface IDiscoveryResult<TEvent extends IEvent, TCommand extends IComma
   commandHandlers: Map<string, ICommandHandler<TCommand>>;
   queryHandlers: Map<string, IQueryHandler<TQuery, unknown>>;
   projections: Map<string, unknown>;
-  validators: Map<string, IValidatorV2<unknown> | ICommandValidatorV2<TCommand> | IQueryValidatorV2<TQuery>>;
+  validators: Map<string, IValidator<unknown> | ICommandValidator<TCommand> | IQueryValidator<TQuery>>;
   eventHandlers: Array<(event: TEvent) => Promise<void>>;
   components: IDiscoveredComponent[];
 }
@@ -429,7 +429,7 @@ export class AutoDiscovery<TEvent extends IEvent, TCommand extends ICommand, TQu
           };
 
           this.components.push(component);
-          result.validators.set(exportName, instance as IValidatorV2<unknown>);
+          result.validators.set(exportName, instance as IValidator<unknown>);
           
           console.log(`  ✅ Validator: ${exportName}`);
         }

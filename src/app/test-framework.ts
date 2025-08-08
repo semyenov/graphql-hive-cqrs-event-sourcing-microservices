@@ -99,11 +99,11 @@ async function testFramework() {
   const userSchema = new SchemaValidator({
     name: [
       ValidationRules.required('Name is required'),
-      ValidationRules.length(2, 100, 'Name must be 2-100 characters'),
+      ValidationRules.string.length(2, 100, 'Name must be 2-100 characters'),
     ],
     email: [
       ValidationRules.required('Email is required'),
-      ValidationRules.email('Invalid email format'),
+      ValidationRules.string.email('Invalid email format'),
     ],
   });
   
@@ -214,7 +214,7 @@ async function testFramework() {
   console.log('📝 Test 6: Testing Result helpers...');
   
   const successResult = success({ message: 'Operation completed' });
-  const failureResult = failure('Operation failed', 'ERROR_CODE');
+  const failureResult = failure('Operation failed');
   
   console.log('✅ Result helpers tested');
   console.log(`   Success result: ${successResult.success}`);

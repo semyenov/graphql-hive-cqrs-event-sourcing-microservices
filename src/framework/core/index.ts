@@ -27,6 +27,18 @@ export * from './aggregate';
 export * from './repository';
 export * from './types';
 export * from './helpers';
+export * from './naming-conventions';
+
+// Framework builder for complete applications
+export {
+  type IFrameworkConfig,
+  type IFrameworkApp,
+  FrameworkBuilder,
+  FrameworkApp,
+  createFrameworkBuilder,
+  Framework,
+} from './framework-builder';
+// Validation System (unified from enhanced version)
 export { 
   type IValidationError,
   type IValidationResult,
@@ -35,6 +47,11 @@ export {
   type IQueryValidator,
   type ValidationRule,
   type ValidationSchema,
+  type StringValidationRule,
+  type NumberValidationRule,
+  type BooleanValidationRule,
+  type ArrayValidationRule,
+  type NestedValidationRule,
   BaseValidator,
   SchemaValidator,
   ValidationRules,
@@ -43,43 +60,35 @@ export {
   createCommandValidator,
   createQueryValidator,
   combineValidators,
+  validator,
+  Validate,
 } from './validation';
 
-// Enhanced validation system V2 (recommended)
-export { 
-  type IValidationErrorV2,
-  type IValidationResultV2,
-  type IValidatorV2,
-  type ICommandValidatorV2,
-  type IQueryValidatorV2,
-  type ValidationRuleV2,
-  type ValidationSchemaV2,
-  type StringValidationRule,
-  type NumberValidationRule,
-  type BooleanValidationRule,
-  type ArrayValidationRule,
-  type NestedValidationRule,
-  BaseValidatorV2,
-  SchemaValidatorV2,
-  ValidationRulesV2,
-  ValidationBuilderV2,
-  createValidatorV2,
-  createCommandValidatorV2,
-  createQueryValidatorV2,
-  validatorV2,
-  Validate,
-} from './validation-enhanced';
+// Simple domain registration (recommended)
+export {
+  type ISimpleRegistry,
+  SimpleDiscovery,
+  createSimpleDiscovery,
+  DiscoveryHelpers,
+} from './simple-discovery';
 
-// Domain registration
+export {
+  type IDomainContext,
+  type ISimpleDomainOptions,
+  SimpleDomainBuilder,
+  createSimpleDomainBuilder,
+  DomainBuilder,
+} from './simple-domain-builder';
+
+// Legacy domain registration (deprecated - use SimpleDomainBuilder)
 export { 
   type IDomainComponents,
-  type IDomainContext,
-  DomainBuilder,
+  DomainBuilder as LegacyDomainBuilder,
   createDomainBuilder,
   initializeDomain,
 } from './domain-registry';
 
-// Auto-discovery system (Phase 4 enhancement)
+// Legacy auto-discovery system (deprecated - use SimpleDomainBuilder.fromModule)
 export {
   type IDiscoveryConfig,
   type IDiscoveredComponent,
@@ -92,7 +101,7 @@ export {
   DEFAULT_DISCOVERY_CONFIG,
 } from './auto-discovery';
 
-// Enhanced domain builder with auto-discovery
+// Legacy enhanced domain builder (deprecated - use SimpleDomainBuilder)
 export {
   type IEnhancedDomainOptions,
   EnhancedDomainBuilder,

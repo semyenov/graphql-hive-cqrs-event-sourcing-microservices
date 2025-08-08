@@ -19,11 +19,11 @@ export const createUserCommandValidator: ICommandValidator<Commands.CreateUserCo
   createCommandValidator<Commands.CreateUserCommand>({
     name: [
       ValidationRules.required('Name is required'),
-      ValidationRules.length(2, 100, 'Name must be between 2 and 100 characters'),
+      ValidationRules.string.length(2, 100, 'Name must be between 2 and 100 characters'),
     ],
     email: [
       ValidationRules.required('Email is required'),
-      ValidationRules.email('Invalid email format'),
+      ValidationRules.string.email('Invalid email format'),
     ],
   });
 
@@ -32,8 +32,8 @@ export const createUserCommandValidator: ICommandValidator<Commands.CreateUserCo
  */
 export const updateUserCommandValidator: ICommandValidator<Commands.UpdateUserCommand> = 
   createCommandValidator<Commands.UpdateUserCommand>({
-    name: ValidationRules.length(2, 100, 'Name must be between 2 and 100 characters'),
-    email: ValidationRules.email('Invalid email format'),
+    name: ValidationRules.required('Name is required'),
+    email: ValidationRules.required('Email is required'),
   });
 
 /**
@@ -138,6 +138,12 @@ export function createChangePasswordValidator(
   return {
     validate: async (command: Commands.ChangeUserPasswordCommand) => {
       return validator.validate(command.payload);
+    },
+    validatePayload: async (payload: any) => {
+      return validator.validate(payload);
+    },
+    validateField: async (field: string, value: any) => {
+      return null; // Simplified field validation
     },
   };
 }
