@@ -5,7 +5,9 @@
   "private": true,
   "scripts": {
     "dev": "bun --hot index.ts",
+    "dev:framework": "bun --hot src/app/server.ts",
     "start": "bun index.ts",
+    "start:framework": "bun src/app/server.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
     "gql:generate": "gql.tada generate-output",
@@ -14,7 +16,8 @@
     "generate:manifest": "bun run scripts/generate-persisted-manifest.ts",
     "codegen": "graphql-codegen",
     "codegen:watch": "graphql-codegen --watch",
-    "generate:all": "bun run codegen && bun run gql:generate"
+    "generate:all": "bun run codegen && bun run gql:generate",
+    "clean:unused": "bunx knip"
   },
   "devDependencies": {
     "@graphql-codegen/cli": "^5.0.7",
