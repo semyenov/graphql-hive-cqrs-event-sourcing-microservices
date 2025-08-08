@@ -5,7 +5,7 @@
  * domain-agnostic and can be used by any domain module.
  */
 
-import type { AggregateId, EventVersion, Timestamp, CorrelationId, CausationId, UserId } from '../../shared/branded/types';
+import type { AggregateId, EventVersion, Timestamp, CorrelationId, CausationId, UserId } from './branded/types';
 
 /**
  * Base event interface - the fundamental unit of state change

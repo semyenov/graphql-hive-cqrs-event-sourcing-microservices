@@ -6,7 +6,7 @@
 
 import { AggregateRepository } from '../../../framework/infrastructure/repository/aggregate';
 import type { IEventStore } from '../../../framework/core/event';
-import type { AggregateId } from '../../../shared/branded/types';
+import type { AggregateId } from '../../../framework/core/branded/types';
 import type { UserEvent } from '../events/types';
 import type { UserState } from './user';
 import { UserAggregate } from './user';

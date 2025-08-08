@@ -8,6 +8,9 @@
 // Core abstractions
 export * from './core';
 
+// Branded types for type safety
+export * from './core/branded';
+
 // Infrastructure components
 export * from './infrastructure/event-store/memory';
 export * from './infrastructure/repository/aggregate';

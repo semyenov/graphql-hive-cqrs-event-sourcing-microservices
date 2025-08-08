@@ -4,7 +4,7 @@
  * Generic repository implementation for aggregates using event sourcing.
  */
 
-import type { AggregateId } from '../../../shared/branded/types';
+import type { AggregateId } from '../../core/branded/types';
 import type { IEvent, IEventStore } from '../../core/event';
 import type { IAggregateBehavior } from '../../core/aggregate';
 import type { IAggregateRepository } from '../../core/repository';

@@ -6,7 +6,7 @@
 
 import { createEventStore, createCommandBus, createEventBus } from '../framework';
 import { UserAggregate, UserRepository, type UserEvent } from '../domains/users';
-import { BrandedTypes } from '../shared/branded/factories';
+import { BrandedTypes } from '../framework/core/branded/factories';
 
 async function testFramework() {
   console.log('🧪 Testing CQRS/Event Sourcing Framework\n');

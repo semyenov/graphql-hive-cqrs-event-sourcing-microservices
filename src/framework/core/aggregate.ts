@@ -5,10 +5,10 @@
  * It ensures business invariants and generates events from commands.
  */
 
-import type { AggregateId, EventVersion, Timestamp } from '../../shared/branded/types';
+import type { AggregateId, EventVersion, Timestamp } from './branded/types';
 import type { IEvent, EventReducer, EventPattern } from './event';
 import type { ICommand } from './command';
-import { BrandedTypes } from '../../shared/branded/factories';
+import { BrandedTypes } from './branded/factories';
 
 /**
  * Snapshot for performance optimization

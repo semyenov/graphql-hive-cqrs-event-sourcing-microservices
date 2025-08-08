@@ -33,6 +33,65 @@ bun run src/examples/test-cqrs.ts    # Run CQRS demo
 bun run src/examples/client-usage.ts # Test gql.tada client
 ```
 
+## Framework Architecture (`src/framework/`)
+
+### Core Components
+The framework provides a generic, domain-agnostic foundation for CQRS/Event Sourcing:
+
+#### Core Abstractions (`src/framework/core/`)
+- **Aggregate** (`aggregate.ts`): Base class with event application, snapshots, and state management
+- **Command** (`command.ts`): Command definitions with handlers and middleware support
+- **Event** (`event.ts`): Event types with reducers and pattern matching
+- **Query** (`query.ts`): Query definitions with projection builders
+- **Repository** (`repository.ts`): Aggregate persistence abstraction
+- **Branded Types** (`branded/`): Type-safe primitives (IDs, emails, versions, timestamps)
+
+#### Infrastructure (`src/framework/infrastructure/`)
+- **Event Store** (`event-store/memory.ts`): In-memory event persistence with replay
+- **Command Bus** (`bus/command-bus.ts`): Routes commands to handlers with middleware
+- **Event Bus** (`bus/event-bus.ts`): Event publishing with replay capabilities
+- **Query Bus** (`bus/query-bus.ts`): Query routing with caching support
+- **Projection Builder** (`projections/builder.ts`): Builds read models from event streams
+- **Aggregate Repository** (`repository/aggregate.ts`): Generic aggregate persistence
+
+### Framework Patterns
+- **Event Reducers**: Pure functions that apply events to state
+- **Snapshots**: Performance optimization for long event streams
+- **Domain Modules**: Self-contained domain boundaries with own events/commands/aggregates
+- **Middleware Pipeline**: Command preprocessing (validation, auth, logging)
+
+## Domain Implementation (`src/domains/`)
+
+### User Domain Example (`src/domains/users/`)
+Demonstrates framework usage with a complete user management domain:
+
+#### Structure
+- **Aggregates** (`aggregates/`):
+  - `user.ts`: UserAggregate with business logic (create, update, delete, verify)
+  - `repository.ts`: UserRepository for persistence
+- **Events** (`events/`):
+  - `types.ts`: Event type definitions (UserCreated, UserUpdated, etc.)
+  - `factories.ts`: Type-safe event factory functions
+- **Commands** (`commands/`):
+  - `types.ts`: Command definitions (CreateUser, UpdateUser, etc.)
+  - `handlers.ts`: Command handlers that load aggregates and apply changes
+- **Index** (`index.ts`): Domain module registration and GraphQL schema
+
+#### Key Patterns in User Domain
+- **Aggregate State Management**: UserState with profile, verification status
+- **Event Sourcing**: All changes generate events (UserCreated, UserDeleted, etc.)
+- **Command Handlers**: Load aggregate → Execute command → Save events
+- **Type Safety**: Branded types for IDs, emails, names
+- **GraphQL Integration**: Domain-specific schema extensions
+
+### Adding New Domains
+1. Create domain folder under `src/domains/`
+2. Implement aggregate extending `Aggregate<TState, TEvent>`
+3. Define events implementing `IEvent`
+4. Create command handlers implementing `ICommandHandler`
+5. Export domain module with `IDomainModule` interface
+6. Register with framework buses (CommandBus, EventBus, QueryBus)
+
 ## Architecture: CQRS with Event Sourcing
 
 ### Core Pattern
@@ -42,38 +101,25 @@ The system implements **true CQRS** with complete separation of read and write m
 2. **Events** → Build **Aggregates** (write model) & **Projections** (read model)
 3. **GraphQL** → Routes **Queries** to projections, **Mutations** to commands
 
-### Schema Architecture
-Currently using a **unified schema** (`src/schema.graphql`) with runtime separation:
-- **Queries**: Read from projections/read models
-- **Mutations**: Execute commands that generate events
-- **CQRS Plugin** (`src/plugins/cqrsPlugin.ts`): Routes operations appropriately
-
-### Event Sourcing Implementation
-
-#### Core Types (`src/core/types.ts`)
-- `IEvent<TType, TData, TAggregateId>`: Base event interface
-- `ICommand<TType, TPayload, TResult>`: Command intent
-- `IAggregate<TState, TEvent, TAggregateId>`: Consistency boundary
-- `IProjection<TEvent, TReadModel>`: Read model builder
-
-#### Domain Layer (`src/domain/`)
-- **Aggregates** (`aggregates/`): Business logic and invariants
-- **Events** (`events/`): Domain event definitions with factories
-- **Interfaces** (`interfaces.ts`): Repository and store contracts
-
-#### Infrastructure (`src/infrastructure/`)
-- **Event Store** (`event-store/optimized.ts`): In-memory implementation
-- **Memory Store** (`event-store/memory.ts`): Alternative storage
+### Event Flow
+1. Client sends GraphQL mutation
+2. Mutation resolver creates command
+3. CommandBus routes to appropriate handler
+4. Handler loads aggregate from repository
+5. Aggregate executes business logic, generates events
+6. Repository saves events to EventStore
+7. EventBus publishes events to projections
+8. Projections update read models
 
 ### Type Safety Architecture
 
-#### Branded Types (`src/core/branded.ts`)
+#### Branded Types (`src/framework/core/branded/`)
 Prevents primitive obsession and type mixing:
 ```typescript
-UserId, AggregateId, EventId    // ID types
+AggregateId, EventId, UserId    // ID types
 Email, PersonName               // Validated strings
 EventVersion, AggregateVersion  // Versioning
-Money, Percentage              // Constrained numbers
+Timestamp                       // Time tracking
 ```
 
 #### GraphQL Code Generation (`codegen.yml`)
@@ -82,32 +128,38 @@ Money, Percentage              // Constrained numbers
 - **Custom scalars**: ID types map to branded types
 - **Immutable types**: All generated types are readonly
 
-#### gql.tada Configuration
-- **Type-safe clients** in `src/clients/`:
-  - `CQRSClient.ts`: Unified client
-  - `TypedReadClient.ts`: Query operations
-  - `TypedWriteClient.ts`: Mutation operations
-- **Persisted documents** for production optimization
-
 ### Key Implementation Patterns
 
-#### GraphQL Context (`src/server.ts:7-25`)
+#### Aggregate Pattern
 ```typescript
-interface GraphQLContext {
-  services: {
-    userRepository: UserRepository
-    eventStore: IEventStore<UserEvent>
-    commandBus?: EventBus
+class UserAggregate extends Aggregate<UserState, UserEvent> {
+  create(data): void {
+    const event = UserEventFactories.createUserCreated(...)
+    this.applyEvent(event, true) // true = new event
   }
-  // Request metadata, timing, client info
 }
 ```
 
-#### Event Pattern Matching (`src/domain/patterns/matching.ts`)
-Type-safe event handling with exhaustive pattern matching
+#### Command Handler Pattern
+```typescript
+class CreateUserCommandHandler implements ICommandHandler {
+  async handle(command): Promise<Result> {
+    const aggregate = repository.createAggregate(id)
+    aggregate.create(command.payload)
+    await repository.save(aggregate)
+  }
+}
+```
 
-#### Repository Pattern (`src/repositories/index.ts`)
-Abstracts storage concerns from domain logic
+#### Event Reducer Pattern
+```typescript
+const userReducer: EventReducer<UserEvent, UserState> = (state, event) => {
+  switch(event.type) {
+    case UserEventTypes.UserCreated:
+      return { ...initialState, ...event.data }
+  }
+}
+```
 
 ## Bun-Specific Patterns
 

@@ -1,7 +1,0 @@
-{
-  "private": true,
-  "scripts": {
-    "test": "bun test",
-    "typecheck": "tsc --noEmit"
-  }
-}

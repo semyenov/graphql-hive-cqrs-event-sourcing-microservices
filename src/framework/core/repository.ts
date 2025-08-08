@@ -5,7 +5,7 @@
  * hiding the complexity of event sourcing from domain logic.
  */
 
-import type { AggregateId } from '../../shared/branded/types';
+import type { AggregateId } from './branded/types';
 import type { IEvent } from './event';
 import type { IAggregateBehavior, ISnapshot } from './aggregate';
 

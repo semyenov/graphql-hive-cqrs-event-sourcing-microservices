@@ -5,7 +5,7 @@
  * They are processed by command handlers which generate events.
  */
 
-import type { AggregateId } from '../../shared/branded/types';
+import type { AggregateId } from './branded/types';
 import type { IEventMetadata } from './event';
 
 /**

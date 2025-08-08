@@ -6,8 +6,8 @@
 
 import { Aggregate } from '../../../framework/core/aggregate';
 import type { EventReducer, EventPattern } from '../../../framework/core/event';
-import type { AggregateId, Email, PersonName } from '../../../shared/branded/types';
-import { BrandedTypes } from '../../../shared/branded/factories';
+import type { AggregateId, Email, PersonName } from '../../../framework/core/branded/types';
+import { BrandedTypes } from '../../../framework/core/branded/factories';
 import { UserEventTypes, type UserEvent } from '../events/types';
 import { UserEventFactories } from '../events/factories';
 

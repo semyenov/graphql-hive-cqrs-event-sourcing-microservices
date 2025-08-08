@@ -1,13 +1,12 @@
 {
   "name": "graphql-hive-cqrs-event-sourcing-microservices",
-  "module": "index.ts",
+  "module": "src/app/server.ts",
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "bun --hot index.ts",
-    "dev:framework": "bun --hot src/app/server.ts",
-    "start": "bun index.ts",
-    "start:framework": "bun src/app/server.ts",
+    "dev": "bun --hot src/app/server.ts",
+    "start": "bun src/app/server.ts",
+    "test:framework": "bun src/app/test-framework.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
     "gql:generate": "gql.tada generate-output",
@@ -22,7 +21,6 @@
   "devDependencies": {
     "@graphql-codegen/cli": "^5.0.7",
     "@graphql-codegen/typescript": "^4.1.6",
-    "@graphql-codegen/typescript-operations": "^4.6.1",
     "@graphql-codegen/typescript-resolvers": "^4.5.1",
     "@types/bun": "latest"
   },

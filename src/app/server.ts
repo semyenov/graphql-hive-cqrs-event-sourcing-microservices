@@ -106,7 +106,7 @@ const yoga = createYoga({
 
 // Create Bun server
 const server = Bun.serve({
-  port: process.env.PORT || 3002,
+  port: process.env.PORT || 3005,
   async fetch(req) {
     const url = new URL(req.url);
 
@@ -115,11 +115,20 @@ const server = Bun.serve({
       return new Response(
         JSON.stringify({
           status: 'ok',
-          framework: framework,
+          framework: {
+            initialized: true,
+            eventStore: eventStore ? 'active' : 'inactive',
+            commandBus: commandBus ? 'active' : 'inactive',
+            eventBus: eventBus ? 'active' : 'inactive',
+            queryBus: queryBus ? 'active' : 'inactive',
+          },
           domains: ['users'],
+          timestamp: new Date().toISOString(),
         }),
         {
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json'
+          },
         }
       );
     }

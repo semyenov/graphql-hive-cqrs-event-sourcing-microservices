@@ -6,7 +6,7 @@
 
 import type { ICommandHandler, ICommandResult } from '../../../framework/core/command';
 import type { UserRepository } from '../aggregates/repository';
-import { BrandedTypes } from '../../../shared/branded/factories';
+import { BrandedTypes } from '../../../framework/core/branded/factories';
 import type * as Commands from './types';
 import { UserCommandTypes } from './types';
 

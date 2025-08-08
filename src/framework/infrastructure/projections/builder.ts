@@ -6,7 +6,7 @@
 
 import type { IEvent } from '../../core/event';
 import type { IProjectionBuilder } from '../../core/query';
-import type { AggregateId } from '../../../shared/branded/types';
+import type { AggregateId } from '../../core/branded/types';
 
 /**
  * Generic projection builder implementation

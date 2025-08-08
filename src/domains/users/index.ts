@@ -5,6 +5,10 @@
  */
 
 import type { IDomainModule } from '../../framework/core/types';
+import type { InMemoryEventStore } from '../../framework/infrastructure/event-store/memory';
+import type { CommandBus, QueryBus } from '../../framework/infrastructure/bus';
+import { UserRepository } from './aggregates/repository';
+import type { UserEvent } from './events/types';
 
 // Export domain components
 export * from './events/types';
@@ -103,12 +107,12 @@ export const userGraphQLSchema = `
  * Register user domain with framework
  */
 export function registerUserDomain(
-  eventStore: any,
-  commandBus: any,
-  queryBus: any
+  eventStore: InMemoryEventStore<UserEvent>,
+  commandBus: CommandBus,
+  queryBus: QueryBus
 ) {
   // Create repository
-  const repository = createUserRepository(eventStore);
+  const repository = new UserRepository(eventStore);
   
   // Register command handlers
   // registerUserCommandHandlers(commandBus, repository);

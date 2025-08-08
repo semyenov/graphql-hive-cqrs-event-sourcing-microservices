@@ -179,7 +179,7 @@ export class ReplayableEventBus<TEvent extends IEvent = IEvent>
   /**
    * Override publish to record events
    */
-  async publish(event: TEvent): Promise<void> {
+  override async publish(event: TEvent): Promise<void> {
     if (this.recordingEnabled) {
       this.eventHistory.push(event);
     }

@@ -6,7 +6,7 @@
  */
 
 import type { IEvent, IEventStore, EventHandler } from '../../core/event';
-import type { AggregateId } from '../../../shared/branded/types';
+import type { AggregateId } from '../../core/branded/types';
 
 /**
  * In-memory event store implementation
