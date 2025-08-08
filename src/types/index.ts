@@ -1,12 +1,8 @@
 // Import types for internal use
 import type {
-  User as ReadUserType,
+  User as UserType,
   UserList as UserListType,
-  Query as ReadQueryType,
-} from './generated/read-schema';
-
-import type {
-  User as WriteUserType,
+  Query as QueryType,
   CreateUserInput as CreateUserInputType,
   UpdateUserInput as UpdateUserInputType,
   CreateUserPayload as CreateUserPayloadType,
@@ -14,24 +10,26 @@ import type {
   DeleteUserPayload as DeleteUserPayloadType,
   Error as GraphQLErrorType,
   Mutation as MutationType,
-} from './generated/write-schema';
+  QueryGetUserArgs,
+  QueryListUsersArgs,
+  QuerySearchUsersArgs,
+  MutationCreateUserArgs,
+  MutationDeleteUserArgs,
+  MutationUpdateUserArgs,
+} from './generated/schema';
 
 import type {
   ResolverFn as ResolverFnType,
 } from './generated/resolvers';
 
-// Export specific types from each schema to avoid conflicts
+// Export specific types from unified schema
 export type {
-  User as ReadUser,
+  User,
   UserList,
-  Query as ReadQuery,
+  Query,
   QueryGetUserArgs,
   QueryListUsersArgs,
   QuerySearchUsersArgs,
-} from './generated/read-schema';
-
-export type {
-  User as WriteUser,
   CreateUserInput,
   UpdateUserInput,
   CreateUserPayload,
@@ -42,7 +40,7 @@ export type {
   MutationCreateUserArgs,
   MutationDeleteUserArgs,
   MutationUpdateUserArgs,
-} from './generated/write-schema';
+} from './generated/schema';
 
 export type {
   QueryResolvers,
@@ -54,7 +52,7 @@ export type {
   ResolversParentTypes,
 } from './generated/resolvers';
 
-// Common types (export from one source)
+// Common types (export from unified schema)
 export type {
   Maybe,
   InputMaybe,
@@ -64,10 +62,10 @@ export type {
   MakeEmpty,
   Incremental,
   Scalars,
-} from './generated/read-schema';
+} from './generated/schema';
 
-// Unified User type (since both schemas have the same User structure)
-export type User = ReadUserType & WriteUserType;
+// Re-export User type for backward compatibility
+export type { User as UnifiedUser } from './generated/schema';
 
 // Generic types for better type inference
 
@@ -82,13 +80,13 @@ export interface PayloadResult<TData = unknown, TError = GraphQLErrorType> {
 }
 
 // Infer mutation input type from mutation name
-export type InferMutationInput<TMutation extends keyof MutationType> = 
+export type InferMutationInput<TMutation extends keyof MutationType> =
   TMutation extends 'createUser' ? CreateUserInputType :
   TMutation extends 'updateUser' ? UpdateUserInputType :
   never;
 
 // Infer mutation payload type from mutation name
-export type InferMutationPayload<TMutation extends keyof MutationType> = 
+export type InferMutationPayload<TMutation extends keyof MutationType> =
   TMutation extends 'createUser' ? CreateUserPayloadType :
   TMutation extends 'updateUser' ? UpdateUserPayloadType :
   TMutation extends 'deleteUser' ? DeleteUserPayloadType :
@@ -109,8 +107,8 @@ export type ExtractResolverArgs<T> = T extends TypedResolver<unknown, infer TArg
 export type ExtractResolverResult<T> = T extends TypedResolver<infer TResult> ? TResult : never;
 
 // Type-safe query builder
-export type QueryBuilder<TQuery extends keyof ReadQueryType> = {
-  [K in TQuery]: ReadQueryType[K];
+export type QueryBuilder<TQuery extends keyof QueryType> = {
+  [K in TQuery]: QueryType[K];
 };
 
 // Type-safe mutation builder

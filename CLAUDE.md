@@ -8,132 +8,80 @@ globs: "*.ts, *.tsx, *.html, *.css, *.js, *.jsx, package.json"
 alwaysApply: false
 ---
 
-## Development Environment
-
-Default to using Bun instead of Node.js.
-
-- Use `bun <file>` instead of `node <file>` or `ts-node <file>`
-- Use `bun test` instead of `jest` or `vitest`
-- Use `bun build <file.html|file.ts|file.css>` instead of `webpack` or `esbuild`
-- Use `bun install` instead of `npm install` or `yarn install` or `pnpm install`
-- Use `bun run <script>` instead of `npm run <script>` or `yarn run <script>` or `pnpm run <script>`
-- Bun automatically loads .env, so don't use dotenv.
-
-## Common Commands
+## Core Commands
 
 ```bash
-# Install dependencies
-bun install
+# Development
+bun run dev                 # Start with hot reload (using --hot flag)
+bun run start              # Production server
+bun test                   # Run all tests
+bun test <path>            # Run specific test file
 
-# Run the application
-bun run start
+# Type Generation & Validation
+bun run generate:all       # Generate both GraphQL types and gql.tada types
+bun run codegen           # Generate GraphQL resolver types only
+bun run gql:generate      # Generate gql.tada types only
+bun run gql:check         # Validate GraphQL operations
+bun run typecheck         # TypeScript type checking
 
-# Run in development mode with hot reload
-bun run dev
-
-# Run tests
-bun test
-
-# Run a specific test file
-bun test path/to/test.ts
-
-# TypeScript type checking
-bun run typecheck
-
-# Generate GraphQL types with gql.tada
-bun run gql:generate
-
-# Check GraphQL operations
-bun run gql:check
+# Production Optimizations
+bun run gql:persisted     # Generate persisted GraphQL documents
+bun run generate:manifest # Generate persisted documents manifest
 ```
 
-## Architecture Overview
+## Architecture: CQRS with Event Sourcing
 
-This project implements CQRS (Command Query Responsibility Segregation) with Event Sourcing patterns for GraphQL services, with complete type safety using gql.tada and GraphQL Hive integration.
+### Dual Schema Strategy
+The system uses **separate GraphQL schemas** for reads and writes, dynamically routed at runtime via the CQRS Envelop plugin (`src/plugins/cqrsPlugin.ts`):
 
-### CQRS Implementation Strategy
+- **Read Schema** (`src/schemas/read.graphql`): Query operations, served by `readSchema.ts`
+- **Write Schema** (`src/schemas/write.graphql`): Mutations, served by `writeSchemaV2.ts`
+- **Runtime Routing**: Operations are routed based on type (query vs mutation)
 
-1. **Schema Separation**: 
-   - Read operations (queries) use `src/schemas/read.graphql`
-   - Write operations (mutations) use `src/schemas/write.graphql`
-   - Runtime schema switching based on operation type using Envelop plugins
-   - Separate type generation for each schema with gql.tada
+### Event Sourcing Pattern
+Commands generate immutable events stored in an append-only log:
 
-2. **GraphQL Hive Integration**:
-   - Full operation monitoring and schema registry support
-   - Performance tracking for both read and write operations
-   - Client info tracking via headers
+1. **Events**: Domain events with branded types (`src/events/generic-types.ts`)
+2. **Aggregates**: Rebuild state from events (`src/events/GenericAggregate.ts`)
+3. **Event Store**: Persistence layer (`src/events/optimized-event-store.ts`)
+4. **Projections**: Read models built from event streams
 
-3. **Type Safety with gql.tada**:
-   - Multiple schema support with separate type generation
-   - Fragment colocation and masking for component isolation
-   - Compile-time query validation
-   - Persisted documents for production optimization
+### Type Safety Architecture
 
-4. **TypeScript Configuration**:
-   - Strict mode enabled for type safety
-   - Bundler module resolution for modern imports
-   - ESNext target with latest JavaScript features
-   - gql.tada TypeScript plugin for IDE support
+#### Branded Types System
+The codebase uses branded types (`src/types/branded.ts`) for compile-time safety:
+- `AggregateId`, `UserId`, `EventId` - Prevent ID type mixing
+- `Email`, `PersonName` - Domain-specific string types
+- `EventVersion`, `AggregateVersion` - Numeric constraints
 
-### Key Technical Decisions
+#### GraphQL Type Generation
+Multiple type generation strategies via `codegen.yml`:
+- **Resolver Types**: Context-aware resolver signatures with domain model mappers
+- **Command Types**: CQRS command definitions for mutations
+- **Projection Types**: Read model types for queries
+- **gql.tada**: Zero-runtime GraphQL client types with dual schema support
 
-- **Bun APIs**: Use Bun's built-in APIs instead of external packages:
-  - `Bun.serve()` for HTTP server (not Express)
-  - `bun:sqlite` for SQLite (not better-sqlite3)
-  - `Bun.redis` for Redis (not ioredis)
-  - `Bun.sql` for Postgres (not pg)
-  - Built-in WebSocket support
-  - `Bun.file` for file operations
+### Key Implementation Files
 
-- **Testing**: Use Bun's built-in test runner with `bun:test`
+- **Server Entry**: `src/server.ts` - GraphQL Yoga with Hive monitoring
+- **CQRS Plugin**: `src/plugins/cqrsPlugin.ts` - Schema routing logic
+- **Event System**: `src/events/interfaces.ts` - Core event sourcing contracts
+- **Type Guards**: `src/types/validation.ts` - Runtime type validation
+- **Clients**: `src/clients/CQRSClient.ts` - Type-safe GraphQL client
 
-- **GraphQL Type Safety**: Using gql.tada for compile-time type safety with zero runtime overhead
+## Bun-Specific Patterns
 
-## Project Structure
+Always use Bun's native APIs:
+- `Bun.serve()` for HTTP (not Express)
+- `bun:sqlite` for SQLite (not better-sqlite3)
+- `Bun.file()` for file operations
+- `bun:test` for testing (not Jest/Vitest)
+- Built-in `.env` loading (no dotenv needed)
 
-```
-src/
-├── schemas/
-│   ├── read.graphql     # Query schema definition
-│   ├── write.graphql    # Mutation schema definition
-│   ├── readSchema.ts    # Query resolvers and executable schema
-│   └── writeSchema.ts   # Mutation resolvers and executable schema
-├── graphql/
-│   ├── read-graphql.ts  # gql.tada for read operations
-│   ├── write-graphql.ts # gql.tada for write operations
-│   ├── fragments/       # Reusable GraphQL fragments
-│   ├── read/           # Read operation queries
-│   ├── write/          # Write operation mutations
-│   └── persisted/      # Persisted documents for production
-├── types/
-│   └── resolvers.ts     # TypeScript types for resolvers
-├── plugins/
-│   └── cqrsPlugin.ts    # Envelop plugin for CQRS routing
-├── events/              # Event sourcing implementation
-│   ├── types.ts         # Event type definitions
-│   ├── typed-events.ts  # Type guards and factories
-│   └── EventHandler.ts  # Type-safe event handling
-├── clients/             # Type-safe GraphQL clients
-│   ├── TypedReadClient.ts
-│   ├── TypedWriteClient.ts
-│   └── CQRSClient.ts
-├── components/          # React components with fragments
-└── server.ts            # Main server setup with Hive integration
-```
+## GraphQL Hive Integration
 
-## Important Patterns
-
-1. **CQRS Plugin**: The core of the architecture is the Envelop plugin that routes operations to the appropriate schema based on operation type
-
-2. **Event Sourcing**: Commands produce events that are stored and can be replayed to rebuild state
-
-3. **Hive Monitoring**: All GraphQL operations are monitored through GraphQL Hive for performance tracking and schema evolution
-
-## Frontend Development
-
-When building frontend components:
-- Use HTML imports with `Bun.serve()` instead of Vite
-- Direct imports of .tsx/.jsx files in HTML are supported
-- CSS imports work directly in TypeScript/JavaScript files
-- Hot Module Replacement (HMR) is built into Bun
+Monitoring is configured in `src/server.ts`:
+- Requires `HIVE_API_TOKEN` environment variable
+- Tracks both read and write operations separately
+- Client info extracted from request headers
+- Performance metrics per operation type

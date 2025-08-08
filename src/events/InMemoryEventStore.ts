@@ -32,7 +32,7 @@ export class InMemoryEventStore<TEvent extends Event = Event> implements IEventS
     await this.notifySubscribers(event);
   }
 
-  async appendBatch(events: TEvent[]): Promise<void> {
+  async appendBatch(events: readonly TEvent[]): Promise<void> {
     for (const event of events) {
       await this.append(event);
     }
@@ -43,11 +43,11 @@ export class InMemoryEventStore<TEvent extends Event = Event> implements IEventS
     fromVersion?: number
   ): Promise<Array<Extract<TEvent, { aggregateId: TAggregateId }>>> {
     const events = this.eventsByAggregate.get(aggregateId) || [];
-    
+
     if (fromVersion !== undefined) {
       return events.filter(e => e.version > fromVersion) as Array<Extract<TEvent, { aggregateId: TAggregateId }>>;
     }
-    
+
     return events as Array<Extract<TEvent, { aggregateId: TAggregateId }>>;
   }
 
@@ -124,7 +124,7 @@ export class InMemoryEventStore<TEvent extends Event = Event> implements IEventS
     // Check version consistency
     const existingEvents = this.eventsByAggregate.get(event.aggregateId) || [];
     const expectedVersion = existingEvents.length + 1;
-    
+
     if (event.version !== expectedVersion) {
       throw new Error(
         `Version mismatch: expected ${expectedVersion}, got ${event.version}`
@@ -134,8 +134,8 @@ export class InMemoryEventStore<TEvent extends Event = Event> implements IEventS
 
   // Notify all subscribers
   private async notifySubscribers(event: TEvent): Promise<void> {
-    const promises = Array.from(this.subscribers).map(subscriber => 
-      Promise.resolve(subscriber(event)).catch(error => 
+    const promises = Array.from(this.subscribers).map(subscriber =>
+      Promise.resolve(subscriber(event)).catch(error =>
         console.error('Subscriber error:', error)
       )
     );
@@ -150,7 +150,7 @@ export class InMemoryEventStore<TEvent extends Event = Event> implements IEventS
   // Import events (useful for testing or restore)
   async importEvents(events: TEvent[], validateVersions = true): Promise<void> {
     this.clear();
-    
+
     if (validateVersions) {
       for (const event of events) {
         await this.append(event);
@@ -158,7 +158,7 @@ export class InMemoryEventStore<TEvent extends Event = Event> implements IEventS
     } else {
       // Bulk import without validation
       this.events = [...events];
-      
+
       // Rebuild indexes
       for (const event of events) {
         if (!this.eventsByAggregate.has(event.aggregateId)) {

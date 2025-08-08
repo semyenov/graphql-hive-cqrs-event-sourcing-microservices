@@ -22,24 +22,24 @@ import type { IEventStore } from './interfaces';
 
 export interface OptimizedEventStore<TEvent extends Event> extends IEventStore<TEvent> {
   // Batch operations for better throughput
-  appendBatch(events: TEvent[]): Promise<void>;
+  appendBatch(events: readonly TEvent[]): Promise<void>;
   getEventsBatch(aggregateIds: AggregateId[]): Promise<Map<AggregateId, TEvent[]>>;
-  
+
   // Snapshot support for faster aggregate loading
   saveSnapshot(snapshot: Snapshot): Promise<void>;
   getSnapshot(aggregateId: AggregateId): Promise<Snapshot | null>;
   getEventsFromSnapshot(aggregateId: AggregateId, fromVersion: EventVersion): Promise<TEvent[]>;
-  
+
   // Streaming for large event sets
   streamEvents(
     aggregateId: AggregateId,
     options?: { batchSize?: number; fromVersion?: EventVersion }
   ): AsyncIterable<TEvent>;
-  
+
   // Projection support
   getAllEventsFromVersion(fromVersion: EventVersion): Promise<TEvent[]>;
   subscribeToEvents(handler: (event: TEvent) => Promise<void>): () => void;
-  
+
   // Performance metrics
   getStats(): Promise<{
     totalEvents: number;
@@ -57,12 +57,12 @@ export class InMemoryOptimizedEventStore implements OptimizedEventStore<AllEvent
   private events = new Map<AggregateId, AllEvents[]>();
   private snapshots = new Map<AggregateId, Snapshot>();
   private subscribers = new Set<(event: AllEvents) => Promise<void>>();
-  
+
   // Performance indexes
   private eventTypeIndex: EventIndex<AllEvents> = new Map();
   private aggregateIndex: AggregateIndex<AllEvents> = new Map();
   private compoundIndex: CompoundIndex<AllEvents> = new Map();
-  
+
   // Snapshot strategy
   private snapshotStrategy: SnapshotStrategy = { type: 'count', threshold: 20 };
 
@@ -70,19 +70,19 @@ export class InMemoryOptimizedEventStore implements OptimizedEventStore<AllEvent
     await this.appendBatch([event]);
   }
 
-  async appendBatch(events: AllEvents[]): Promise<void> {
+  async appendBatch(events: readonly AllEvents[]): Promise<void> {
     for (const event of events) {
       // Store event
       const existing = this.events.get(event.aggregateId) || [];
       existing.push(event);
       this.events.set(event.aggregateId, existing);
-      
+
       // Update indexes
       this.updateIndexes(event);
-      
+
       // Check if snapshot is needed
       await this.checkSnapshotNeeded(event.aggregateId);
-      
+
       // Notify subscribers
       await this.notifySubscribers(event);
     }
@@ -93,13 +93,13 @@ export class InMemoryOptimizedEventStore implements OptimizedEventStore<AllEvent
     fromVersion?: number
   ): Promise<Array<Extract<AllEvents, { aggregateId: TAggregateId }>>> {
     const allEvents = this.events.get(aggregateId) || [];
-    
+
     if (fromVersion !== undefined) {
       return allEvents.filter(e => e.version > fromVersion) as Array<Extract<AllEvents, { aggregateId: TAggregateId }>>;
     }
-    
+
     const snapshot = await this.getSnapshot(aggregateId);
-    
+
     if (snapshot) {
       // Load events from snapshot version
       const eventsFromSnapshot = await this.getEventsFromSnapshot(
@@ -108,18 +108,18 @@ export class InMemoryOptimizedEventStore implements OptimizedEventStore<AllEvent
       );
       return eventsFromSnapshot as Array<Extract<AllEvents, { aggregateId: TAggregateId }>>;
     }
-    
+
     return allEvents as Array<Extract<AllEvents, { aggregateId: TAggregateId }>>;
   }
 
   async getEventsBatch(aggregateIds: AggregateId[]): Promise<Map<AggregateId, AllEvents[]>> {
     const result = new Map<AggregateId, AllEvents[]>();
-    
+
     for (const aggregateId of aggregateIds) {
       const events = await this.getEvents(aggregateId);
       result.set(aggregateId, events);
     }
-    
+
     return result;
   }
 
@@ -146,13 +146,13 @@ export class InMemoryOptimizedEventStore implements OptimizedEventStore<AllEvent
     const { batchSize = 100, fromVersion = 1 } = options;
     const events = this.events.get(aggregateId) || [];
     const filteredEvents = events.filter(event => event.version >= fromVersion);
-    
+
     for (let i = 0; i < filteredEvents.length; i += batchSize) {
       const batch = filteredEvents.slice(i, i + batchSize);
       for (const event of batch) {
         yield event;
       }
-      
+
       // Yield control to prevent blocking
       await new Promise(resolve => setImmediate(resolve));
     }
@@ -160,19 +160,19 @@ export class InMemoryOptimizedEventStore implements OptimizedEventStore<AllEvent
 
   async getAllEventsFromVersion(fromVersion: EventVersion): Promise<AllEvents[]> {
     const allEvents: AllEvents[] = [];
-    
+
     for (const [, events] of this.events) {
       const filteredEvents = events.filter(event => event.version >= fromVersion);
       allEvents.push(...filteredEvents);
     }
-    
+
     // Sort by timestamp for consistent ordering
     return allEvents.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
   }
 
   subscribeToEvents(handler: (event: AllEvents) => Promise<void>): () => void {
     this.subscribers.add(handler);
-    
+
     return () => {
       this.subscribers.delete(handler);
     };
@@ -186,15 +186,15 @@ export class InMemoryOptimizedEventStore implements OptimizedEventStore<AllEvent
   }> {
     let totalEvents = 0;
     let storageSize = 0;
-    
+
     for (const [, events] of this.events) {
       totalEvents += events.length;
       storageSize += JSON.stringify(events).length; // Rough approximation
     }
-    
+
     const totalAggregates = this.events.size;
     const averageEventsPerAggregate = totalAggregates > 0 ? totalEvents / totalAggregates : 0;
-    
+
     return {
       totalEvents,
       totalAggregates,
@@ -205,18 +205,18 @@ export class InMemoryOptimizedEventStore implements OptimizedEventStore<AllEvent
 
   async getAllEvents(fromPosition?: number): Promise<AllEvents[]> {
     const allEvents: AllEvents[] = [];
-    
+
     for (const [, events] of this.events) {
       allEvents.push(...events);
     }
-    
+
     // Sort by timestamp for consistent ordering
     const sorted = allEvents.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
-    
+
     if (fromPosition !== undefined) {
       return sorted.slice(fromPosition);
     }
-    
+
     return sorted;
   }
 
@@ -234,7 +234,7 @@ export class InMemoryOptimizedEventStore implements OptimizedEventStore<AllEvent
         console.error('Subscriber error:', error);
       }
     };
-    
+
     this.subscribers.add(asyncWrapper);
     return () => this.subscribers.delete(asyncWrapper);
   }
@@ -248,12 +248,12 @@ export class InMemoryOptimizedEventStore implements OptimizedEventStore<AllEvent
     const typeEvents = this.eventTypeIndex.get(event.type) || [];
     typeEvents.push(event);
     this.eventTypeIndex.set(event.type, typeEvents);
-    
+
     // Update aggregate index
     const aggEvents = this.aggregateIndex.get(event.aggregateId) || [];
     aggEvents.push(event);
     this.aggregateIndex.set(event.aggregateId, aggEvents);
-    
+
     // Update compound index
     const compoundKey = `${event.aggregateId}:${event.version}` as const;
     this.compoundIndex.set(compoundKey, event);
@@ -261,7 +261,7 @@ export class InMemoryOptimizedEventStore implements OptimizedEventStore<AllEvent
 
   private async checkSnapshotNeeded(aggregateId: AggregateId): Promise<void> {
     const events = this.events.get(aggregateId) || [];
-    
+
     const shouldSnapshot = this.evaluateSnapshotStrategy(events);
     if (shouldSnapshot) {
       await this.createSnapshot(aggregateId, events);
@@ -290,10 +290,10 @@ export class InMemoryOptimizedEventStore implements OptimizedEventStore<AllEvent
 
   private async createSnapshot(aggregateId: AggregateId, events: AllEvents[]): Promise<void> {
     if (events.length === 0) return;
-    
+
     const latestEvent = events[events.length - 1];
     if (!latestEvent) return;
-    
+
     // This is a simplified snapshot - in real implementation,
     // you'd reconstruct the aggregate state from events
     const snapshot: Snapshot = {
@@ -303,7 +303,7 @@ export class InMemoryOptimizedEventStore implements OptimizedEventStore<AllEvent
       timestamp: BrandedTypes.timestamp(),
       checksum: this.calculateChecksum(events),
     };
-    
+
     await this.saveSnapshot(snapshot);
   }
 
@@ -316,23 +316,23 @@ export class InMemoryOptimizedEventStore implements OptimizedEventStore<AllEvent
     const notifications = Array.from(this.subscribers).map(handler => handler(event));
     await Promise.all(notifications);
   }
-  
+
   // ============================================================================
   // Query Methods for Performance Analysis
   // ============================================================================
-  
+
   // Get events for multiple aggregates efficiently
   getEventsByAggregates(aggregateIds: AggregateId[]): Map<AggregateId, AllEvents[]> {
     const result = new Map<AggregateId, AllEvents[]>();
-    
+
     for (const aggregateId of aggregateIds) {
       const events = this.aggregateIndex.get(aggregateId) || [];
       result.set(aggregateId, events);
     }
-    
+
     return result;
   }
-  
+
   // Get specific event by compound key
   getEventByAggregateVersion(aggregateId: AggregateId, version: EventVersion): AllEvents | null {
     const compoundKey = `${aggregateId}:${version}` as const;
@@ -354,17 +354,17 @@ export class CachedProjectionStore<TState> {
 
   async get(key: string): Promise<TState | null> {
     const cached = this.cache.get(key);
-    
+
     if (!cached) {
       return null;
     }
-    
+
     // Check TTL
     if (Date.now() - cached.lastUpdated.getTime() > this.ttl) {
       this.cache.delete(key);
       return null;
     }
-    
+
     return cached.state;
   }
 
@@ -387,7 +387,7 @@ export class CachedProjectionStore<TState> {
   getStats(): { entries: number; memoryUsage: number } {
     const entries = this.cache.size;
     const memoryUsage = JSON.stringify([...this.cache.values()]).length;
-    
+
     return { entries, memoryUsage };
   }
 }

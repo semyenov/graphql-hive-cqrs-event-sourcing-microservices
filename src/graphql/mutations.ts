@@ -7,7 +7,7 @@ export const CREATE_USER_MUTATION = graphql(`
     createUser(input: $input) {
       success
       user {
-        ...UserDetailFields
+        ...UserDetail
       }
       errors {
         ...ErrorFields

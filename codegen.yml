@@ -13,9 +13,9 @@ config:
     fieldNames: 'camelCase'
     
 generates:
-  # Enhanced read schema types with domain integration
-  src/types/generated/read-schema.ts:
-    schema: src/schemas/read.graphql
+  # Unified schema types
+  src/types/generated/schema.ts:
+    schema: src/schema.graphql
     plugins:
       - typescript
     config:
@@ -40,37 +40,9 @@ generates:
       inputMaybeValue: 'T | null | undefined'
       immutableTypes: true
       
-  # Enhanced write schema types with command integration
-  src/types/generated/write-schema.ts:
-    schema: src/schemas/write.graphql
-    plugins:
-      - typescript
-    config:
-      enumsAsTypes: true
-      constEnums: true
-      nonOptionalTypename: true
-      scalars:
-        ID:
-          input: 'import("../branded").AggregateId'
-          output: 'import("../branded").AggregateId'
-        String: string
-        Int: number
-        Float: number
-        Boolean: boolean
-      avoidOptionals:
-        field: true
-        inputValue: false
-        object: false
-        defaultValue: false
-      maybeValue: 'T | null | undefined'
-      inputMaybeValue: 'T | null | undefined'
-      immutableTypes: true
-      
-  # Enhanced resolver types with strict domain mapping
+  # Resolver types with strict domain mapping
   src/types/generated/resolvers.ts:
-    schema:
-      - src/schemas/read.graphql
-      - src/schemas/write.graphql
+    schema: src/schema.graphql
     plugins:
       - typescript
       - typescript-resolvers
@@ -109,7 +81,7 @@ generates:
       
   # Command type generation for write operations
   src/types/generated/commands.ts:
-    schema: src/schemas/write.graphql
+    schema: src/schema.graphql
     plugins:
       - typescript
       - add:
@@ -129,7 +101,7 @@ generates:
           
   # Query projection types for read operations
   src/types/generated/projections.ts:
-    schema: src/schemas/read.graphql
+    schema: src/schema.graphql
     plugins:
       - typescript
       - add:

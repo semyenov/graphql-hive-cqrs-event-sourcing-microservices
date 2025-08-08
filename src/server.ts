@@ -1,9 +1,6 @@
 import { createYoga } from 'graphql-yoga';
 import { useHive } from '@graphql-hive/envelop';
-import { mergeSchemas } from '@graphql-tools/schema';
-import { readSchema } from './schemas/readSchema';
-import { writeSchemaV2 as writeSchema } from './schemas/writeSchemaV2';
-import { useCQRS } from './plugins/cqrsPlugin';
+import { schema } from './schemas/schema';
 import { userRepository, eventStore } from './repositories';
 
 // Enhanced GraphQL Context with domain services
@@ -19,7 +16,7 @@ export interface GraphQLContext {
   };
   services: {
     userRepository: import('./events/UserAggregate').UserRepository;
-    eventStore: import('./events/interfaces').IEventStore<import('./events/generic-types').AllEvents>;
+    eventStore: import('./events/interfaces').IEventStore<import('./events/generic-types').UserEvent>;
     commandBus?: import('./events/generic-types').EventBus;
   };
   timing: {
@@ -34,16 +31,10 @@ export interface GraphQLRootValue {
   environment: 'development' | 'staging' | 'production';
 }
 
-// Merge schemas for Hive reporting (not for execution)
-const mergedSchema = mergeSchemas({
-  schemas: [readSchema, writeSchema],
-});
-
 // Create GraphQL Yoga server with plugins
 const yoga = createYoga({
-  schema: mergedSchema,
+  schema,
   plugins: [
-    useCQRS(), // CQRS routing plugin
     useHive({
       enabled: !!process.env.HIVE_API_TOKEN,
       debug: process.env.NODE_ENV !== 'production',

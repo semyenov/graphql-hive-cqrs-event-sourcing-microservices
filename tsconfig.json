@@ -26,22 +26,12 @@
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false,
 
-    // gql.tada configuration for multiple schemas
+    // gql.tada configuration for unified schema
     "plugins": [
       {
         "name": "gql.tada/ts-plugin",
-        "schemas": [
-          {
-            "name": "read",
-            "schema": "./src/schemas/read.graphql",
-            "tadaOutputLocation": "./src/graphql/read-env.d.ts"
-          },
-          {
-            "name": "write",
-            "schema": "./src/schemas/write.graphql",
-            "tadaOutputLocation": "./src/graphql/write-env.d.ts"
-          }
-        ]
+        "schema": "./src/schema.graphql",
+        "tadaOutputLocation": "./src/graphql/graphql-env.d.ts"
       }
     ]
   }

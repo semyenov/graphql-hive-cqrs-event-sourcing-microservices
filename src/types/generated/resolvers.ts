@@ -66,7 +66,6 @@ export type MutationUpdateUserArgs = {
 
 export type Query = {
   readonly __typename?: 'Query';
-  readonly _empty: Maybe<Scalars['String']['output']>;
   readonly getUser: Maybe<User>;
   readonly listUsers: UserList;
   readonly searchUsers: ReadonlyArray<User>;
@@ -247,7 +246,6 @@ export type MutationResolvers<ContextType = import("../../server").GraphQLContex
 };
 
 export type QueryResolvers<ContextType = import("../../server").GraphQLContext, ParentType extends ResolversParentTypes['Query'] = ResolversParentTypes['Query']> = {
-  _empty?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   getUser?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType, RequireFields<QueryGetUserArgs, 'id'>>;
   listUsers?: Resolver<ResolversTypes['UserList'], ParentType, ContextType, RequireFields<QueryListUsersArgs, 'limit' | 'offset'>>;
   searchUsers?: Resolver<ReadonlyArray<ResolversTypes['User']>, ParentType, ContextType, RequireFields<QuerySearchUsersArgs, 'query'>>;

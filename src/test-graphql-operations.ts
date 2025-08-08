@@ -1,8 +1,7 @@
 #!/usr/bin/env bun
 
 import { graphql } from 'graphql';
-import { writeSchemaV2 } from './schemas/writeSchemaV2';
-import { readSchema } from './schemas/readSchema';
+import { schema } from './schemas/schema';
 import type { GraphQLContext } from './server';
 import { userRepository, eventStore } from './repositories';
 import type { User } from './types';
@@ -50,7 +49,7 @@ const testMutations = async () => {
   `;
 
   const createResult = await graphql({
-    schema: writeSchemaV2,
+    schema,
     source: createUserMutation,
     variableValues: {
       input: {
@@ -94,7 +93,7 @@ const testMutations = async () => {
   `;
 
   const updateResult = await graphql({
-    schema: writeSchemaV2,
+    schema,
     source: updateUserMutation,
     variableValues: {
       id: userId,
@@ -122,7 +121,7 @@ const testMutations = async () => {
   `;
 
   const queryResult = await graphql({
-    schema: readSchema,
+    schema,
     source: getUserQuery,
     variableValues: {
       id: userId,
@@ -149,7 +148,7 @@ const testMutations = async () => {
   `;
 
   const listResult = await graphql({
-    schema: readSchema,
+    schema,
     source: listUsersQuery,
     contextValue: mockContext,
   });
@@ -171,7 +170,7 @@ const testMutations = async () => {
   `;
 
   const deleteResult = await graphql({
-    schema: writeSchemaV2,
+    schema,
     source: deleteUserMutation,
     variableValues: {
       id: userId,
@@ -184,7 +183,7 @@ const testMutations = async () => {
   // Test 6: Verify deletion
   console.log('\n6️⃣ Verifying user deletion...');
   const verifyResult = await graphql({
-    schema: readSchema,
+    schema,
     source: getUserQuery,
     variableValues: {
       id: userId,
@@ -204,7 +203,7 @@ const testErrorHandling = async () => {
   // Test non-existent user update
   console.log('Testing update on non-existent user...');
   const updateResult = await graphql({
-    schema: writeSchemaV2,
+    schema,
     source: `
       mutation UpdateNonExistent {
         updateUser(id: "non-existent-id", input: { name: "Test" }) {

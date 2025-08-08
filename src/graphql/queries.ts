@@ -5,7 +5,7 @@ import * as UserFragments from './fragments/user.fragments';
 export const GET_USER_QUERY = graphql(`
   query GetUser($id: ID!) {
     getUser(id: $id) {
-      ...UserDetailFields
+      ...UserDetail
     }
   }
 `, [UserFragments.UserDetailFieldsFragment]);
@@ -14,7 +14,7 @@ export const LIST_USERS_QUERY = graphql(`
   query ListUsers($limit: Int, $offset: Int) {
     listUsers(limit: $limit, offset: $offset) {
       users {
-        ...UserDetailFields
+        ...UserDetail
       }
       total
       hasMore
@@ -25,7 +25,7 @@ export const LIST_USERS_QUERY = graphql(`
 export const SEARCH_USERS_QUERY = graphql(`
   query SearchUsers($query: String!) {
     searchUsers(query: $query) {
-      ...UserDetailFields
+      ...UserDetail
       createdAt
     }
   }

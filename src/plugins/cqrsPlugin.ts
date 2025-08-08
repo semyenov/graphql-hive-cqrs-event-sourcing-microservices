@@ -1,18 +1,13 @@
 import type { Plugin } from '@envelop/core';
 import { type GraphQLSchema, type OperationDefinitionNode, Kind, execute, subscribe } from 'graphql';
-import { readSchema } from '../schemas/readSchema';
-import { writeSchemaV2 as writeSchema } from '../schemas/writeSchemaV2';
+import { schema } from '../schemas/schema';
 
 export interface CQRSPluginOptions {
-  readSchema: GraphQLSchema;
-  writeSchema: GraphQLSchema;
+  schema?: GraphQLSchema;
 }
 
 export const useCQRS = (options?: CQRSPluginOptions): Plugin => {
-  const schemas = {
-    read: options?.readSchema || readSchema,
-    write: options?.writeSchema || writeSchema,
-  };
+  const unifiedSchema = options?.schema || schema;
 
   return {
     onExecute({ args, setExecuteFn }) {
@@ -25,13 +20,12 @@ export const useCQRS = (options?: CQRSPluginOptions): Plugin => {
         throw new Error('No operation found in document');
       }
 
-      const operationType = operation.operation;
-      const schema = operationType === 'mutation' ? schemas.write : schemas.read;
-
+      // Use unified schema for all operations
+      // CQRS separation is handled at the resolver level
       setExecuteFn((executeArgs) =>
         execute({
           ...executeArgs,
-          schema,
+          schema: unifiedSchema,
         })
       );
     },
@@ -46,21 +40,18 @@ export const useCQRS = (options?: CQRSPluginOptions): Plugin => {
         throw new Error('No operation found in document');
       }
 
-      // Subscriptions typically read from event streams
-      const schema = schemas.read;
-
+      // Subscriptions use the unified schema
       setSubscribeFn((subscribeArgs) =>
         subscribe({
           ...subscribeArgs,
-          schema,
+          schema: unifiedSchema,
         })
       );
     },
 
     onSchemaChange({ schema, replaceSchema }) {
-      // This allows Hive to see the merged schema for reporting
-      // while execution uses separate schemas
-      console.log('Schema registered with CQRS plugin');
+      // Schema is now unified for both reporting and execution
+      console.log('Unified schema registered with CQRS plugin');
     },
   };
 };

@@ -30,7 +30,7 @@ export abstract class Aggregate<
     protected readonly id: TAggregateId,
     protected readonly reducer: EventReducer<TEvent, TState>,
     protected readonly initialState: TState
-  ) {}
+  ) { }
 
   getState(): TState | null {
     return this.state;
@@ -93,7 +93,7 @@ export abstract class Aggregate<
     events: TEvent[]
   ): Promise<TAggregate> {
     const aggregate = new this(snapshot.aggregateId);
-    
+
     // Use type assertion to access protected members
     type MutableAggregate = {
       state: TState | null;
@@ -102,12 +102,12 @@ export abstract class Aggregate<
     const mutableAggregate = aggregate as unknown as MutableAggregate;
     mutableAggregate.state = snapshot.state;
     mutableAggregate.version = snapshot.version;
-    
+
     // Apply events after snapshot
     events
       .filter(e => e.version > snapshot.version)
       .forEach(event => aggregate.applyEvent(event, false));
-    
+
     return aggregate;
   }
 
@@ -132,7 +132,7 @@ export abstract class Aggregate<
   ): void {
     const events = handler(command.payload);
     const eventArray = Array.isArray(events) ? events : [events];
-    
+
     eventArray.forEach(event => this.applyEvent(event, true));
   }
 
@@ -170,7 +170,7 @@ export class AggregateFactory<
   constructor(
     private readonly AggregateClass: IAggregateConstructor<TState, TEvent, TAggregateId, Aggregate<TState, TEvent, TAggregateId>>,
     private readonly eventStore: Pick<IEventStore<TEvent>, 'getEvents'>
-  ) {}
+  ) { }
 
   async load(id: TAggregateId): Promise<Aggregate<TState, TEvent, TAggregateId>> {
     const events = await this.eventStore.getEvents(id);
@@ -191,7 +191,7 @@ export abstract class AggregateRepository<
 > implements IAggregateRepository<TAggregate, TAggregateId> {
   constructor(
     protected readonly eventStore: Pick<IEventStore<TEvent>, 'append' | 'appendBatch' | 'getEvents'>
-  ) {}
+  ) { }
 
   abstract createAggregate(id: TAggregateId): TAggregate;
 
@@ -204,7 +204,7 @@ export abstract class AggregateRepository<
     const aggregate = this.createAggregate(id);
     // Use proper method access pattern
     for (const event of events) {
-      (aggregate as { applyEvent(event: TEvent, isNew: boolean): void }).applyEvent(event, false);
+      aggregate.applyEvent(event, false);
     }
     return aggregate;
   }
@@ -212,7 +212,7 @@ export abstract class AggregateRepository<
   async save(aggregate: TAggregate): Promise<void> {
     const events = aggregate.getUncommittedEvents();
     if (events.length > 0) {
-      await this.eventStore.appendBatch(events as TEvent[]);
+      await this.eventStore.appendBatch([...events]);
       aggregate.markEventsAsCommitted();
     }
   }

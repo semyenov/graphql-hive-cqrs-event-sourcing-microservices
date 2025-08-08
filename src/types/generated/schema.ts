@@ -63,7 +63,25 @@ export type MutationUpdateUserArgs = {
 
 export type Query = {
   readonly __typename: 'Query';
-  readonly _empty: Maybe<Scalars['String']['output']>;
+  readonly getUser: Maybe<User>;
+  readonly listUsers: UserList;
+  readonly searchUsers: ReadonlyArray<User>;
+};
+
+
+export type QueryGetUserArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type QueryListUsersArgs = {
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+export type QuerySearchUsersArgs = {
+  query: Scalars['String']['input'];
 };
 
 export type UpdateUserInput = {
@@ -85,4 +103,11 @@ export type User = {
   readonly id: Scalars['ID']['output'];
   readonly name: Scalars['String']['output'];
   readonly updatedAt: Scalars['String']['output'];
+};
+
+export type UserList = {
+  readonly __typename: 'UserList';
+  readonly hasMore: Scalars['Boolean']['output'];
+  readonly total: Scalars['Int']['output'];
+  readonly users: ReadonlyArray<User>;
 };

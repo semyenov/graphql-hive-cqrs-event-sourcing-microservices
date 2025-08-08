@@ -1,20 +1,22 @@
 import { makeExecutableSchema } from '@graphql-tools/schema';
-import { gql } from 'graphql-tag';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { eventStore } from '../repositories';
-import { UserAggregate, UserRepository } from '../events/UserAggregate';
+import { UserAggregate } from '../events/UserAggregate';
+import { mutationResolvers } from '../resolvers/mutations';
 import type { UserEvent, AllEvents } from '../events/generic-types';
 import type { 
-  User, 
-  UserList, 
   QueryResolvers,
   RequiredBy,
-  FieldSelector,
   ResolverFn,
   AggregateId,
 } from '../types';
+import type { User, UserList } from '../types/generated/schema';
 import type { GraphQLResolveInfo } from 'graphql';
-import type { IProjectionBuilder, IAggregateInternal } from '../events/interfaces';
-import { BrandedTypes } from '../types';
+import type { IProjectionBuilder } from '../events/interfaces';
+
+// Load schema definition
+const typeDefs = readFileSync(join(__dirname, '../../src/schema.graphql'), 'utf-8');
 
 // Generic projection builder
 class ProjectionBuilder<TEvent extends { aggregateId: AggregateId }, TProjection> implements IProjectionBuilder<TEvent, TProjection> {
@@ -113,11 +115,11 @@ class ResolverFactory implements IResolverFactory {
     resolver: (args: TArgs) => Promise<TResult> | TResult
   ): ResolverFn<TResult, {}, unknown, TArgs> {
     return async <TParent = {}, TContext = {}>(
-    _parent: TParent, 
-    args: TArgs, 
-    _context: TContext, 
-    _info: GraphQLResolveInfo
-  ): Promise<TResult> => {
+      _parent: TParent, 
+      args: TArgs, 
+      _context: TContext, 
+      _info: GraphQLResolveInfo
+    ): Promise<TResult> => {
       await this.projectionRebuilder.rebuild(); // In production, use event handlers instead
       return resolver(args);
     };
@@ -126,30 +128,8 @@ class ResolverFactory implements IResolverFactory {
 
 const resolverFactory = new ResolverFactory(projectionRebuilder);
 
-export const readTypeDefs = gql`
-  type Query {
-    getUser(id: ID!): User
-    listUsers(limit: Int = 10, offset: Int = 0): UserList!
-    searchUsers(query: String!): [User!]!
-  }
-
-  type User {
-    id: ID!
-    name: String!
-    email: String!
-    createdAt: String!
-    updatedAt: String!
-  }
-
-  type UserList {
-    users: [User!]!
-    total: Int!
-    hasMore: Boolean!
-  }
-`;
-
-// Type-safe resolvers with generics
-export const readResolvers: RequiredBy<QueryResolvers, 'getUser' | 'listUsers' | 'searchUsers'> = {
+// Query resolvers
+export const queryResolvers: RequiredBy<QueryResolvers, 'getUser' | 'listUsers' | 'searchUsers'> = {
   getUser: resolverFactory.create<{ id: string }, User | null>(
     async ({ id }) => userProjectionBuilder.get(id)
   ),
@@ -180,18 +160,36 @@ export const readResolvers: RequiredBy<QueryResolvers, 'getUser' | 'listUsers' |
   ),
 };
 
-// Create executable schema with type safety
-export const readSchema = makeExecutableSchema({
-  typeDefs: readTypeDefs,
+// Error resolver to handle the mapping
+interface ErrorParent {
+  field?: string | null;
+  message: string;
+}
+
+const errorResolvers = {
+  field: (parent: ErrorParent) => parent.field ?? null,
+  message: (parent: ErrorParent) => parent.message,
+};
+
+// Create unified executable schema
+export const schema = makeExecutableSchema({
+  typeDefs,
   resolvers: {
-    Query: readResolvers,
+    Query: queryResolvers,
+    Mutation: mutationResolvers,
+    Error: errorResolvers,
   },
 });
 
-// Export types for external use
-export type ReadSchemaResolvers = typeof readResolvers;
-export type ReadSchemaContext = QueryResolvers extends { getUser?: infer R } 
-  ? R extends ResolverFn<unknown, unknown, infer C, unknown> 
-    ? C 
-    : never 
-  : never;
+// Export resolver types for external use
+export type SchemaResolvers = {
+  Query: typeof queryResolvers;
+  Mutation: typeof mutationResolvers;
+  Error: typeof errorResolvers;
+};
+
+// Re-export for backward compatibility
+export const readSchema = schema;
+export const writeSchemaV2 = schema;
+export const readResolvers = queryResolvers;
+export const writeResolvers = mutationResolvers;
