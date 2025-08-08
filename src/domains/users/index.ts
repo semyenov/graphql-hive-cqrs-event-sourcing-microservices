@@ -22,6 +22,7 @@ import { UserRepository, createUserRepository } from './aggregates/repository';
 import { registerUserCommandHandlers } from './commands/handlers';
 import { UserCommandTypes, type UserCommand } from './commands/types';
 import { registerUserQueryHandlers } from './queries/handlers';
+import type { UserQuery } from './queries/types';
 import { registerUserEventHandlers } from './events/handlers';
 import { createUserProjection } from './projections/user.projection';
 import { createUserListProjection } from './projections/user-list.projection';
@@ -70,8 +71,8 @@ export interface UserDomainConfig {
  */
 export interface UserDomainContext {
   repository: UserRepository;
-  commandBus: CommandBus;
-  queryBus: QueryBus;
+  commandBus: CommandBus<UserCommand>;
+  queryBus: QueryBus<UserQuery>;
   eventBus: EventBus<UserEvent>;
   projections: {
     userProjection: ReturnType<typeof createUserProjection>;
@@ -106,9 +107,9 @@ export function initializeUserDomain(
   // Create or use provided event store
   const eventStore = config.eventStore || createEventStore<UserEvent>();
   
-  // Create infrastructure
-  const commandBus = createCommandBus();
-  const queryBus = createQueryBus(config.enableCache);
+  // Create infrastructure with proper typing
+  const commandBus = createCommandBus<UserCommand>();
+  const queryBus = createQueryBus<UserQuery>(config.enableCache);
   const eventBus = createEventBus<UserEvent>();
   
   // Create repository
@@ -147,10 +148,10 @@ export function initializeUserDomain(
 
     commandBus.use({
       async execute(command, next) {
-        // Validate command based on type
-        const validator = validatorMap.get(command.type);
-        if (validator) {
-          const result = await validator.validate(command as UserCommand);
+        // Check if this command type has a validator
+        if (validatorMap.has(command.type)) {
+          const validator = validatorMap.get(command.type)!;
+          const result = await validator.validate(command as unknown as UserCommand);
           if (!result.isValid) {
             throw new Error(`Validation failed: ${JSON.stringify(result.errors)}`);
           }

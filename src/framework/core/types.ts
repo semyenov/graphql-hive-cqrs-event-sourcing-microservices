@@ -146,3 +146,43 @@ export type Maybe<T> = T | null | undefined;
  * Brand type for nominal typing
  */
 export type Brand<T, TBrand extends string> = T & { readonly __brand: TBrand };
+
+/**
+ * Type inference utilities for framework
+ */
+
+/**
+ * Infer command payload type from command
+ */
+export type InferCommandPayload<T> = T extends ICommand<string, infer P> ? P : never;
+
+/**
+ * Infer command type string from command
+ */
+export type InferCommandType<T> = T extends ICommand<infer Type, unknown> ? Type : never;
+
+/**
+ * Infer query result type from query
+ */
+export type InferQueryResult<T> = T extends IQuery<string, unknown, infer R> ? R : never;
+
+/**
+ * Infer query parameters type from query
+ */
+export type InferQueryParams<T> = T extends IQuery<string, infer P, unknown> ? P : never;
+
+/**
+ * Infer event data type from event
+ */
+export type InferEventData<T> = T extends IEvent<string, infer D, AggregateId> ? D : never;
+
+/**
+ * Infer event type string from event
+ */
+export type InferEventType<T> = T extends IEvent<infer Type, unknown, AggregateId> ? Type : never;
+
+// Import types for inference utilities
+import type { ICommand } from './command';
+import type { IQuery } from './query';
+import type { IEvent } from './event';
+import type { AggregateId } from './branded/types';

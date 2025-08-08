@@ -23,6 +23,9 @@ export class GetUserByIdQueryHandler implements IQueryHandler<
   ) {}
 
   async handle(query: Queries.GetUserByIdQuery): Promise<UserState | null> {
+    if (!query.parameters) {
+      return null;
+    }
     const userId = query.parameters.userId as string;
     return this.userProjection.get(userId);
   }
@@ -44,8 +47,12 @@ export class GetUserByEmailQueryHandler implements IQueryHandler<
   ) {}
 
   async handle(query: Queries.GetUserByEmailQuery): Promise<UserState | null> {
+    if (!query.parameters) {
+      return null;
+    }
+    const { email } = query.parameters;
     const users = this.userProjection.search(
-      user => user.email === query.parameters.email
+      user => user.email === email
     );
     return users[0] || null;
   }
@@ -71,6 +78,9 @@ export class ListUsersQueryHandler implements IQueryHandler<
     total: number;
     hasNext: boolean;
   }> {
+    if (!query.parameters) {
+      return { users: [], total: 0, hasNext: false };
+    }
     const { pagination, includeDeleted = false } = query.parameters;
     
     // Get all users and filter
@@ -124,13 +134,16 @@ export class SearchUsersQueryHandler implements IQueryHandler<
   ) {}
 
   async handle(query: Queries.SearchUsersQuery): Promise<UserState[]> {
+    if (!query.parameters) {
+      return [];
+    }
     const { searchTerm, fields = ['name', 'email'] } = query.parameters;
     const searchLower = searchTerm.toLowerCase();
     
     return this.userProjection.search(user => {
       if (user.deleted) return false;
       
-      return fields.some(field => {
+      return fields.some((field: string) => {
         const value = user[field as keyof UserState];
         if (typeof value === 'string') {
           return value.toLowerCase().includes(searchLower);

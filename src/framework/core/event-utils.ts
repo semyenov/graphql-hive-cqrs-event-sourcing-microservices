@@ -5,6 +5,7 @@
  */
 
 import type { IEvent, EventPattern, PartialEventPattern } from './event';
+import type { Timestamp } from './branded/types';
 
 /**
  * Type guard generator for events
@@ -130,7 +131,7 @@ export function createEventFactory<
     type,
     aggregateId,
     version,
-    timestamp: new Date() as any, // Will be properly branded in implementation
+    timestamp: new Date() as Timestamp,
     data: createData(data),
   } as ExtractEventType<TEvent, TType>);
 }
@@ -153,7 +154,7 @@ export function createEventReducer<
   initialState: TState,
   patterns: EventPattern<TEvent, TState>
 ): TypedEventReducer<TEvent, TState> {
-  return (state = initialState, event) => {
+  return (_state = initialState, event) => {
     return matchEvent(event, patterns);
   };
 }

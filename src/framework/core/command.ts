@@ -18,9 +18,22 @@ export interface ICommand<
   TPayload = unknown
 > {
   readonly type: TType;
-  readonly aggregateId: AggregateId;
   readonly payload: TPayload;
   readonly metadata?: IEventMetadata;
+}
+
+/**
+ * Command that targets a specific aggregate
+ * @template TType - Command type discriminator
+ * @template TPayload - Command data payload
+ * @template TAggregateId - Aggregate ID type (branded)
+ */
+export interface IAggregateCommand<
+  TType extends string = string,
+  TPayload = unknown,
+  TAggregateId extends AggregateId = AggregateId
+> extends ICommand<TType, TPayload> {
+  readonly aggregateId: TAggregateId;
 }
 
 /**

@@ -22,65 +22,66 @@ export enum UserQueryTypes {
 /**
  * Get user by ID query
  */
-export interface GetUserByIdQuery extends IQuery<UserState | null> {
-  readonly type: UserQueryTypes.GetUserById;
-  readonly parameters: {
-    readonly userId: AggregateId;
-  };
-}
+export interface GetUserByIdQuery extends IQuery<
+  UserQueryTypes.GetUserById,
+  { readonly userId: AggregateId },
+  UserState | null
+> {}
 
 /**
  * Get user by email query
  */
-export interface GetUserByEmailQuery extends IQuery<UserState | null> {
-  readonly type: UserQueryTypes.GetUserByEmail;
-  readonly parameters: {
-    readonly email: Email;
-  };
-}
+export interface GetUserByEmailQuery extends IQuery<
+  UserQueryTypes.GetUserByEmail,
+  { readonly email: Email },
+  UserState | null
+> {}
 
 /**
  * List users query with pagination
  */
-export interface ListUsersQuery extends IQuery<{
-  users: UserState[];
-  total: number;
-  hasNext: boolean;
-}> {
-  readonly type: UserQueryTypes.ListUsers;
-  readonly parameters: {
+export interface ListUsersQuery extends IQuery<
+  UserQueryTypes.ListUsers,
+  {
     readonly pagination: IPaginationParams;
     readonly includeDeleted?: boolean;
-  };
-}
+  },
+  {
+    users: UserState[];
+    total: number;
+    hasNext: boolean;
+  }
+> {}
 
 /**
  * Search users query
  */
-export interface SearchUsersQuery extends IQuery<UserState[]> {
-  readonly type: UserQueryTypes.SearchUsers;
-  readonly parameters: {
+export interface SearchUsersQuery extends IQuery<
+  UserQueryTypes.SearchUsers,
+  {
     readonly searchTerm: string;
     readonly fields?: ('name' | 'email')[];
-  };
-}
+  },
+  UserState[]
+> {}
 
 /**
  * Get user statistics query
  */
-export interface GetUserStatsQuery extends IQuery<{
-  totalUsers: number;
-  activeUsers: number;
-  deletedUsers: number;
-  verifiedEmails: number;
-  createdToday: number;
-}> {
-  readonly type: UserQueryTypes.GetUserStats;
-  readonly parameters?: {
+export interface GetUserStatsQuery extends IQuery<
+  UserQueryTypes.GetUserStats,
+  {
     readonly fromDate?: Date;
     readonly toDate?: Date;
-  };
-}
+  },
+  {
+    totalUsers: number;
+    activeUsers: number;
+    deletedUsers: number;
+    verifiedEmails: number;
+    createdToday: number;
+  }
+> {}
 
 /**
  * Union type for all user queries

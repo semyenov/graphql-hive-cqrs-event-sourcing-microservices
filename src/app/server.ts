@@ -1,145 +1,61 @@
 /**
  * Application Server
  * 
- * Main server using the CQRS/Event Sourcing framework.
+ * Main server using the CQRS/Event Sourcing framework with GraphQL bridge.
  */
 
-import { createYoga } from 'graphql-yoga';
-import { makeExecutableSchema } from '@graphql-tools/schema';
-import {
-  createEventStore,
-  createCommandBus,
-  createEventBus,
-  createQueryBus,
-  initializeFramework,
-} from '../framework';
+import { 
+  createGraphQLServer,
+  createDomainConfig,
+} from '../framework/graphql';
 import { initializeUserDomain, userGraphQLSchema } from '../domains/users';
-import type { UserEvent } from '../domains/users';
+import { createUserDomainResolvers } from '../domains/users/graphql-resolvers';
 
-// Initialize framework
-const framework = initializeFramework({
-  eventStore: 'memory',
+// Initialize user domain with all infrastructure
+const userDomain = initializeUserDomain({
   enableCache: true,
-  enableMonitoring: true,
+  enableValidation: true,
+  enableProjections: true,
 });
 
-// Create infrastructure
-const eventStore = createEventStore<UserEvent>();
-const commandBus = createCommandBus();
-const eventBus = createEventBus<UserEvent>();
-const queryBus = createQueryBus(true, 60000);
+// Create user domain configuration for GraphQL
+const userDomainConfig = createDomainConfig(
+  'users',
+  userGraphQLSchema,
+  createUserDomainResolvers(userDomain)
+);
 
-// Register domains
-const { repository: userRepository } = initializeUserDomain();
-
-// Base GraphQL schema
-const baseSchema = `
-  type Query {
-    _empty: String
-  }
+// Create GraphQL server with CQRS bridge
+const server = createGraphQLServer({
+  // CQRS infrastructure
+  commandBus: userDomain.commandBus,
+  queryBus: userDomain.queryBus,
+  eventBus: userDomain.eventBus,
   
-  type Mutation {
-    _empty: String
-  }
+  // Domain configurations
+  domains: [userDomainConfig],
   
-  type Subscription {
-    _empty: String
-  }
-`;
-
-// Combine schemas
-const typeDefs = [baseSchema, userGraphQLSchema].join('\n');
-
-// Create GraphQL schema
-const schema = makeExecutableSchema({
-  typeDefs,
-  resolvers: {
-    Query: {
-      user: async (_, { id }) => {
-        // TODO: Implement query handler
-        return null;
-      },
-      users: async () => {
-        // TODO: Implement query handler
-        return [];
-      },
-      userByEmail: async (_, { email }) => {
-        // TODO: Implement query handler
-        return null;
-      },
-    },
-    Mutation: {
-      createUser: async (_, { input }) => {
-        // TODO: Use command bus
-        return {
-          success: false,
-          errors: [{ message: 'Not implemented' }],
-        };
-      },
-      updateUser: async (_, { id, input }) => {
-        // TODO: Use command bus
-        return {
-          success: false,
-          errors: [{ message: 'Not implemented' }],
-        };
-      },
-      deleteUser: async (_, { id, reason }) => {
-        // TODO: Use command bus
-        return {
-          success: false,
-          errors: [{ message: 'Not implemented' }],
-        };
-      },
-    },
-  },
-});
-
-// Create GraphQL Yoga server
-const yoga = createYoga({
-  schema,
+  // Server configuration
+  port: Number(process.env.PORT) || 3005,
   graphiql: process.env.NODE_ENV !== 'production',
-});
-
-// Create Bun server
-const server = Bun.serve({
-  port: process.env.PORT || 3005,
-  async fetch(req) {
-    const url = new URL(req.url);
-
-    // Health check
-    if (url.pathname === '/health') {
-      return new Response(
-        JSON.stringify({
-          status: 'ok',
-          framework: {
-            initialized: true,
-            eventStore: eventStore ? 'active' : 'inactive',
-            commandBus: commandBus ? 'active' : 'inactive',
-            eventBus: eventBus ? 'active' : 'inactive',
-            queryBus: queryBus ? 'active' : 'inactive',
-          },
-          domains: ['users'],
-          timestamp: new Date().toISOString(),
-        }),
-        {
-          headers: {
-            'Content-Type': 'application/json'
-          },
-        }
-      );
-    }
-
-    // GraphQL endpoint
-    if (url.pathname === '/graphql') {
-      return yoga.handle(req);
-    }
-
-    return new Response('Not Found', { status: 404 });
+  
+  // Context extraction
+  extractUserId: (request) => request.headers.get('x-user-id') || undefined,
+  extractRequestId: (request) => request.headers.get('x-request-id') || undefined,
+  
+  // Logging
+  logging: process.env.NODE_ENV !== 'production',
+  
+  // Custom startup message
+  onServerStart: (server) => {
+    console.log('\n🚀 CQRS + GraphQL Server Started');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log(`📊 GraphQL:  http://localhost:${server.port}/graphql`);
+    console.log(`❤️  Health:   http://localhost:${server.port}/health`);
+    console.log(`🔧 Mode:     ${process.env.NODE_ENV || 'development'}`);
+    console.log(`📦 Domains:  users`);
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
   },
 });
-
-console.log(`🚀 Server running at http://localhost:${server.port}`);
-console.log(`📊 GraphQL endpoint: http://localhost:${server.port}/graphql`);
-console.log(`❤️  Health check: http://localhost:${server.port}/health`);
 
 export default server;

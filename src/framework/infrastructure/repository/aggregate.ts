@@ -11,13 +11,13 @@ import type { IAggregateRepository } from '../../core/repository';
 
 /**
  * Generic aggregate repository with event sourcing
+ * @template TAggregate - The aggregate type
+ * @template TEvent - The event type for this aggregate
  */
 export abstract class AggregateRepository<
-  TState,
-  TEvent extends IEvent,
-  TAggregateId extends AggregateId,
-  TAggregate extends IAggregateBehavior<TState, TEvent, TAggregateId>
-> implements IAggregateRepository<TAggregate, TAggregateId> {
+  TAggregate extends IAggregateBehavior<unknown, TEvent, AggregateId>,
+  TEvent extends IEvent = IEvent
+> implements IAggregateRepository<TAggregate, AggregateId> {
   
   private cache = new Map<string, TAggregate>();
 
@@ -32,12 +32,12 @@ export abstract class AggregateRepository<
   /**
    * Abstract method to create new aggregate instance
    */
-  abstract createAggregate(id: TAggregateId): TAggregate;
+  abstract createAggregate(id: AggregateId): TAggregate;
 
   /**
    * Get aggregate by ID
    */
-  async get(id: TAggregateId): Promise<TAggregate | null> {
+  async get(id: AggregateId): Promise<TAggregate | null> {
     // Check cache first
     const cacheKey = id as string;
     if (this.cacheEnabled && this.cache.has(cacheKey)) {
@@ -82,7 +82,7 @@ export abstract class AggregateRepository<
   /**
    * Check if aggregate exists
    */
-  async exists(id: TAggregateId): Promise<boolean> {
+  async exists(id: AggregateId): Promise<boolean> {
     // Check cache first
     const cacheKey = id as string;
     if (this.cacheEnabled && this.cache.has(cacheKey)) {
@@ -104,7 +104,7 @@ export abstract class AggregateRepository<
   /**
    * Remove single item from cache
    */
-  evictFromCache(id: TAggregateId): void {
+  evictFromCache(id: AggregateId): void {
     const cacheKey = id as string;
     this.cache.delete(cacheKey);
   }

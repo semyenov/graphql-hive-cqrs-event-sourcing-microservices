@@ -159,13 +159,13 @@ export class QueryBus<TQuery extends IQuery = IQuery> implements IQueryBus {
 }
 
 /**
- * Factory for creating query bus
+ * Factory for creating query bus with type safety
  */
-export function createQueryBus(
+export function createQueryBus<TQuery extends IQuery = IQuery>(
   cacheEnabled = false,
   cacheTimeout?: number
-): QueryBus {
-  return new QueryBus(cacheEnabled, cacheTimeout);
+): QueryBus<TQuery> {
+  return new QueryBus<TQuery>(cacheEnabled, cacheTimeout);
 }
 
 /**

@@ -4,7 +4,7 @@
  * Commands for the User domain.
  */
 
-import type { ICommand } from '../../../framework/core/command';
+import type { ICommand, IAggregateCommand } from '../../../framework/core/command';
 import type { AggregateId } from '../../../framework/core/branded/types';
 
 /**
@@ -22,66 +22,72 @@ export enum UserCommandTypes {
 /**
  * Create user command
  */
-export interface CreateUserCommand extends ICommand<
+export interface CreateUserCommand extends IAggregateCommand<
   UserCommandTypes.CreateUser,
   {
     name: string;
     email: string;
-  }
+  },
+  AggregateId
 > {}
 
 /**
  * Update user command
  */
-export interface UpdateUserCommand extends ICommand<
+export interface UpdateUserCommand extends IAggregateCommand<
   UserCommandTypes.UpdateUser,
   {
     name?: string;
     email?: string;
-  }
+  },
+  AggregateId
 > {}
 
 /**
  * Delete user command
  */
-export interface DeleteUserCommand extends ICommand<
+export interface DeleteUserCommand extends IAggregateCommand<
   UserCommandTypes.DeleteUser,
   {
     reason?: string;
-  }
+  },
+  AggregateId
 > {}
 
 /**
  * Verify user email command
  */
-export interface VerifyUserEmailCommand extends ICommand<
+export interface VerifyUserEmailCommand extends IAggregateCommand<
   UserCommandTypes.VerifyUserEmail,
   {
     verificationToken: string;
-  }
+  },
+  AggregateId
 > {}
 
 /**
  * Change user password command
  */
-export interface ChangeUserPasswordCommand extends ICommand<
+export interface ChangeUserPasswordCommand extends IAggregateCommand<
   UserCommandTypes.ChangeUserPassword,
   {
     currentPassword: string;
     newPassword: string;
-  }
+  },
+  AggregateId
 > {}
 
 /**
  * Update user profile command
  */
-export interface UpdateUserProfileCommand extends ICommand<
+export interface UpdateUserProfileCommand extends IAggregateCommand<
   UserCommandTypes.UpdateUserProfile,
   {
     bio?: string;
     avatar?: string;
     location?: string;
-  }
+  },
+  AggregateId
 > {}
 
 /**

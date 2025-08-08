@@ -126,7 +126,7 @@ export class CommandBus<TCommand extends ICommand = ICommand> implements IComman
   /**
    * Private: Extract command type from handler
    */
-  private getHandlerCommandType(handler: ICommandHandler<ICommand>): string | null {
+  private getHandlerCommandType(_handler: ICommandHandler<ICommand>): string | null {
     // This is a simplified approach - in production, you might want to
     // use decorators or explicit registration with command type
     // For now, return null to require explicit registration
@@ -135,10 +135,10 @@ export class CommandBus<TCommand extends ICommand = ICommand> implements IComman
 }
 
 /**
- * Factory for creating command bus
+ * Factory for creating command bus with type safety
  */
-export function createCommandBus(): CommandBus {
-  return new CommandBus();
+export function createCommandBus<TCommand extends ICommand = ICommand>(): CommandBus<TCommand> {
+  return new CommandBus<TCommand>();
 }
 
 /**

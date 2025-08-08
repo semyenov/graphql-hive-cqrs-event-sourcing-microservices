@@ -8,17 +8,14 @@ import { AggregateRepository } from '../../../framework/infrastructure/repositor
 import type { IEventStore } from '../../../framework/core/event';
 import type { AggregateId } from '../../../framework/core/branded/types';
 import type { UserEvent } from '../events/types';
-import type { UserState } from './user';
 import { UserAggregate } from './user';
 
 /**
  * User repository
  */
 export class UserRepository extends AggregateRepository<
-  UserState,
-  UserEvent,
-  AggregateId,
-  UserAggregate
+  UserAggregate,
+  UserEvent
 > {
   constructor(
     eventStore: Pick<IEventStore<UserEvent>, 'append' | 'appendBatch' | 'getEvents'>,
@@ -53,7 +50,7 @@ export class UserRepository extends AggregateRepository<
   /**
    * Find user by email (requires projection integration)
    */
-  async findByEmail(email: string): Promise<UserAggregate | null> {
+  async findByEmail(_email: string): Promise<UserAggregate | null> {
     // This would typically query a projection or read model
     // For now, this is a placeholder that would need integration
     // with the projection layer

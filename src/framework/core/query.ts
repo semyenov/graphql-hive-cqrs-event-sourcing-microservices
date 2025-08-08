@@ -7,17 +7,27 @@
 
 /**
  * Base query interface for read operations
+ * @template TType - Query type discriminator
+ * @template TParams - Query parameters type
  * @template TResult - Query result type
  */
-export interface IQuery<TResult = unknown> {
-  readonly type: string;
-  readonly parameters?: Record<string, unknown>;
+export interface IQuery<
+  TType extends string = string,
+  TParams = unknown,
+  TResult = unknown
+> {
+  readonly type: TType;
+  readonly parameters?: TParams;
+  readonly _result?: TResult; // Phantom type for result inference
 }
 
 /**
  * Query handler interface
  */
-export interface IQueryHandler<TQuery extends IQuery, TResult> {
+export interface IQueryHandler<
+  TQuery extends IQuery<string, unknown, unknown>,
+  TResult = TQuery extends IQuery<string, unknown, infer R> ? R : unknown
+> {
   handle(query: TQuery): Promise<TResult>;
   canHandle(query: IQuery): boolean;
 }
@@ -26,9 +36,11 @@ export interface IQueryHandler<TQuery extends IQuery, TResult> {
  * Query bus for routing queries to handlers
  */
 export interface IQueryBus {
-  ask<TQuery extends IQuery, TResult>(query: TQuery): Promise<TResult>;
-  register<TQuery extends IQuery, TResult>(
-    handler: IQueryHandler<TQuery, TResult>
+  ask<TQuery extends IQuery<string, unknown, unknown>>(
+    query: TQuery
+  ): Promise<TQuery extends IQuery<string, unknown, infer R> ? R : unknown>;
+  register<TQuery extends IQuery<string, unknown, unknown>>(
+    handler: IQueryHandler<TQuery>
   ): void;
 }
 

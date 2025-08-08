@@ -35,3 +35,262 @@ _**Assistant**_
 
 ---
 
+_**User**_
+
+For the code present, we get this error:
+```
+Argument of type '(_parent: unknown, args: TArgs, context: IGraphQLContext) => Promise<TResult>' is not assignable to parameter of type '(args: unknown) => Promise<TResult>'.
+  Target signature provides too few arguments. Expected 3 or more, but got 1.
+```
+How can I resolve this? If you propose a fix, please make it concise.
+
+---
+
+_**Assistant**_
+
+I need to examine the `withErrorHandling` function to understand its expected signature and fix the type mismatch.
+
+
+---
+
+<details>
+                <summary>Searched codebase "withErrorHandling function signature" • **15** results</summary>
+            
+| File | Lines |
+|------|-------|
+| `src/framework/graphql/errors.ts` | L198-233 |
+| `src/framework/graphql/index.ts` | L28-39 |
+| `src/framework/graphql/resolvers.ts` | L37-94 |
+| `src/framework/infrastructure/bus/event-bus.ts` | L116-134 |
+| `src/framework/graphql/resolvers.ts` | L1-37 |
+| `src/framework/infrastructure/bus/command-bus.ts` | L38-60 |
+| `src/framework/graphql/errors.ts` | L63-121 |
+| `src/framework/core/event-utils.ts` | L32-50 |
+| `src/framework/core/helpers.ts` | L173-214 |
+| `src/framework/graphql/errors.ts` | L182-198 |
+| `src/framework/graphql/errors.ts` | L1-24 |
+| `src/framework/graphql/resolvers.ts` | L94-114 |
+| `src/framework/index.ts` | L1-89 |
+| `src/domains/users/events/handlers.ts` | L98-149 |
+| `src/framework/graphql/errors.ts` | L121-182 |
+
+</details>
+
+---
+
+Now I can see the issue. The `withErrorHandling` function expects a function that takes only one argument (`args: TArgs`), but the resolver function has three parameters (`_parent`, `args`, `context`). I need to fix this by wrapping the resolver function properly.
+
+
+---
+
+<details><summary>Edit file: src/framework/graphql/resolvers.ts</summary>
+
+I need to fix the withErrorHandling call by wrapping the resolver function to match the expected signature that takes only one argument.
+
+**Chunk 1**
+Lines added: 76, lines removed: 73
+
+```diff
+@@ -36,77 +36,80 @@
+  ): ResolverFunction<unknown, TArgs, IGraphQLContext, Promise<TResult>> {
+    return withErrorHandling(
+-     async (_parent: unknown , args: TArgs, context: IGraphQLContext): Promise<TResult> => {
+-       const startTime = Date.now();
+-       
+-       try {
+-         // Run validation if provided
+-         if (config.validate) {
+-           const errors = await config.validate(args);
+-           if (errors.length > 0) {
+-             return {
+-               success: false,
+-               errors: errors,
+-             } as unknown as TResult;
+-           }
+-         }
+-         
+-         // Map input to command
+-         const { aggregateId, payload, metadata } = config.mapInput(args, context);
+-         
+-         // Create command
+-         const command: ICommand = {
+-           type: config.commandType,
+-           payload,
+-           metadata: {
+-             ...metadata,
+-             userId: context.userId,
+-             requestId: context.requestId,
+-             timestamp: context.timestamp,
+-           },
+-         };
+-         
+-         // Add aggregateId if provided (for aggregate commands)
+-         const finalCommand = aggregateId
+-           ? { ...command, aggregateId } as IAggregateCommand
+-           : command;
+-         
+-         // Send command through command bus
+-         const result = await context.commandBus.send(finalCommand);
+-         
+-         // Log metrics if configured
+-         const logger = getContextValue(context, 'logger');
+-         if (logger) {
+-           (logger as { info: Function }).info('Mutation executed', {
+-             mutation: config.commandType,
+-             duration: Date.now() - startTime,
+-             success: result.success,
+-           });
+-         }
+-         
+-         // Map result if mapper provided
+-         if (config.mapResult) {
+-           return config.mapResult(result, args);
+-         }
+-         
+-         // Default to mutation response format
+-         return commandResultToGraphQLResponse(result) as unknown as TResult;
+-         
+-       } catch (error) {
+-         // Log error if logger available
+-         const logger = getContextValue(context, 'logger');
+-         if (logger) {
+-           (logger as { error: Function }).error('Mutation failed', {
+-             mutation: config.commandType,
+-             duration: Date.now() - startTime,
+-             error,
+-           });
+-         }
+-         
+-         // Return error response
+-         return {
+-           success: false,
+-           errors: [errorToGraphQL(error)],
+-         } as unknown as TResult;
+-       }
++     (args: { _parent: unknown; args: TArgs; context: IGraphQLContext }) => {
++       const { _parent, args: resolverArgs, context } = args;
++       return (async () => {
++         const startTime = Date.now();
++         
++         try {
++           // Run validation if provided
++           if (config.validate) {
++             const errors = await config.validate(resolverArgs);
++             if (errors.length > 0) {
++               return {
++                 success: false,
++                 errors: errors,
++               } as unknown as TResult;
++             }
++           }
++           
++           // Map input to command
++           const { aggregateId, payload, metadata } = config.mapInput(resolverArgs, context);
++           
++           // Create command
++           const command: ICommand = {
++             type: config.commandType,
++             payload,
++             metadata: {
++               ...metadata,
++               userId: context.userId,
++               requestId: context.requestId,
++               timestamp: context.timestamp,
++             },
++           };
++           
++           // Add aggregateId if provided (for aggregate commands)
++           const finalCommand = aggregateId
++             ? { ...command, aggregateId } as IAggregateCommand
++             : command;
++           
++           // Send command through command bus
++           const result = await context.commandBus.send(finalCommand);
++           
++           // Log metrics if configured
++           const logger = getContextValue(context, 'logger');
++           if (logger) {
++             (logger as { info: Function }).info('Mutation executed', {
++               mutation: config.commandType,
++               duration: Date.now() - startTime,
++               success: result.success,
++             });
++           }
++           
++           // Map result if mapper provided
++           if (config.mapResult) {
++             return config.mapResult(result, resolverArgs);
++           }
++           
++           // Default to mutation response format
++           return commandResultToGraphQLResponse(result) as unknown as TResult;
++           
++         } catch (error) {
++           // Log error if logger available
++           const logger = getContextValue(context, 'logger');
++           if (logger) {
++             (logger as { error: Function }).error('Mutation failed', {
++               mutation: config.commandType,
++               duration: Date.now() - startTime,
++               error,
++             });
++           }
++           
++           // Return error response
++           return {
++             success: false,
++             errors: [errorToGraphQL(error)],
++           } as unknown as TResult;
++         }
++       })();
+      },
+      { returnMutationResponse: true }
+```
+
+</details>
+
+---
+
+I see there are still some type issues. Let me check the branded types to understand the proper type conversions needed.
+
+
+---
+
+<details>
+                <summary>Searched codebase "UserId Timestamp branded types" • **15** results</summary>
+            
+| File | Lines |
+|------|-------|
+| `src/framework/core/branded/types.ts` | L19-20 |
+| `src/framework/core/branded/guards.ts` | L1-69 |
+| `src/framework/core/event.ts` | L1-26 |
+| `src/framework/index.ts` | L89-107 |
+| `src/framework/core/branded/factories.ts` | L1-71 |
+| `src/framework/core/event.ts` | L26-43 |
+| `src/framework/graphql/types.ts` | L1-35 |
+| `src/framework/core/helpers.ts` | L1-27 |
+| `src/framework/core/branded/factories.ts` | L71-133 |
+| `src/framework/graphql/index.ts` | L104-110 |
+| `src/framework/core/branded/types.ts` | L37-42 |
+| `src/framework/core/branded/types.ts` | L11-16 |
+| `src/framework/core/branded/types.ts` | L22-23 |
+| `src/framework/graphql/context.ts` | L23-62 |
+| `src/domains/users/events/factories.ts` | L1-75 |
+
+</details>
+
+---
+
+Now I understand the issue. I need to use the `BrandedTypes` factory functions to convert the string and Date types to the proper branded types. Let me fix this:
+
+
+---
+
+
+
+---
+
+
+
+---
+
