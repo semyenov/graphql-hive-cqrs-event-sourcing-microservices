@@ -71,6 +71,10 @@ export interface ICommandBus {
   register<TCommand extends ICommand>(
     handler: ICommandHandler<TCommand>
   ): void;
+  registerWithType<TCommand extends ICommand>(
+    type: TCommand['type'],
+    handler: ICommandHandler<TCommand>
+  ): void;
 }
 
 /**

@@ -6,16 +6,16 @@
  */
 
 import type { IDomainModule } from '../../framework/core/types';
-import type { IEventStore } from '../../framework/core/event';
+import type { IEventStore, IEventBus, ICommandBus, IQueryBus } from '../../framework/core';
 import { 
   createCommandBus, 
   createEventBus, 
   createQueryBus,
+  createEventStore,
   type CommandBus, 
   type EventBus, 
   type QueryBus 
-} from '../../framework/infrastructure/bus';
-import { createEventStore } from '../../framework/infrastructure/event-store/memory';
+} from '../../framework';
 
 // Domain components
 import { UserRepository, createUserRepository } from './aggregates/repository';
@@ -44,8 +44,8 @@ export * from './queries/handlers';
 export * from './queries/specifications';
 export * from './validators/command.validators';
 export * from './projections/user.projection';
-export * from './projections/user-list.projection';
-export * from './projections/user-stats.projection';
+export type { UserListItem } from './projections/user-list.projection';
+export type { UserStats } from './projections/user-stats.projection';
 
 // Convenience re-exports
 export { UserAggregate, type UserState } from './aggregates/user';
@@ -54,7 +54,7 @@ export { UserEventFactories } from './events/factories';
 export { UserEventTypes, type UserEvent } from './events/types';
 export { UserCommandTypes, type UserCommand } from './commands/types';
 export { UserQueryTypes, type UserQuery } from './queries/types';
-export { UserSpecifications, filterBySpecification } from './queries/specifications';
+export { UserFilters, combineFilters, filterUsers } from './queries/specifications';
 
 /**
  * User domain configuration
@@ -64,6 +64,8 @@ export interface UserDomainConfig {
   enableCache?: boolean;
   enableValidation?: boolean;
   enableProjections?: boolean;
+  enableEventReplay?: boolean;
+  enableSnapshotting?: boolean;
 }
 
 /**
@@ -80,6 +82,7 @@ export interface UserDomainContext {
     userStatsProjection: ReturnType<typeof createUserStatsProjection>;
   };
   validators: ReturnType<typeof createUserCommandValidators>;
+  eventStore: IEventStore<UserEvent>;
 }
 
 /**
@@ -112,10 +115,10 @@ export function initializeUserDomain(
   const queryBus = createQueryBus<UserQuery>(config.enableCache);
   const eventBus = createEventBus<UserEvent>();
   
-  // Create repository
-  const repository = createUserRepository(eventStore);
+  // Create repository with event bus integration
+  const repository = createUserRepository(eventStore, eventBus);
   
-  // Create projections
+  // Create projections with enhanced builders
   const projections = {
     userProjection: createUserProjection(),
     userListProjection: createUserListProjection(),
@@ -130,7 +133,7 @@ export function initializeUserDomain(
   
   // Register query handlers
   if (config.enableProjections !== false) {
-    registerUserQueryHandlers(queryBus, projections.userProjection);
+    registerUserQueryHandlers(queryBus, projections);
   }
   
   // Register event handlers
@@ -160,6 +163,9 @@ export function initializeUserDomain(
       },
     });
   }
+
+  // Repository now handles event publishing automatically!
+  // No need for complex event publishing middleware
   
   return {
     repository,
@@ -168,115 +174,9 @@ export function initializeUserDomain(
     eventBus,
     projections,
     validators,
+    eventStore,
   };
 }
 
-/**
- * GraphQL schema for user domain
- */
-export const userGraphQLSchema = `
-  type User {
-    id: ID!
-    name: String!
-    email: String!
-    emailVerified: Boolean!
-    deleted: Boolean!
-    createdAt: String!
-    updatedAt: String!
-    profile: UserProfile
-  }
-
-  type UserProfile {
-    bio: String
-    avatar: String
-    location: String
-  }
-
-  type UserStats {
-    totalUsers: Int!
-    activeUsers: Int!
-    deletedUsers: Int!
-    verifiedEmails: Int!
-    createdToday: Int!
-  }
-
-  input CreateUserInput {
-    name: String!
-    email: String!
-  }
-
-  input UpdateUserInput {
-    name: String
-    email: String
-  }
-
-  input UpdateUserProfileInput {
-    bio: String
-    avatar: String
-    location: String
-  }
-
-  input UserSearchInput {
-    searchTerm: String!
-    fields: [String!]
-  }
-
-  input PaginationInput {
-    offset: Int!
-    limit: Int!
-    sortBy: String
-    sortOrder: String
-  }
-
-  type UserMutationResponse {
-    success: Boolean!
-    user: User
-    errors: [Error!]
-  }
-
-  type UserListResponse {
-    users: [User!]!
-    total: Int!
-    hasNext: Boolean!
-  }
-
-  type Error {
-    field: String!
-    message: String!
-    code: String
-  }
-
-  extend type Query {
-    # Get single user by ID
-    user(id: ID!): User
-    
-    # Get user by email
-    userByEmail(email: String!): User
-    
-    # List users with pagination
-    users(pagination: PaginationInput!, includeDeleted: Boolean): UserListResponse!
-    
-    # Search users
-    searchUsers(input: UserSearchInput!): [User!]!
-    
-    # Get user statistics
-    userStats: UserStats!
-  }
-
-  extend type Mutation {
-    # Create a new user
-    createUser(input: CreateUserInput!): UserMutationResponse!
-    
-    # Update user details
-    updateUser(id: ID!, input: UpdateUserInput!): UserMutationResponse!
-    
-    # Delete user (soft delete)
-    deleteUser(id: ID!, reason: String): UserMutationResponse!
-    
-    # Verify user email
-    verifyUserEmail(id: ID!, token: String!): UserMutationResponse!
-    
-    # Update user profile
-    updateUserProfile(id: ID!, input: UpdateUserProfileInput!): UserMutationResponse!
-  }
-`;
+// Re-export GraphQL schema
+export { userGraphQLSchema } from './schema.graphql';

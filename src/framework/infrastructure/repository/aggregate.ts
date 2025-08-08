@@ -5,7 +5,7 @@
  */
 
 import type { AggregateId } from '../../core/branded/types';
-import type { IEvent, IEventStore } from '../../core/event';
+import type { IEvent, IEventStore, IEventBus } from '../../core/event';
 import type { IAggregateBehavior } from '../../core/aggregate';
 import type { IAggregateRepository } from '../../core/repository';
 
@@ -26,7 +26,8 @@ export abstract class AggregateRepository<
       IEventStore<TEvent>, 
       'append' | 'appendBatch' | 'getEvents'
     >,
-    protected readonly cacheEnabled = true
+    protected readonly cacheEnabled = true,
+    protected readonly eventBus?: IEventBus<TEvent>
   ) {}
 
   /**
@@ -63,12 +64,22 @@ export abstract class AggregateRepository<
   }
 
   /**
-   * Save aggregate (persist uncommitted events)
+   * Save aggregate (persist uncommitted events and publish to event bus)
    */
   async save(aggregate: TAggregate): Promise<void> {
     const events = aggregate.uncommittedEvents;
     if (events.length > 0) {
+      // First persist events to event store
       await this.eventStore.appendBatch(events);
+      
+      // Then publish events to event bus for projections (if event bus is configured)
+      if (this.eventBus) {
+        for (const event of events) {
+          await this.eventBus.publish(event);
+        }
+      }
+      
+      // Finally mark events as committed (this clears uncommittedEvents)
       aggregate.markEventsAsCommitted();
 
       // Update cache

@@ -15,7 +15,7 @@ import type {
 import type { ICommand, IAggregateCommand, ICommandResult } from '../core/command';
 import type { IQuery } from '../core/query';
 import type { IEvent } from '../core/event';
-import type { AggregateId } from '../core/branded/types';
+import type { Timestamp } from '../core/branded/types';
 import { 
   errorToGraphQL, 
   commandResultToGraphQLResponse,
@@ -23,6 +23,7 @@ import {
   validationErrorsToGraphQL,
 } from './errors';
 import { getContextValue } from './context';
+import { BrandedTypes } from '../core/branded/factories';
 
 /**
  * Create a mutation resolver that maps to a command
@@ -34,8 +35,7 @@ export function createMutationResolver<
 >(
   config: IMutationResolverConfig<TArgs, TCommand, TResult>
 ): ResolverFunction<unknown, TArgs, IGraphQLContext, Promise<TResult>> {
-  return withErrorHandling(
-    async (_parent: unknown , args: TArgs, context: IGraphQLContext): Promise<TResult> => {
+  return async (_parent: unknown, args: TArgs, context: IGraphQLContext): Promise<TResult> => {
       const startTime = Date.now();
       
       try {
@@ -59,9 +59,8 @@ export function createMutationResolver<
           payload,
           metadata: {
             ...metadata,
-            userId: context.userId,
-            requestId: context.requestId,
-            timestamp: context.timestamp,
+            userId: context.userId ? BrandedTypes.userId(context.userId) : undefined,
+            timestamp: context.timestamp ? BrandedTypes.timestamp(context.timestamp) : new Date() as Timestamp,
           },
         };
         
@@ -108,9 +107,7 @@ export function createMutationResolver<
           errors: [errorToGraphQL(error)],
         } as unknown as TResult;
       }
-    },
-    { returnMutationResponse: true }
-  ) as ResolverFunction<unknown, TArgs, IGraphQLContext, Promise<TResult>>;
+  };
 }
 
 /**
@@ -223,7 +220,7 @@ export function createSubscriptionResolver<
   resolve?: ResolverFunction<TPayload, TArgs, IGraphQLContext, TPayload>;
 } {
   return {
-    subscribe: async (_parent: unknown, args: TArgs, context: IGraphQLContext) => {
+    subscribe: (_parent: unknown, args: TArgs, context: IGraphQLContext) => {
       // Create async iterator for events
       const asyncIterator = createAsyncIterator<TEvent, TPayload>(
         context.eventBus,
@@ -325,7 +322,7 @@ export function createBatchResolver<TKey, TResult>(
       const results = await batchFn(keys);
       
       currentBatch.forEach((item, index) => {
-        item.resolve(results[index]);
+        item.resolve(results[index]!);
       });
     } catch (error) {
       currentBatch.forEach(item => {

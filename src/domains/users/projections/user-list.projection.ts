@@ -1,18 +1,18 @@
 /**
  * User Domain: User List Projection
  * 
- * Optimized projection for listing users with minimal data.
+ * Optimized projection for listing users with minimal data using IndexedProjectionBuilder.
  */
 
-import { createProjectionBuilder } from '../../../framework/infrastructure/projections/builder';
+import { IndexedProjectionBuilder } from '../../../framework/infrastructure/projections/builder';
+import { matchEvent } from '../../../framework/core/event-utils';
 import type { UserEvent } from '../events/types';
 import { UserEventTypes } from '../events/types';
-import { matchUserEvent } from '../helpers/type-guards';
 
 /**
  * User list item with minimal data
  */
-export interface UserListItem {
+export interface UserListItem extends Record<string, unknown> {
   id: string;
   name: string;
   email: string;
@@ -35,7 +35,7 @@ function buildUserListProjection(
   let item: UserListItem | null = null;
 
   for (const event of events) {
-    item = matchUserEvent<UserListItem | null>(event, {
+    item = matchEvent(event, {
       [UserEventTypes.UserCreated]: (e) => ({
         id: aggregateId,
         name: e.data.name as string,
@@ -83,11 +83,19 @@ function buildUserListProjection(
 }
 
 /**
- * Create user list projection builder
+ * Create user list projection builder with indexing support
  */
 export function createUserListProjection() {
-  return createProjectionBuilder<UserEvent, UserListItem>(
+  const projection = new IndexedProjectionBuilder<UserEvent, UserListItem>(
     buildUserListProjection,
     'UserListProjection'
   );
+  
+  // Create indexes for fast lookups
+  projection.createIndex('email');
+  projection.createIndex('emailVerified');
+  projection.createIndex('deleted');
+  
+  return projection;
 }
+

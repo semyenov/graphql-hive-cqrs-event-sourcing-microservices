@@ -1,21 +1,19 @@
 /**
  * User Domain: Event Handlers
  * 
- * Side effect handlers that react to domain events.
+ * Event handlers for user domain events.
  */
 
-import type { EventBus } from '../../../framework/infrastructure/bus';
+import type { IEventBus } from '../../../framework/core/event';
 import type { ProjectionBuilder } from '../../../framework/infrastructure/projections/builder';
 import type { UserEvent } from './types';
 import type { UserState } from '../aggregates/user';
 import type { UserListItem } from '../projections/user-list.projection';
 import type { UserStats } from '../projections/user-stats.projection';
 import { UserEventTypes } from './types';
-import { STATS_AGGREGATE_ID } from '../helpers/constants';
-import { getEventMetadata } from './enhanced-types';
 
 /**
- * Update projections when events occur
+ * Projection event handler
  */
 export class ProjectionEventHandler {
   constructor(
@@ -25,71 +23,51 @@ export class ProjectionEventHandler {
   ) {}
 
   /**
-   * Handle any user event
+   * Handle user events for projections
    */
   async handleEvent(event: UserEvent): Promise<void> {
-    // Update main user projection
+    // Update user projection
     await this.userProjection.updateProjection(event.aggregateId, [event]);
     
-    // Update list projection if available
+    // Update user list projection if available
     if (this.userListProjection) {
       await this.userListProjection.updateProjection(event.aggregateId, [event]);
     }
     
-    // Update stats projection if available
+    // Update user stats projection if available
     if (this.userStatsProjection) {
-      // Stats uses a special 'stats' key for aggregation
-      await this.userStatsProjection.updateProjection(STATS_AGGREGATE_ID, [{
-        ...event,
-        aggregateId: STATS_AGGREGATE_ID
-      }]);
+      // For stats, we need to process all events for the 'global' aggregate
+      await this.userStatsProjection.updateProjection('global' as any, [event]);
     }
   }
 }
 
 /**
- * Email notification handler
+ * Simple notification and audit handler
  */
-export class EmailNotificationHandler {
-  async handleUserCreated(event: Extract<UserEvent, { type: typeof UserEventTypes.UserCreated }>): Promise<void> {
-    // In production, send welcome email
-    console.log(`[Email] Welcome email would be sent to ${event.data.email}`);
-  }
-
-  async handleEmailVerified(event: Extract<UserEvent, { type: typeof UserEventTypes.UserEmailVerified }>): Promise<void> {
-    // In production, send confirmation email
-    console.log(`[Email] Verification confirmation would be sent for user ${event.aggregateId}`);
-  }
-
-  async handlePasswordChanged(event: Extract<UserEvent, { type: typeof UserEventTypes.UserPasswordChanged }>): Promise<void> {
-    // In production, send security notification
-    console.log(`[Email] Password change notification would be sent for user ${event.aggregateId}`);
-  }
-}
-
-/**
- * Audit log handler
- */
-export class AuditLogHandler {
-  private readonly auditLog: Array<{
-    timestamp: string;
-    eventType: string;
-    aggregateId: string;
-    userId?: string;
-  }> = [];
+export class NotificationHandler {
+  private readonly auditLog: Array<{ timestamp: string; eventType: string; aggregateId: string }> = [];
 
   async handleEvent(event: UserEvent): Promise<void> {
-    const metadata = getEventMetadata(event);
-    
+    // Log event for audit
     this.auditLog.push({
-      timestamp: event.timestamp.toString(),
+      timestamp: new Date().toISOString(),
       eventType: event.type,
       aggregateId: event.aggregateId as string,
-      userId: metadata?.userId as string | undefined,
     });
-    
-    // In production, persist to audit log storage
-    console.log(`[Audit] Event ${event.type} for aggregate ${event.aggregateId}`);
+
+    // Handle notifications based on event type
+    switch (event.type) {
+      case UserEventTypes.UserCreated:
+        console.log(`[Notification] Welcome email sent to ${(event as any).data.email}`);
+        break;
+      case UserEventTypes.UserEmailVerified:
+        console.log(`[Notification] Email verification confirmed for user ${event.aggregateId}`);
+        break;
+      case UserEventTypes.UserPasswordChanged:
+        console.log(`[Notification] Password change notification sent for user ${event.aggregateId}`);
+        break;
+    }
   }
 
   getAuditLog() {
@@ -98,52 +76,27 @@ export class AuditLogHandler {
 }
 
 /**
- * Register event handlers with the event bus
+ * Register all user event handlers
  */
 export function registerUserEventHandlers(
-  eventBus: EventBus<UserEvent>,
+  eventBus: IEventBus<UserEvent>,
   projections: {
     userProjection: ProjectionBuilder<UserEvent, UserState>;
     userListProjection?: ProjectionBuilder<UserEvent, any>;
     userStatsProjection?: ProjectionBuilder<UserEvent, any>;
   }
 ): void {
-  // Create handlers
   const projectionHandler = new ProjectionEventHandler(
     projections.userProjection,
     projections.userListProjection,
     projections.userStatsProjection
   );
   
-  const emailHandler = new EmailNotificationHandler();
-  const auditHandler = new AuditLogHandler();
-  
-  // Subscribe projection handler to all events
+  const notificationHandler = new NotificationHandler();
+
+  // Subscribe to all user events for both projections and notifications
   eventBus.subscribeAll(async (event) => {
     await projectionHandler.handleEvent(event);
-  });
-  
-  // Subscribe email handler to specific events
-  eventBus.subscribe(UserEventTypes.UserCreated, async (event) => {
-    if (event.type === UserEventTypes.UserCreated) {
-      await emailHandler.handleUserCreated(event as Extract<UserEvent, { type: typeof UserEventTypes.UserCreated }>);
-    }
-  });
-  
-  eventBus.subscribe(UserEventTypes.UserEmailVerified, async (event) => {
-    if (event.type === UserEventTypes.UserEmailVerified) {
-      await emailHandler.handleEmailVerified(event as Extract<UserEvent, { type: typeof UserEventTypes.UserEmailVerified }>);
-    }
-  });
-  
-  eventBus.subscribe(UserEventTypes.UserPasswordChanged, async (event) => {
-    if (event.type === UserEventTypes.UserPasswordChanged) {
-      await emailHandler.handlePasswordChanged(event as Extract<UserEvent, { type: typeof UserEventTypes.UserPasswordChanged }>);
-    }
-  });
-  
-  // Subscribe audit handler to all events
-  eventBus.subscribeAll(async (event) => {
-    await auditHandler.handleEvent(event);
+    await notificationHandler.handleEvent(event);
   });
 }

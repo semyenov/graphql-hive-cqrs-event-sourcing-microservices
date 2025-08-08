@@ -1,21 +1,21 @@
 /**
  * User Domain: Command Handlers
  * 
- * Handlers that process user commands and generate events.
+ * Command handlers for user domain operations.
  */
 
 import type { ICommandHandler, ICommandResult } from '../../../framework/core/command';
-import type { CommandBus } from '../../../framework/infrastructure/bus';
+import { success, failure } from '../../../framework/core/helpers';
 import type { UserRepository } from '../aggregates/repository';
-import { BrandedTypes } from '../../../framework/core/branded/factories';
-import type * as Commands from './types';
-import { UserCommandTypes } from './types';
+import type { UserAggregate } from '../aggregates/user';
+import * as Commands from './types';
 
 /**
- * Base result for user commands
+ * Extended command result with user-specific data
  */
 interface UserCommandResult extends ICommandResult {
   userId?: string;
+  user?: any;
 }
 
 /**
@@ -29,36 +29,24 @@ export class CreateUserCommandHandler implements ICommandHandler<
 
   async handle(command: Commands.CreateUserCommand): Promise<UserCommandResult> {
     try {
-      // Create new aggregate
-      const aggregate = this.repository.createAggregate(command.aggregateId);
+      const user = this.repository.createAggregate(command.aggregateId);
       
-      // Execute command
-      aggregate.create(command.payload);
+      user.create(command.payload);
       
-      // Save aggregate (persists events)
-      await this.repository.save(aggregate);
+      // Repository automatically publishes events to event bus!
+      await this.repository.save(user);
       
-      return {
-        success: true,
+      return success({
         userId: command.aggregateId as string,
-        metadata: {
-          executionTime: Date.now(),
-          version: aggregate.version,
-        },
-      };
+        user: user.getUser(),
+      });
     } catch (error) {
-      return {
-        success: false,
-        error: error as Error,
-        metadata: {
-          executionTime: Date.now(),
-        },
-      };
+      return failure(error instanceof Error ? error : new Error('Failed to create user'));
     }
   }
 
   canHandle(command: Commands.UserCommand): boolean {
-    return command.type === UserCommandTypes.CreateUser;
+    return command.type === Commands.UserCommandTypes.CreateUser;
   }
 }
 
@@ -73,39 +61,28 @@ export class UpdateUserCommandHandler implements ICommandHandler<
 
   async handle(command: Commands.UpdateUserCommand): Promise<UserCommandResult> {
     try {
-      // Load aggregate
-      const aggregate = await this.repository.get(command.aggregateId);
-      if (!aggregate) {
-        throw new Error('User not found');
+      const user = await this.repository.get(command.aggregateId);
+      
+      if (!user) {
+        return failure(new Error('User not found'));
       }
+
+      user.update(command.payload);
       
-      // Execute command
-      aggregate.update(command.payload);
+      // Repository automatically publishes events to event bus!
+      await this.repository.save(user);
       
-      // Save aggregate
-      await this.repository.save(aggregate);
-      
-      return {
-        success: true,
+      return success({
         userId: command.aggregateId as string,
-        metadata: {
-          executionTime: Date.now(),
-          version: aggregate.version,
-        },
-      };
+        user: user.getUser(),
+      });
     } catch (error) {
-      return {
-        success: false,
-        error: error as Error,
-        metadata: {
-          executionTime: Date.now(),
-        },
-      };
+      return failure(error instanceof Error ? error : new Error('Failed to update user'));
     }
   }
 
   canHandle(command: Commands.UserCommand): boolean {
-    return command.type === UserCommandTypes.UpdateUser;
+    return command.type === Commands.UserCommandTypes.UpdateUser;
   }
 }
 
@@ -120,44 +97,33 @@ export class DeleteUserCommandHandler implements ICommandHandler<
 
   async handle(command: Commands.DeleteUserCommand): Promise<UserCommandResult> {
     try {
-      // Load aggregate
-      const aggregate = await this.repository.get(command.aggregateId);
-      if (!aggregate) {
-        throw new Error('User not found');
+      const user = await this.repository.get(command.aggregateId);
+      
+      if (!user) {
+        return failure(new Error('User not found'));
       }
+
+      user.delete(command.payload.reason);
       
-      // Execute command
-      aggregate.delete(command.payload.reason);
+      // Repository automatically publishes events to event bus!
+      await this.repository.save(user);
       
-      // Save aggregate
-      await this.repository.save(aggregate);
-      
-      return {
-        success: true,
+      return success({
         userId: command.aggregateId as string,
-        metadata: {
-          executionTime: Date.now(),
-          version: aggregate.version,
-        },
-      };
+        user: user.getUser(),
+      });
     } catch (error) {
-      return {
-        success: false,
-        error: error as Error,
-        metadata: {
-          executionTime: Date.now(),
-        },
-      };
+      return failure(error instanceof Error ? error : new Error('Failed to delete user'));
     }
   }
 
   canHandle(command: Commands.UserCommand): boolean {
-    return command.type === UserCommandTypes.DeleteUser;
+    return command.type === Commands.UserCommandTypes.DeleteUser;
   }
 }
 
 /**
- * Verify email command handler
+ * Verify user email command handler
  */
 export class VerifyUserEmailCommandHandler implements ICommandHandler<
   Commands.VerifyUserEmailCommand,
@@ -167,47 +133,35 @@ export class VerifyUserEmailCommandHandler implements ICommandHandler<
 
   async handle(command: Commands.VerifyUserEmailCommand): Promise<UserCommandResult> {
     try {
-      // Load aggregate
-      const aggregate = await this.repository.get(command.aggregateId);
-      if (!aggregate) {
-        throw new Error('User not found');
+      const user = await this.repository.get(command.aggregateId);
+      
+      if (!user) {
+        return failure(new Error('User not found'));
       }
+
+      // In a real application, you would validate the token here
+      // For now, we'll just verify the email
+      user.verifyEmail();
       
-      // TODO: Verify token
-      // In production, validate the verification token
+      // Repository automatically publishes events to event bus!
+      await this.repository.save(user);
       
-      // Execute command
-      aggregate.verifyEmail();
-      
-      // Save aggregate
-      await this.repository.save(aggregate);
-      
-      return {
-        success: true,
+      return success({
         userId: command.aggregateId as string,
-        metadata: {
-          executionTime: Date.now(),
-          version: aggregate.version,
-        },
-      };
+        user: user.getUser(),
+      });
     } catch (error) {
-      return {
-        success: false,
-        error: error as Error,
-        metadata: {
-          executionTime: Date.now(),
-        },
-      };
+      return failure(error instanceof Error ? error : new Error('Failed to verify user email'));
     }
   }
 
   canHandle(command: Commands.UserCommand): boolean {
-    return command.type === UserCommandTypes.VerifyUserEmail;
+    return command.type === Commands.UserCommandTypes.VerifyUserEmail;
   }
 }
 
 /**
- * Update profile command handler
+ * Update user profile command handler
  */
 export class UpdateUserProfileCommandHandler implements ICommandHandler<
   Commands.UpdateUserProfileCommand,
@@ -217,39 +171,28 @@ export class UpdateUserProfileCommandHandler implements ICommandHandler<
 
   async handle(command: Commands.UpdateUserProfileCommand): Promise<UserCommandResult> {
     try {
-      // Load aggregate
-      const aggregate = await this.repository.get(command.aggregateId);
-      if (!aggregate) {
-        throw new Error('User not found');
+      const user = await this.repository.get(command.aggregateId);
+      
+      if (!user) {
+        return failure(new Error('User not found'));
       }
+
+      user.updateProfile(command.payload);
       
-      // Execute command
-      aggregate.updateProfile(command.payload);
+      // Repository automatically publishes events to event bus!
+      await this.repository.save(user);
       
-      // Save aggregate
-      await this.repository.save(aggregate);
-      
-      return {
-        success: true,
+      return success({
         userId: command.aggregateId as string,
-        metadata: {
-          executionTime: Date.now(),
-          version: aggregate.version,
-        },
-      };
+        user: user.getUser(),
+      });
     } catch (error) {
-      return {
-        success: false,
-        error: error as Error,
-        metadata: {
-          executionTime: Date.now(),
-        },
-      };
+      return failure(error instanceof Error ? error : new Error('Failed to update user profile'));
     }
   }
 
   canHandle(command: Commands.UserCommand): boolean {
-    return command.type === UserCommandTypes.UpdateUserProfile;
+    return command.type === Commands.UserCommandTypes.UpdateUserProfile;
   }
 }
 
@@ -257,13 +200,13 @@ export class UpdateUserProfileCommandHandler implements ICommandHandler<
  * Register all user command handlers
  */
 export function registerUserCommandHandlers(
-  commandBus: CommandBus,
+  commandBus: any, // Using any temporarily to access registerWithType
   repository: UserRepository
 ): void {
-  // Register each handler with its specific type
-  commandBus.register(new CreateUserCommandHandler(repository));
-  commandBus.register(new UpdateUserCommandHandler(repository));
-  commandBus.register(new DeleteUserCommandHandler(repository));
-  commandBus.register(new VerifyUserEmailCommandHandler(repository));
-  commandBus.register(new UpdateUserProfileCommandHandler(repository));
+  // Use registerWithType for explicit command type registration
+  commandBus.registerWithType(Commands.UserCommandTypes.CreateUser, new CreateUserCommandHandler(repository));
+  commandBus.registerWithType(Commands.UserCommandTypes.UpdateUser, new UpdateUserCommandHandler(repository));
+  commandBus.registerWithType(Commands.UserCommandTypes.DeleteUser, new DeleteUserCommandHandler(repository));
+  commandBus.registerWithType(Commands.UserCommandTypes.VerifyUserEmail, new VerifyUserEmailCommandHandler(repository));
+  commandBus.registerWithType(Commands.UserCommandTypes.UpdateUserProfile, new UpdateUserProfileCommandHandler(repository));
 }

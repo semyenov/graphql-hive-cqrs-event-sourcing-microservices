@@ -17,7 +17,7 @@ import { UserQueryTypes } from './queries/types';
 /**
  * Create user domain resolvers
  */
-export function createUserDomainResolvers(context: UserDomainContext) {
+export function createUserDomainResolvers(_context: UserDomainContext) {
   return createResolverMap({
     Query: {
       // Get single user by ID
@@ -87,13 +87,13 @@ export function createUserDomainResolvers(context: UserDomainContext) {
         mapResult: (result, args) => ({
           success: result.success,
           user: result.success && result.data ? {
-            id: (result.data as { userId?: string }).userId,
-            name: args.input.name,
-            email: args.input.email,
-            emailVerified: false,
-            deleted: false,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
+            id: (result.data as { userId?: string; user?: any }).userId,
+            name: (result.data as { user?: any }).user?.name || args.input.name,
+            email: (result.data as { user?: any }).user?.email || args.input.email,
+            emailVerified: (result.data as { user?: any }).user?.emailVerified || false,
+            deleted: (result.data as { user?: any }).user?.deleted || false,
+            createdAt: (result.data as { user?: any }).user?.createdAt || new Date().toISOString(),
+            updatedAt: (result.data as { user?: any }).user?.updatedAt || new Date().toISOString(),
           } : null,
           errors: result.error ? [{ message: result.error.message }] : undefined,
         }),

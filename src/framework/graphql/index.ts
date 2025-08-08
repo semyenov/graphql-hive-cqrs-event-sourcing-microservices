@@ -63,6 +63,19 @@ export {
   createResolverMap,
 } from './resolvers';
 
+// Enhanced GraphQL integration (Phase 6 enhancement)
+export {
+  type IResolverContext,
+  type IResolverConfig,
+  type IResolverExecutionContext,
+  type ResolverMiddleware,
+  type IResolverResult,
+  CommandResolverBuilder,
+  QueryResolverBuilder,
+  ResolverFactory,
+  ResolverMiddleware as EnhancedResolverMiddleware,
+} from './enhanced-resolvers';
+
 // Schema exports
 export {
   baseTypeDefs,
@@ -78,7 +91,7 @@ export {
 /**
  * Quick setup function for GraphQL with CQRS
  */
-export { setupGraphQLBridge } from './setup';
+export { setupGraphQLBridge, createGraphQLServer } from './setup';
 
 // Re-export commonly used types from core
 export type { 

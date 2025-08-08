@@ -1,121 +1,161 @@
 /**
- * User Domain: User Statistics Projection
+ * User Domain: User Stats Projection
  * 
- * Aggregated statistics projection for analytics.
+ * Global statistics projection using EventDrivenProjectionBuilder.
  */
 
-import { createProjectionBuilder } from '../../../framework/infrastructure/projections/builder';
 import type { UserEvent } from '../events/types';
 import { UserEventTypes } from '../events/types';
+import { EventDrivenProjectionBuilder } from '../../../framework/infrastructure/projections/builder';
 
 /**
  * User statistics data
  */
 export interface UserStats {
-  aggregateId: string; // Using 'stats' as the single key
   totalCreated: number;
   totalDeleted: number;
   totalVerified: number;
+  totalActive: number;
   lastActivity: string;
   dailyStats: Map<string, {
     created: number;
     deleted: number;
     verified: number;
+    updated: number;
   }>;
 }
 
 /**
- * Build user statistics from all events
+ * Initial state for user statistics
  */
-function buildUserStatsProjection(
-  aggregateId: string, // Will be 'stats' for the single stats object
-  events: UserEvent[]
-): UserStats | null {
-  if (aggregateId !== 'stats') {
-    // Only build stats for the special 'stats' aggregate
-    return null;
-  }
-
-  const stats: UserStats = {
-    aggregateId: 'stats',
+function createInitialStats(): UserStats {
+  return {
     totalCreated: 0,
     totalDeleted: 0,
     totalVerified: 0,
+    totalActive: 0,
     lastActivity: new Date().toISOString(),
     dailyStats: new Map(),
   };
-
-  for (const event of events) {
-    const date = new Date(event.timestamp.toString()).toISOString().split('T')[0];
-    if (!date) {
-      continue;
-    }
-    
-    if (!stats.dailyStats.has(date)) {
-      stats.dailyStats.set(date, {
-        created: 0,
-        deleted: 0,
-        verified: 0,
-      });
-    }
-    
-    const dailyStat = stats.dailyStats.get(date)!;
-
-    switch (event.type) {
-      case UserEventTypes.UserCreated:
-        stats.totalCreated++;
-        dailyStat.created++;
-        stats.lastActivity = event.timestamp.toString();
-        break;
-        
-      case UserEventTypes.UserDeleted:
-        stats.totalDeleted++;
-        dailyStat.deleted++;
-        stats.lastActivity = event.timestamp.toString();
-        break;
-        
-      case UserEventTypes.UserEmailVerified:
-        stats.totalVerified++;
-        dailyStat.verified++;
-        stats.lastActivity = event.timestamp.toString();
-        break;
-        
-      default:
-        // Update last activity for any event
-        stats.lastActivity = event.timestamp.toString();
-    }
-  }
-
-  return stats;
 }
 
 /**
- * Create user statistics projection builder
- * 
- * Note: This is a special projection that aggregates ALL user events
- * into a single statistics object. It should be rebuilt from all events.
+ * Reducer for user stats projection
+ */
+function userStatsReducer(state: UserStats, event: UserEvent): UserStats {
+  const dateKey = event.timestamp.toISOString().split('T')[0]!;
+  
+  // Ensure daily stats entry exists
+  if (!state.dailyStats.has(dateKey)) {
+    state.dailyStats.set(dateKey, { 
+      created: 0, 
+      deleted: 0, 
+      verified: 0,
+      updated: 0 
+    });
+  }
+  
+  const dailyStats = state.dailyStats.get(dateKey)!;
+  const newState = { ...state };
+  
+  switch (event.type) {
+    case UserEventTypes.UserCreated:
+      newState.totalCreated++;
+      newState.totalActive++;
+      dailyStats.created++;
+      newState.lastActivity = event.timestamp.toISOString();
+      break;
+      
+    case UserEventTypes.UserDeleted:
+      newState.totalDeleted++;
+      newState.totalActive = Math.max(0, newState.totalActive - 1);
+      dailyStats.deleted++;
+      newState.lastActivity = event.timestamp.toISOString();
+      break;
+      
+    case UserEventTypes.UserEmailVerified:
+      newState.totalVerified++;
+      dailyStats.verified++;
+      newState.lastActivity = event.timestamp.toISOString();
+      break;
+      
+    case UserEventTypes.UserUpdated:
+    case UserEventTypes.UserPasswordChanged:
+    case UserEventTypes.UserProfileUpdated:
+      dailyStats.updated++;
+      newState.lastActivity = event.timestamp.toISOString();
+      break;
+  }
+  
+  return newState;
+}
+
+/**
+ * Create user stats projection using EventDrivenProjectionBuilder
  */
 export function createUserStatsProjection() {
-  return createProjectionBuilder<UserEvent, UserStats>(
-    buildUserStatsProjection,
+  const projection = new EventDrivenProjectionBuilder<UserEvent, UserStats>(
+    createInitialStats,
+    userStatsReducer,
     'UserStatsProjection'
   );
+  
+  // Register specific event handlers for optimized processing
+  projection
+    .on(UserEventTypes.UserCreated, (stats, event) => {
+      const dateKey = event.timestamp.toISOString().split('T')[0]!;
+      if (!stats.dailyStats.has(dateKey)) {
+        stats.dailyStats.set(dateKey, { created: 0, deleted: 0, verified: 0, updated: 0 });
+      }
+      const daily = stats.dailyStats.get(dateKey)!;
+      
+      return {
+        ...stats,
+        totalCreated: stats.totalCreated + 1,
+        totalActive: stats.totalActive + 1,
+        lastActivity: event.timestamp.toISOString(),
+        dailyStats: new Map(stats.dailyStats).set(dateKey, {
+          ...daily,
+          created: daily.created + 1,
+        }),
+      };
+    })
+    .on(UserEventTypes.UserDeleted, (stats, event) => {
+      const dateKey = event.timestamp.toISOString().split('T')[0]!;
+      if (!stats.dailyStats.has(dateKey)) {
+        stats.dailyStats.set(dateKey, { created: 0, deleted: 0, verified: 0, updated: 0 });
+      }
+      const daily = stats.dailyStats.get(dateKey)!;
+      
+      return {
+        ...stats,
+        totalDeleted: stats.totalDeleted + 1,
+        totalActive: Math.max(0, stats.totalActive - 1),
+        lastActivity: event.timestamp.toISOString(),
+        dailyStats: new Map(stats.dailyStats).set(dateKey, {
+          ...daily,
+          deleted: daily.deleted + 1,
+        }),
+      };
+    })
+    .on(UserEventTypes.UserEmailVerified, (stats, event) => {
+      const dateKey = event.timestamp.toISOString().split('T')[0]!;
+      if (!stats.dailyStats.has(dateKey)) {
+        stats.dailyStats.set(dateKey, { created: 0, deleted: 0, verified: 0, updated: 0 });
+      }
+      const daily = stats.dailyStats.get(dateKey)!;
+      
+      return {
+        ...stats,
+        totalVerified: stats.totalVerified + 1,
+        lastActivity: event.timestamp.toISOString(),
+        dailyStats: new Map(stats.dailyStats).set(dateKey, {
+          ...daily,
+          verified: daily.verified + 1,
+        }),
+      };
+    });
+  
+  return projection;
 }
 
-/**
- * Helper to rebuild stats from all user events
- */
-export async function rebuildUserStats(
-  projection: ReturnType<typeof createUserStatsProjection>,
-  allUserEvents: UserEvent[]
-): Promise<UserStats | null> {
-  // Group all events under a single 'stats' key
-  await projection.rebuild([
-    ...allUserEvents.map(event => ({
-      ...event,
-      aggregateId: 'stats' as any, // Override aggregateId for stats aggregation
-    }))
-  ]);
-  
-  return projection.get('stats');
-}

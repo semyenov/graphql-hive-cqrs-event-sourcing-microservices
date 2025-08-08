@@ -1,14 +1,14 @@
 /**
  * User Domain: User Projection
  * 
- * Builds user read models from events.
+ * Builds user read models from events using SnapshotProjectionBuilder.
  */
 
-import { createProjectionBuilder } from '../../../framework/infrastructure/projections/builder';
+import { SnapshotProjectionBuilder } from '../../../framework/infrastructure/projections/builder';
+import { matchEvent } from '../../../framework/core/event-utils';
 import type { UserState } from '../aggregates/user';
 import type { UserEvent } from '../events/types';
 import { UserEventTypes } from '../events/types';
-import { matchUserEvent } from '../helpers/type-guards';
 
 /**
  * Build user projection from events
@@ -24,7 +24,7 @@ function buildUserProjection(
   let state: UserState | null = null;
 
   for (const event of events) {
-    state = matchUserEvent<UserState | null>(event, {
+    state = matchEvent(event, {
       [UserEventTypes.UserCreated]: (e) => ({
         id: aggregateId,
         name: e.data.name,
@@ -92,11 +92,12 @@ function buildUserProjection(
 }
 
 /**
- * Create user projection builder
+ * Create user projection builder with snapshot support
  */
 export function createUserProjection() {
-  return createProjectionBuilder<UserEvent, UserState>(
+  return new SnapshotProjectionBuilder<UserEvent, UserState>(
     buildUserProjection,
     'UserProjection'
   );
 }
+

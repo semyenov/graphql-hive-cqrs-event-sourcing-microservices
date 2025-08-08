@@ -45,6 +45,75 @@ export {
   combineValidators,
 } from './validation';
 
+// Enhanced validation system V2 (recommended)
+export { 
+  type IValidationErrorV2,
+  type IValidationResultV2,
+  type IValidatorV2,
+  type ICommandValidatorV2,
+  type IQueryValidatorV2,
+  type ValidationRuleV2,
+  type ValidationSchemaV2,
+  type StringValidationRule,
+  type NumberValidationRule,
+  type BooleanValidationRule,
+  type ArrayValidationRule,
+  type NestedValidationRule,
+  BaseValidatorV2,
+  SchemaValidatorV2,
+  ValidationRulesV2,
+  ValidationBuilderV2,
+  createValidatorV2,
+  createCommandValidatorV2,
+  createQueryValidatorV2,
+  validatorV2,
+  Validate,
+} from './validation-enhanced';
+
+// Domain registration
+export { 
+  type IDomainComponents,
+  type IDomainContext,
+  DomainBuilder,
+  createDomainBuilder,
+  initializeDomain,
+} from './domain-registry';
+
+// Auto-discovery system (Phase 4 enhancement)
+export {
+  type IDiscoveryConfig,
+  type IDiscoveredComponent,
+  type IDiscoveryResult,
+  AutoDiscovery,
+  FileSystemDiscovery,
+  ComponentNameAnalyzer,
+  createAutoDiscovery,
+  DiscoveryPresets,
+  DEFAULT_DISCOVERY_CONFIG,
+} from './auto-discovery';
+
+// Enhanced domain builder with auto-discovery
+export {
+  type IEnhancedDomainOptions,
+  EnhancedDomainBuilder,
+  createEnhancedDomainBuilder,
+  DomainBuilderFactory,
+} from './enhanced-domain-builder';
+
+// Repository lifecycle management (Phase 5 enhancement)
+export {
+  type RepositoryLifecycleEvent,
+  type ILifecycleContext,
+  type LifecycleHook,
+  type IRepositoryConfig,
+  type IRepositoryMetrics,
+  LifecycleAwareRepository,
+  RepositoryHooks,
+  createLifecycleRepository,
+  RepositoryBuilder,
+  createRepositoryBuilder,
+} from './repository-lifecycle';
+
 // Type aliases for convenience
 export type {
   IEvent as Event,

@@ -7,10 +7,9 @@
 import { Aggregate } from '../../../framework/core/aggregate';
 import type { EventReducer } from '../../../framework/core/event';
 import type { AggregateId, Email, PersonName } from '../../../framework/core/branded/types';
-import { BrandedTypes } from '../../../framework/core/branded/factories';
+import { matchEvent } from '../../../framework/core/event-utils';
 import { UserEventTypes, type UserEvent } from '../events/types';
 import { UserEventFactories } from '../events/factories';
-import { matchUserEvent } from '../helpers/type-guards';
 
 /**
  * User aggregate state
@@ -167,6 +166,20 @@ export class UserAggregate extends Aggregate<UserState, UserEvent, AggregateId> 
   }
 
   /**
+   * Get user profile
+   */
+  getProfile() {
+    return this._state?.profile;
+  }
+
+  /**
+   * Check if user exists and is active
+   */
+  isActive(): boolean {
+    return this._state !== null && !this._state.deleted;
+  }
+
+  /**
    * Private helper to ensure user exists
    */
   private ensureExists(): void {
@@ -177,10 +190,10 @@ export class UserAggregate extends Aggregate<UserState, UserEvent, AggregateId> 
 }
 
 /**
- * Event reducer for user state
+ * Event reducer for user state using framework's matchEvent
  */
 const userReducer: EventReducer<UserEvent, UserState> = (state, event) => {
-  return matchUserEvent<UserState>(event, {
+  return matchEvent(event, {
     [UserEventTypes.UserCreated]: (e) => ({
       id: e.aggregateId as string,
       name: e.data.name,

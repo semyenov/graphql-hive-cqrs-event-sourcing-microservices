@@ -1,18 +1,18 @@
 /**
  * User Domain: Query Handlers
  * 
- * Handlers that process queries and return data from projections.
+ * Query handlers for user domain read operations.
  */
 
 import type { IQueryHandler } from '../../../framework/core/query';
 import type { ProjectionBuilder } from '../../../framework/infrastructure/projections/builder';
 import type { UserState } from '../aggregates/user';
 import type { UserEvent } from '../events/types';
-import type * as Queries from './types';
-import { UserQueryTypes, type UserQuery } from './types';
+import type { UserQuery } from './types';
+import * as Queries from './types';
 
 /**
- * Handler for GetUserById query
+ * Get user by ID query handler
  */
 export class GetUserByIdQueryHandler implements IQueryHandler<
   Queries.GetUserByIdQuery,
@@ -23,20 +23,17 @@ export class GetUserByIdQueryHandler implements IQueryHandler<
   ) {}
 
   async handle(query: Queries.GetUserByIdQuery): Promise<UserState | null> {
-    if (!query.parameters) {
-      return null;
-    }
-    const userId = query.parameters.userId as string;
-    return this.userProjection.get(userId);
+    if (!query.parameters) return null;
+    return this.userProjection.get(query.parameters.userId as string);
   }
 
   canHandle(query: Queries.UserQuery): boolean {
-    return query.type === UserQueryTypes.GetUserById;
+    return query.type === Queries.UserQueryTypes.GetUserById;
   }
 }
 
 /**
- * Handler for GetUserByEmail query
+ * Get user by email query handler
  */
 export class GetUserByEmailQueryHandler implements IQueryHandler<
   Queries.GetUserByEmailQuery,
@@ -47,23 +44,20 @@ export class GetUserByEmailQueryHandler implements IQueryHandler<
   ) {}
 
   async handle(query: Queries.GetUserByEmailQuery): Promise<UserState | null> {
-    if (!query.parameters) {
-      return null;
-    }
-    const { email } = query.parameters;
-    const users = this.userProjection.search(
-      user => user.email === email
+    if (!query.parameters) return null;
+    const users = this.userProjection.search(user => 
+      user.email === query.parameters!.email
     );
     return users[0] || null;
   }
 
   canHandle(query: Queries.UserQuery): boolean {
-    return query.type === UserQueryTypes.GetUserByEmail;
+    return query.type === Queries.UserQueryTypes.GetUserByEmail;
   }
 }
 
 /**
- * Handler for ListUsers query with pagination
+ * List users query handler
  */
 export class ListUsersQueryHandler implements IQueryHandler<
   Queries.ListUsersQuery,
@@ -81,49 +75,37 @@ export class ListUsersQueryHandler implements IQueryHandler<
     if (!query.parameters) {
       return { users: [], total: 0, hasNext: false };
     }
+    
     const { pagination, includeDeleted = false } = query.parameters;
-    
-    // Get all users and filter
+    const { offset, limit } = pagination;
+
+    // Get all users
     let users = this.userProjection.getAll();
-    
+
+    // Filter by deleted status
     if (!includeDeleted) {
       users = users.filter(user => !user.deleted);
     }
 
-    // Sort
-    if (pagination.sortBy) {
-      users.sort((a, b) => {
-        const aVal = a[pagination.sortBy as keyof UserState];
-        const bVal = b[pagination.sortBy as keyof UserState];
-        
-        if (pagination.sortOrder === 'desc') {
-          return aVal && bVal ? (aVal > bVal ? -1 : aVal < bVal ? 1 : 0) : 0;
-        }
-        return aVal && bVal ? (aVal < bVal ? -1 : aVal > bVal ? 1 : 0) : 0;
-      });
-    }
-
+    // Apply pagination
     const total = users.length;
-    
-    // Paginate
-    const start = pagination.offset;
-    const end = start + pagination.limit;
-    const paginatedUsers = users.slice(start, end);
-    
+    const paginatedUsers = users.slice(offset, offset + limit);
+    const hasNext = offset + limit < total;
+
     return {
       users: paginatedUsers,
       total,
-      hasNext: end < total,
+      hasNext,
     };
   }
 
   canHandle(query: Queries.UserQuery): boolean {
-    return query.type === UserQueryTypes.ListUsers;
+    return query.type === Queries.UserQueryTypes.ListUsers;
   }
 }
 
 /**
- * Handler for SearchUsers query
+ * Search users query handler
  */
 export class SearchUsersQueryHandler implements IQueryHandler<
   Queries.SearchUsersQuery,
@@ -134,32 +116,34 @@ export class SearchUsersQueryHandler implements IQueryHandler<
   ) {}
 
   async handle(query: Queries.SearchUsersQuery): Promise<UserState[]> {
-    if (!query.parameters) {
-      return [];
-    }
+    if (!query.parameters) return [];
+    
     const { searchTerm, fields = ['name', 'email'] } = query.parameters;
     const searchLower = searchTerm.toLowerCase();
-    
+
     return this.userProjection.search(user => {
       if (user.deleted) return false;
-      
+
       return fields.some((field: string) => {
-        const value = user[field as keyof UserState];
-        if (typeof value === 'string') {
-          return value.toLowerCase().includes(searchLower);
+        switch (field) {
+          case 'name':
+            return user.name.toLowerCase().includes(searchLower);
+          case 'email':
+            return user.email.toLowerCase().includes(searchLower);
+          default:
+            return false;
         }
-        return false;
       });
     });
   }
 
   canHandle(query: Queries.UserQuery): boolean {
-    return query.type === UserQueryTypes.SearchUsers;
+    return query.type === Queries.UserQueryTypes.SearchUsers;
   }
 }
 
 /**
- * Handler for GetUserStats query
+ * Get user stats query handler
  */
 export class GetUserStatsQueryHandler implements IQueryHandler<
   Queries.GetUserStatsQuery,
@@ -175,7 +159,7 @@ export class GetUserStatsQueryHandler implements IQueryHandler<
     private readonly userProjection: ProjectionBuilder<UserEvent, UserState>
   ) {}
 
-  async handle(query: Queries.GetUserStatsQuery): Promise<{
+  async handle(_query: Queries.GetUserStatsQuery): Promise<{
     totalUsers: number;
     activeUsers: number;
     deletedUsers: number;
@@ -183,59 +167,38 @@ export class GetUserStatsQueryHandler implements IQueryHandler<
     createdToday: number;
   }> {
     const users = this.userProjection.getAll();
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
+    const today = new Date().toISOString().split('T')[0] || '';
+
     const stats = {
       totalUsers: users.length,
-      activeUsers: 0,
-      deletedUsers: 0,
-      verifiedEmails: 0,
-      createdToday: 0,
+      activeUsers: users.filter(u => !u.deleted).length,
+      deletedUsers: users.filter(u => u.deleted).length,
+      verifiedEmails: users.filter(u => u.emailVerified && !u.deleted).length,
+      createdToday: users.filter(u => u.createdAt.startsWith(today)).length,
     };
-    
-    for (const user of users) {
-      if (!user.deleted) {
-        stats.activeUsers++;
-      } else {
-        stats.deletedUsers++;
-      }
-      
-      if (user.emailVerified) {
-        stats.verifiedEmails++;
-      }
-      
-      const createdDate = new Date(user.createdAt);
-      createdDate.setHours(0, 0, 0, 0);
-      if (createdDate.getTime() === today.getTime()) {
-        stats.createdToday++;
-      }
-    }
-    
+
     return stats;
   }
 
   canHandle(query: Queries.UserQuery): boolean {
-    return query.type === UserQueryTypes.GetUserStats;
+    return query.type === Queries.UserQueryTypes.GetUserStats;
   }
 }
 
 /**
- * Register all user query handlers with the query bus
+ * Register all user query handlers
  */
 export function registerUserQueryHandlers(
   queryBus: { registerWithType: (type: string, handler: IQueryHandler<UserQuery, unknown>) => void },
-  userProjection: ProjectionBuilder<UserEvent, UserState>
+  projections: {
+    userProjection: ProjectionBuilder<UserEvent, UserState>;
+    userListProjection: ProjectionBuilder<UserEvent, any>;
+    userStatsProjection?: ProjectionBuilder<UserEvent, any>;
+  }
 ): void {
-  const handlers = [
-    { type: UserQueryTypes.GetUserById, handler: new GetUserByIdQueryHandler(userProjection) },
-    { type: UserQueryTypes.GetUserByEmail, handler: new GetUserByEmailQueryHandler(userProjection) },
-    { type: UserQueryTypes.ListUsers, handler: new ListUsersQueryHandler(userProjection) },
-    { type: UserQueryTypes.SearchUsers, handler: new SearchUsersQueryHandler(userProjection) },
-    { type: UserQueryTypes.GetUserStats, handler: new GetUserStatsQueryHandler(userProjection) },
-  ];
-
-  handlers.forEach(({ type, handler }) => {
-    queryBus.registerWithType(type, handler);
-  });
+  queryBus.registerWithType(Queries.UserQueryTypes.GetUserById, new GetUserByIdQueryHandler(projections.userProjection));
+  queryBus.registerWithType(Queries.UserQueryTypes.GetUserByEmail, new GetUserByEmailQueryHandler(projections.userProjection));
+  queryBus.registerWithType(Queries.UserQueryTypes.ListUsers, new ListUsersQueryHandler(projections.userProjection));
+  queryBus.registerWithType(Queries.UserQueryTypes.SearchUsers, new SearchUsersQueryHandler(projections.userProjection));
+  queryBus.registerWithType(Queries.UserQueryTypes.GetUserStats, new GetUserStatsQueryHandler(projections.userProjection));
 }
