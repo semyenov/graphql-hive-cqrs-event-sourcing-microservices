@@ -5,11 +5,12 @@
  */
 
 import { Aggregate } from '../../../framework/core/aggregate';
-import type { EventReducer, EventPattern } from '../../../framework/core/event';
+import type { EventReducer } from '../../../framework/core/event';
 import type { AggregateId, Email, PersonName } from '../../../framework/core/branded/types';
 import { BrandedTypes } from '../../../framework/core/branded/factories';
 import { UserEventTypes, type UserEvent } from '../events/types';
 import { UserEventFactories } from '../events/factories';
+import { matchUserEvent } from '../helpers/type-guards';
 
 /**
  * User aggregate state
@@ -179,7 +180,7 @@ export class UserAggregate extends Aggregate<UserState, UserEvent, AggregateId> 
  * Event reducer for user state
  */
 const userReducer: EventReducer<UserEvent, UserState> = (state, event) => {
-  const patterns: EventPattern<UserEvent, UserState> = {
+  return matchUserEvent<UserState>(event, {
     [UserEventTypes.UserCreated]: (e) => ({
       id: e.aggregateId as string,
       name: e.data.name,
@@ -237,14 +238,7 @@ const userReducer: EventReducer<UserEvent, UserState> = (state, event) => {
         updatedAt: e.data.updatedAt,
       };
     },
-  };
-
-  const handler = patterns[event.type];
-  if (!handler) {
-    throw new Error(`Unknown event type: ${event.type}`);
-  }
-  
-  return handler(event as any);
+  });
 };
 
 /**

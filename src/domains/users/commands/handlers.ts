@@ -8,7 +8,7 @@ import type { ICommandHandler, ICommandResult } from '../../../framework/core/co
 import type { UserRepository } from '../aggregates/repository';
 import { BrandedTypes } from '../../../framework/core/branded/factories';
 import type * as Commands from './types';
-import { UserCommandTypes } from './types';
+import { UserCommandTypes, type UserCommand } from './types';
 
 /**
  * Base result for user commands
@@ -256,19 +256,19 @@ export class UpdateUserProfileCommandHandler implements ICommandHandler<
  * Register all user command handlers
  */
 export function registerUserCommandHandlers(
-  commandBus: any, // Using any to avoid circular dependency
+  commandBus: { registerWithType?: (type: string, handler: ICommandHandler<UserCommand>) => void; register: (handler: ICommandHandler<UserCommand>) => void },
   repository: UserRepository
 ): void {
   const handlers = [
-    new CreateUserCommandHandler(repository),
-    new UpdateUserCommandHandler(repository),
-    new DeleteUserCommandHandler(repository),
-    new VerifyUserEmailCommandHandler(repository),
-    new UpdateUserProfileCommandHandler(repository),
+    { type: UserCommandTypes.CreateUser, handler: new CreateUserCommandHandler(repository) },
+    { type: UserCommandTypes.UpdateUser, handler: new UpdateUserCommandHandler(repository) },
+    { type: UserCommandTypes.DeleteUser, handler: new DeleteUserCommandHandler(repository) },
+    { type: UserCommandTypes.VerifyUserEmail, handler: new VerifyUserEmailCommandHandler(repository) },
+    { type: UserCommandTypes.UpdateUserProfile, handler: new UpdateUserProfileCommandHandler(repository) },
   ];
 
-  handlers.forEach(handler => {
-    // Register with command bus
-    // In production, use proper registration with command types
+  handlers.forEach(({ type, handler }) => {
+    // Register with command bus using the framework's registration helper
+    commandBus.registerWithType?.(type, handler) || commandBus.register(handler);
   });
 }

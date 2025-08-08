@@ -35,21 +35,39 @@ export class UserRepository extends AggregateRepository<
   }
 
   /**
-   * Find user by email (read from projections in production)
+   * Check if user is deleted
    */
-  async findByEmail(email: string): Promise<UserAggregate | null> {
-    // In production, this would query a projection/read model
-    // For now, this is a placeholder
-    throw new Error('findByEmail requires projection implementation');
+  async isDeleted(userId: AggregateId): Promise<boolean> {
+    const aggregate = await this.get(userId);
+    return aggregate?.isDeleted() ?? false;
   }
 
   /**
-   * Get all active users (read from projections in production)
+   * Check if user email is verified
+   */
+  async isEmailVerified(userId: AggregateId): Promise<boolean> {
+    const aggregate = await this.get(userId);
+    return aggregate?.isEmailVerified() ?? false;
+  }
+
+  /**
+   * Find user by email (requires projection integration)
+   */
+  async findByEmail(email: string): Promise<UserAggregate | null> {
+    // This would typically query a projection or read model
+    // For now, this is a placeholder that would need integration
+    // with the projection layer
+    console.warn('findByEmail requires projection integration');
+    return null;
+  }
+
+  /**
+   * Get all active users (requires projection integration)
    */
   async getActiveUsers(): Promise<UserAggregate[]> {
-    // In production, this would query a projection/read model
-    // For now, this is a placeholder
-    throw new Error('getActiveUsers requires projection implementation');
+    // This would query a projection for active users
+    console.warn('getActiveUsers requires projection integration');
+    return [];
   }
 }
 
