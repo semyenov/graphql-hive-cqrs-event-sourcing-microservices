@@ -5,10 +5,11 @@
  */
 
 import type { ICommandHandler, ICommandResult } from '../../../framework/core/command';
+import type { CommandBus } from '../../../framework/infrastructure/bus';
 import type { UserRepository } from '../aggregates/repository';
 import { BrandedTypes } from '../../../framework/core/branded/factories';
 import type * as Commands from './types';
-import { UserCommandTypes, type UserCommand } from './types';
+import { UserCommandTypes } from './types';
 
 /**
  * Base result for user commands
@@ -256,19 +257,13 @@ export class UpdateUserProfileCommandHandler implements ICommandHandler<
  * Register all user command handlers
  */
 export function registerUserCommandHandlers(
-  commandBus: { registerWithType?: (type: string, handler: ICommandHandler<UserCommand>) => void; register: (handler: ICommandHandler<UserCommand>) => void },
+  commandBus: CommandBus,
   repository: UserRepository
 ): void {
-  const handlers = [
-    { type: UserCommandTypes.CreateUser, handler: new CreateUserCommandHandler(repository) },
-    { type: UserCommandTypes.UpdateUser, handler: new UpdateUserCommandHandler(repository) },
-    { type: UserCommandTypes.DeleteUser, handler: new DeleteUserCommandHandler(repository) },
-    { type: UserCommandTypes.VerifyUserEmail, handler: new VerifyUserEmailCommandHandler(repository) },
-    { type: UserCommandTypes.UpdateUserProfile, handler: new UpdateUserProfileCommandHandler(repository) },
-  ];
-
-  handlers.forEach(({ type, handler }) => {
-    // Register with command bus using the framework's registration helper
-    commandBus.registerWithType?.(type, handler) || commandBus.register(handler);
-  });
+  // Register each handler with its specific type
+  commandBus.register(new CreateUserCommandHandler(repository));
+  commandBus.register(new UpdateUserCommandHandler(repository));
+  commandBus.register(new DeleteUserCommandHandler(repository));
+  commandBus.register(new VerifyUserEmailCommandHandler(repository));
+  commandBus.register(new UpdateUserProfileCommandHandler(repository));
 }

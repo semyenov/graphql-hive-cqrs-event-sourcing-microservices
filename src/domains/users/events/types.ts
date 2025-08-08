@@ -104,23 +104,3 @@ export type UserEvent =
   | UserPasswordChangedEvent
   | UserProfileUpdatedEvent;
 
-/**
- * Type guard functions
- */
-export const isUserCreatedEvent = (event: UserEvent): event is UserCreatedEvent =>
-  event.type === UserEventTypes.UserCreated;
-
-export const isUserUpdatedEvent = (event: UserEvent): event is UserUpdatedEvent =>
-  event.type === UserEventTypes.UserUpdated;
-
-export const isUserDeletedEvent = (event: UserEvent): event is UserDeletedEvent =>
-  event.type === UserEventTypes.UserDeleted;
-
-export const isUserEmailVerifiedEvent = (event: UserEvent): event is UserEmailVerifiedEvent =>
-  event.type === UserEventTypes.UserEmailVerified;
-
-export const isUserPasswordChangedEvent = (event: UserEvent): event is UserPasswordChangedEvent =>
-  event.type === UserEventTypes.UserPasswordChanged;
-
-export const isUserProfileUpdatedEvent = (event: UserEvent): event is UserProfileUpdatedEvent =>
-  event.type === UserEventTypes.UserProfileUpdated;

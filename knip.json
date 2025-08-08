@@ -2,23 +2,27 @@
   "$schema": "https://unpkg.com/knip@5/schema.json",
   "entry": [
     "src/app/server.ts",
-    "src/server.ts",
-    "index.ts"
+    "src/app/test-framework.ts"
   ],
   "project": [
-    "src/**/*.ts",
-    "src/**/*.tsx"
+    "src/**/*.ts"
   ],
   "ignore": [
-    "src/app/test-*.ts",
+    "archive/**",
+    "src/framework/generators/**",
     "src/examples/**",
     "src/types/__tests__/**",
     "**/*.test.ts",
-    "**/*.spec.ts"
+    "**/*.spec.ts",
+    "scripts/**"
   ],
   "ignoreDependencies": [
     "typescript",
-    "@types/bun"
+    "@types/bun",
+    "bun-types"
   ],
-  "ignoreExportsUsedInFile": true
+  "ignoreExportsUsedInFile": true,
+  "ignoreBinaries": [
+    "tsc"
+  ]
 }

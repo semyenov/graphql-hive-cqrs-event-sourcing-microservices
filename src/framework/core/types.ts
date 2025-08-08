@@ -106,19 +106,24 @@ export type KeysOfType<T, U> = {
 }[keyof T];
 
 /**
+ * Function type
+ */
+export type AnyFunction = (...args: unknown[]) => unknown;
+
+/**
  * Omit methods from type
  */
 export type OmitMethods<T> = Pick<
   T,
-  KeysOfType<T, (...args: any[]) => any> extends never
+  KeysOfType<T, AnyFunction> extends never
     ? keyof T
-    : Exclude<keyof T, KeysOfType<T, (...args: any[]) => any>>
+    : Exclude<keyof T, KeysOfType<T, AnyFunction>>
 >;
 
 /**
  * Constructor type
  */
-export type Constructor<T = {}> = new (...args: any[]) => T;
+export type Constructor<T = object> = new (...args: unknown[]) => T;
 
 /**
  * Mixin type

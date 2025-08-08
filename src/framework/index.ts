@@ -5,11 +5,106 @@
  * with CQRS pattern, designed to be domain-agnostic and extensible.
  */
 
-// Core abstractions
-export * from './core';
+// Core abstractions - selective exports to avoid conflicts
+export {
+  // Event
+  type IEvent,
+  type IEventMetadata,
+  type IEventStore,
+  type IEventBus,
+  type EventHandler,
+  type EventReducer,
+  type EventPattern,
+  // Event utils
+  matchEvent,
+  createEventMatcher,
+  createEventTypeGuard,
+  // Command
+  type ICommand,
+  type ICommandResult,
+  type ICommandHandler,
+  type ICommandBus,
+  type ICommandMiddleware,
+  // Query
+  type IQuery,
+  type IQueryHandler,
+  type IQueryBus,
+  type IProjection,
+  type IProjectionBuilder,
+  // Aggregate
+  Aggregate,
+  type IAggregate,
+  type ISnapshot,
+  type IAggregateBehavior,
+  // Repository
+  type IAggregateRepository,
+  type IAggregateFactory,
+  type IUnitOfWork,
+  // Types
+  type IDomainModule,
+  type IDomainRegistry,
+  type IFrameworkConfig,
+  type PartialBy,
+  type RequiredBy,
+  type DeepPartial,
+  type DeepReadonly,
+  type NonNullableFields,
+  type KeysOfType,
+  type OmitMethods,
+  type Constructor,
+  type Mixin,
+  type Result,
+  // Helpers
+  createEventMetadata,
+  createEvent,
+  createCommandResult,
+  success,
+  failure,
+  isSuccess,
+  isFailure,
+  createCommand,
+  createQuery,
+  EventVersionHelpers,
+  AggregateHelpers,
+  retry,
+  batch,
+  debounce,
+  throttle,
+  // Validation
+  type IValidationError,
+  type IValidationResult,
+  type IValidator,
+  type ICommandValidator,
+  type IQueryValidator,
+  type ValidationRule,
+  type ValidationSchema,
+  BaseValidator,
+  SchemaValidator,
+  ValidationRules,
+  ValidationBuilder,
+  createValidator,
+  createCommandValidator,
+  createQueryValidator,
+  combineValidators,
+} from './core';
 
-// Branded types for type safety
-export * from './core/branded';
+// Branded types for type safety - selective exports
+export {
+  type AggregateId,
+  type EventId,
+  type CommandId,
+  type UserId,
+  type CorrelationId,
+  type CausationId,
+  type EventVersion,
+  type AggregateVersion,
+  type Timestamp,
+  type Email,
+  type PersonName,
+  type Money,
+  type Percentage,
+  BrandedTypes,
+} from './core/branded';
 
 // Infrastructure components
 export * from './infrastructure/event-store/memory';
@@ -17,32 +112,38 @@ export * from './infrastructure/repository/aggregate';
 export * from './infrastructure/projections/builder';
 export * from './infrastructure/bus';
 
-// Convenience exports for common use cases
-export {
-  // Core
-  Aggregate,
-  type IEvent as Event,
-  type ICommand as Command,
-  type IQuery as Query,
-  type IAggregate as AggregateRoot,
-  type ISnapshot as Snapshot,
-  type EventReducer,
-  type EventHandler,
-  type EventPattern,
-  type ICommandHandler as CommandHandler,
-  type ICommandResult as CommandResult,
-  type IQueryHandler as QueryHandler,
-  type IProjection as Projection,
-  type IProjectionBuilder as ProjectionBuilder,
+// Type aliases for convenience
+export type {
+  IEvent as Event,
+  ICommand as Command,
+  IQuery as Query,
+  IAggregate as AggregateRoot,
+  ISnapshot as Snapshot,
+  ICommandHandler as CommandHandler,
+  ICommandResult as CommandResult,
+  IQueryHandler as QueryHandler,
+  IProjection as Projection,
 } from './core';
 
 export {
   // Infrastructure
   InMemoryEventStore,
   createEventStore,
+} from './infrastructure/event-store/memory';
+
+export {
   AggregateRepository,
+} from './infrastructure/repository/aggregate';
+
+export {
   ProjectionBuilder,
   createProjectionBuilder,
+  EventDrivenProjectionBuilder,
+  SnapshotProjectionBuilder,
+  IndexedProjectionBuilder,
+} from './infrastructure/projections/builder';
+
+export {
   CommandBus,
   createCommandBus,
   EventBus,
@@ -50,6 +151,8 @@ export {
   createEventBus,
   QueryBus,
   createQueryBus,
+  subscribeToEvent,
+  subscribeToEvents,
 } from './infrastructure/bus';
 
 // Framework version

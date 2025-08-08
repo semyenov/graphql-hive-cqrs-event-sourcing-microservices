@@ -34,5 +34,7 @@
         "tadaOutputLocation": "./src/graphql/graphql-env.d.ts"
       }
     ]
-  }
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "exclude": ["node_modules", "dist", "archive"]
 }

@@ -23,7 +23,7 @@ describe('UserAggregate', () => {
       });
       
       expect(aggregate.uncommittedEvents).toHaveLength(1);
-      expect(aggregate.uncommittedEvents[0].type).toBe(UserEventTypes.UserCreated);
+      expect(aggregate.uncommittedEvents[0]?.type).toBe(UserEventTypes.UserCreated);
       expect(aggregate.state?.name).toBe(BrandedTypes.personName('John Doe'));
       expect(aggregate.state?.email).toBe(BrandedTypes.email('john@example.com'));
       expect(aggregate.state?.emailVerified).toBe(false);
@@ -59,7 +59,7 @@ describe('UserAggregate', () => {
       aggregate.update({ name: 'John Smith' });
       
       expect(aggregate.uncommittedEvents).toHaveLength(1);
-      expect(aggregate.uncommittedEvents[0].type).toBe(UserEventTypes.UserUpdated);
+      expect(aggregate.uncommittedEvents[0]?.type).toBe(UserEventTypes.UserUpdated);
       expect(aggregate.state?.name).toBe(BrandedTypes.personName('John Smith'));
     });
     
@@ -113,7 +113,7 @@ describe('UserAggregate', () => {
       aggregate.delete('Account closure requested');
       
       expect(aggregate.uncommittedEvents).toHaveLength(1);
-      expect(aggregate.uncommittedEvents[0].type).toBe(UserEventTypes.UserDeleted);
+      expect(aggregate.uncommittedEvents[0]?.type).toBe(UserEventTypes.UserDeleted);
       expect(aggregate.state?.deleted).toBe(true);
       expect(aggregate.isDeleted()).toBe(true);
     });
@@ -145,7 +145,7 @@ describe('UserAggregate', () => {
       aggregate.verifyEmail();
       
       expect(aggregate.uncommittedEvents).toHaveLength(1);
-      expect(aggregate.uncommittedEvents[0].type).toBe(UserEventTypes.UserEmailVerified);
+      expect(aggregate.uncommittedEvents[0]?.type).toBe(UserEventTypes.UserEmailVerified);
       expect(aggregate.state?.emailVerified).toBe(true);
       expect(aggregate.isEmailVerified()).toBe(true);
     });
@@ -181,7 +181,7 @@ describe('UserAggregate', () => {
       });
       
       expect(aggregate.uncommittedEvents).toHaveLength(1);
-      expect(aggregate.uncommittedEvents[0].type).toBe(UserEventTypes.UserProfileUpdated);
+      expect(aggregate.uncommittedEvents[0]?.type).toBe(UserEventTypes.UserProfileUpdated);
       expect(aggregate.state?.profile?.bio).toBe('Software developer');
       expect(aggregate.state?.profile?.avatar).toBe('https://example.com/avatar.jpg');
       expect(aggregate.state?.profile?.location).toBe('New York');
@@ -254,7 +254,7 @@ describe('UserAggregate', () => {
       
       expect(snapshot.aggregateId).toBe(userId);
       expect(snapshot.version).toBe(BrandedTypes.eventVersion(2));
-      expect(snapshot.state).toEqual(aggregate.state);
+      expect(snapshot.state).toEqual(aggregate.state!);
       
       // Load snapshot into new aggregate
       const newAggregate = new UserAggregate(userId);

@@ -28,7 +28,6 @@
     "typescript": "^5"
   },
   "dependencies": {
-    "@graphql-hive/envelop": "^0.36.2",
     "@graphql-tools/schema": "^10.0.25",
     "gql.tada": "^1.8.13",
     "graphql": "^16.11.0",

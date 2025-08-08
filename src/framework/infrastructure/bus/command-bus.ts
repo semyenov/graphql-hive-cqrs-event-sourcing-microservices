@@ -13,22 +13,27 @@ import type {
 } from '../../core/command';
 
 /**
- * Command bus implementation
+ * Type-safe command handler map
  */
-export class CommandBus implements ICommandBus {
-  private handlers = new Map<string, ICommandHandler<any>>();
+type CommandHandlerMap = Map<string, ICommandHandler<ICommand>>;
+
+/**
+ * Command bus implementation with improved type safety
+ */
+export class CommandBus<TCommand extends ICommand = ICommand> implements ICommandBus {
+  private handlers: CommandHandlerMap = new Map();
   private middleware: ICommandMiddleware[] = [];
 
   /**
    * Register a command handler
    */
-  register<TCommand extends ICommand>(
-    handler: ICommandHandler<TCommand>
+  register<TSpecificCommand extends ICommand>(
+    handler: ICommandHandler<TSpecificCommand>
   ): void {
     // Get command types this handler can handle
-    const commandType = this.getHandlerCommandType(handler);
+    const commandType = this.getHandlerCommandType(handler as ICommandHandler<ICommand>);
     if (commandType) {
-      this.handlers.set(commandType, handler);
+      this.handlers.set(commandType, handler as ICommandHandler<ICommand>);
     }
   }
 
@@ -109,20 +114,23 @@ export class CommandBus implements ICommandBus {
   }
 
   /**
+   * Register a command handler with explicit type
+   */
+  registerWithType<TSpecificCommand extends TCommand>(
+    commandType: TSpecificCommand['type'],
+    handler: ICommandHandler<TSpecificCommand>
+  ): void {
+    this.handlers.set(commandType, handler as ICommandHandler<ICommand>);
+  }
+
+  /**
    * Private: Extract command type from handler
    */
-  private getHandlerCommandType(handler: ICommandHandler<any>): string | null {
+  private getHandlerCommandType(handler: ICommandHandler<ICommand>): string | null {
     // This is a simplified approach - in production, you might want to
     // use decorators or explicit registration with command type
-    const testCommand: ICommand = {
-      type: '__test__',
-      aggregateId: '' as any,
-      payload: {}
-    };
-
-    // Try to infer from canHandle method
-    // In real implementation, handlers should declare their command type
-    return null; // Requires explicit registration with command type
+    // For now, return null to require explicit registration
+    return null;
   }
 }
 

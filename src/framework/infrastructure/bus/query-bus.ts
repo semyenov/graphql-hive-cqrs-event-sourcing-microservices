@@ -7,11 +7,24 @@
 import type { IQuery, IQueryHandler, IQueryBus } from '../../core/query';
 
 /**
- * Query bus implementation
+ * Type-safe query handler map
  */
-export class QueryBus implements IQueryBus {
-  private handlers = new Map<string, IQueryHandler<any, any>>();
-  private cache = new Map<string, { result: any; timestamp: number }>();
+type QueryHandlerMap = Map<string, IQueryHandler<IQuery, unknown>>;
+
+/**
+ * Type-safe cache entry
+ */
+interface CacheEntry<T = unknown> {
+  result: T;
+  timestamp: number;
+}
+
+/**
+ * Query bus implementation with improved type safety
+ */
+export class QueryBus<TQuery extends IQuery = IQuery> implements IQueryBus {
+  private handlers: QueryHandlerMap = new Map();
+  private cache = new Map<string, CacheEntry>();
   private cacheTimeout = 60000; // 1 minute default
 
   constructor(

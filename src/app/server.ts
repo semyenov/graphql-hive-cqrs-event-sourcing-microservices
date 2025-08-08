@@ -13,7 +13,7 @@ import {
   createQueryBus,
   initializeFramework,
 } from '../framework';
-import { registerUserDomain, userGraphQLSchema } from '../domains/users';
+import { initializeUserDomain, userGraphQLSchema } from '../domains/users';
 import type { UserEvent } from '../domains/users';
 
 // Initialize framework
@@ -30,11 +30,7 @@ const eventBus = createEventBus<UserEvent>();
 const queryBus = createQueryBus(true, 60000);
 
 // Register domains
-const { repository: userRepository } = registerUserDomain(
-  eventStore,
-  commandBus,
-  queryBus
-);
+const { repository: userRepository } = initializeUserDomain();
 
 // Base GraphQL schema
 const baseSchema = `

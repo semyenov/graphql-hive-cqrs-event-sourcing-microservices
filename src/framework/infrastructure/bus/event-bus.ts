@@ -7,10 +7,20 @@
 import type { IEvent, IEventBus, EventHandler } from '../../core/event';
 
 /**
- * Event bus implementation
+ * Type-safe event handler set
+ */
+type EventHandlerSet<TEvent extends IEvent> = Set<EventHandler<TEvent>>;
+
+/**
+ * Type-safe event handler map
+ */
+type EventHandlerMap<TEvent extends IEvent> = Map<string, EventHandlerSet<TEvent>>;
+
+/**
+ * Event bus implementation with improved type safety
  */
 export class EventBus<TEvent extends IEvent = IEvent> implements IEventBus<TEvent> {
-  private subscribers = new Map<string, Set<EventHandler<any>>>();
+  private subscribers: EventHandlerMap<TEvent> = new Map();
   private allSubscribers = new Set<EventHandler<TEvent>>();
 
   /**
@@ -47,13 +57,15 @@ export class EventBus<TEvent extends IEvent = IEvent> implements IEventBus<TEven
       this.subscribers.set(eventType, new Set());
     }
     
-    this.subscribers.get(eventType)!.add(handler as EventHandler<any>);
+    // Type-safe handler addition
+    const handlers = this.subscribers.get(eventType)!;
+    handlers.add(handler as EventHandler<TEvent>);
     
     // Return unsubscribe function
     return () => {
       const typeSubscribers = this.subscribers.get(eventType);
       if (typeSubscribers) {
-        typeSubscribers.delete(handler as EventHandler<any>);
+        typeSubscribers.delete(handler as EventHandler<TEvent>);
         if (typeSubscribers.size === 0) {
           this.subscribers.delete(eventType);
         }
@@ -126,6 +138,37 @@ export class EventBus<TEvent extends IEvent = IEvent> implements IEventBus<TEven
  */
 export function createEventBus<TEvent extends IEvent>(): EventBus<TEvent> {
   return new EventBus<TEvent>();
+}
+
+/**
+ * Event subscription helper with automatic type inference
+ */
+export function subscribeToEvent<TEvent extends IEvent, TSpecificEvent extends TEvent>(
+  bus: EventBus<TEvent>,
+  eventType: TSpecificEvent['type'],
+  handler: EventHandler<TSpecificEvent>
+): () => void {
+  return bus.subscribe(eventType, handler);
+}
+
+/**
+ * Batch subscription helper
+ */
+export function subscribeToEvents<TEvent extends IEvent>(
+  bus: EventBus<TEvent>,
+  subscriptions: Array<{
+    type: string;
+    handler: EventHandler<TEvent>;
+  }>
+): () => void {
+  const unsubscribers = subscriptions.map(({ type, handler }) =>
+    bus.subscribe(type, handler)
+  );
+  
+  // Return combined unsubscribe function
+  return () => {
+    unsubscribers.forEach(unsub => unsub());
+  };
 }
 
 /**

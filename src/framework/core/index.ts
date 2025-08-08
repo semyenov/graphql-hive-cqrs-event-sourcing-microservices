@@ -5,12 +5,45 @@
  */
 
 // Event sourcing
-export * from './event';
-export * from './command';
+export { 
+  type IEvent,
+  type IEventMetadata,
+  type IEventStore,
+  type IEventBus,
+  type EventHandler,
+  type EventReducer,
+  type EventPattern,
+} from './event';
+export * from './event-utils';
+export { 
+  type ICommand,
+  type ICommandResult,
+  type ICommandHandler,
+  type ICommandBus,
+  type ICommandMiddleware,
+} from './command';
 export * from './query';
 export * from './aggregate';
 export * from './repository';
 export * from './types';
+export * from './helpers';
+export { 
+  type IValidationError,
+  type IValidationResult,
+  type IValidator,
+  type ICommandValidator,
+  type IQueryValidator,
+  type ValidationRule,
+  type ValidationSchema,
+  BaseValidator,
+  SchemaValidator,
+  ValidationRules,
+  ValidationBuilder,
+  createValidator,
+  createCommandValidator,
+  createQueryValidator,
+  combineValidators,
+} from './validation';
 
 // Type aliases for convenience
 export type {

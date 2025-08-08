@@ -9,6 +9,7 @@ import type { AggregateId, EventVersion, Timestamp } from './branded/types';
 import type { IEvent, EventReducer, EventPattern } from './event';
 import type { ICommand } from './command';
 import { BrandedTypes } from './branded/factories';
+import { matchEvent } from './event-utils';
 
 /**
  * Snapshot for performance optimization
@@ -202,11 +203,7 @@ export abstract class Aggregate<
     event: TEvent,
     patterns: EventPattern<TEvent, TResult>
   ): TResult {
-    const handler = patterns[event.type as TEvent['type']];
-    if (!handler) {
-      throw new Error(`No handler for event type: ${event.type}`);
-    }
-    return handler(event as Parameters<typeof handler>[0]);
+    return matchEvent(event, patterns);
   }
 }
 

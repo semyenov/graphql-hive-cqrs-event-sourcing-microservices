@@ -11,11 +11,6 @@ import type { UserState } from '../aggregates/user';
 import type { UserListItem } from '../projections/user-list.projection';
 import type { UserStats } from '../projections/user-stats.projection';
 import { UserEventTypes } from './types';
-import { 
-  isUserCreatedEvent, 
-  isUserEmailVerifiedEvent, 
-  isUserPasswordChangedEvent 
-} from '../helpers/type-guards';
 import { STATS_AGGREGATE_ID } from '../helpers/constants';
 import { getEventMetadata } from './enhanced-types';
 
@@ -130,20 +125,20 @@ export function registerUserEventHandlers(
   
   // Subscribe email handler to specific events
   eventBus.subscribe(UserEventTypes.UserCreated, async (event) => {
-    if (isUserCreatedEvent(event)) {
-      await emailHandler.handleUserCreated(event);
+    if (event.type === UserEventTypes.UserCreated) {
+      await emailHandler.handleUserCreated(event as Extract<UserEvent, { type: typeof UserEventTypes.UserCreated }>);
     }
   });
   
   eventBus.subscribe(UserEventTypes.UserEmailVerified, async (event) => {
-    if (isUserEmailVerifiedEvent(event)) {
-      await emailHandler.handleEmailVerified(event);
+    if (event.type === UserEventTypes.UserEmailVerified) {
+      await emailHandler.handleEmailVerified(event as Extract<UserEvent, { type: typeof UserEventTypes.UserEmailVerified }>);
     }
   });
   
   eventBus.subscribe(UserEventTypes.UserPasswordChanged, async (event) => {
-    if (isUserPasswordChangedEvent(event)) {
-      await emailHandler.handlePasswordChanged(event);
+    if (event.type === UserEventTypes.UserPasswordChanged) {
+      await emailHandler.handlePasswordChanged(event as Extract<UserEvent, { type: typeof UserEventTypes.UserPasswordChanged }>);
     }
   });
   
