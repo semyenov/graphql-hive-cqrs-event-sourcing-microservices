@@ -1,0 +1,139 @@
+overwrite: true
+config:
+  # Global configuration for maximum type safety
+  strict: true
+  skipTypename: false
+  exportFragmentSpreadSubTypes: true
+  dedupeFragments: true
+  inlineFragmentTypes: 'combine'
+  preResolveTypes: true
+  namingConvention:
+    typeNames: 'pascal-case#pascalCase'
+    enumValues: 'upper-case#upperCase'
+    fieldNames: 'camelCase'
+    
+generates:
+  # Read schema types with framework integration
+  src/generated/read-schema.ts:
+    schema: src/graphql/schemas/read.graphql
+    plugins:
+      - typescript
+    config:
+      enumsAsTypes: true
+      constEnums: true
+      numericEnums: false
+      nonOptionalTypename: true
+      scalars:
+        ID: 
+          input: 'import("@cqrs-framework/core").AggregateId'
+          output: 'import("@cqrs-framework/core").AggregateId'
+        String: string
+        Int: number
+        Float: number
+        Boolean: boolean
+      avoidOptionals:
+        field: true
+        inputValue: false
+        object: false
+        defaultValue: false
+      maybeValue: 'T | null | undefined'
+      inputMaybeValue: 'T | null | undefined'
+      immutableTypes: true
+      
+  # Write schema types with framework integration
+  src/generated/write-schema.ts:
+    schema: src/graphql/schemas/write.graphql
+    plugins:
+      - typescript
+    config:
+      enumsAsTypes: true
+      constEnums: true
+      nonOptionalTypename: true
+      scalars:
+        ID:
+          input: 'import("@cqrs-framework/core").AggregateId'
+          output: 'import("@cqrs-framework/core").AggregateId'
+        String: string
+        Int: number
+        Float: number
+        Boolean: boolean
+      avoidOptionals:
+        field: true
+        inputValue: false
+        object: false
+        defaultValue: false
+      maybeValue: 'T | null | undefined'
+      inputMaybeValue: 'T | null | undefined'
+      immutableTypes: true
+      
+  # Resolver types with framework integration
+  src/generated/resolvers.ts:
+    schema:
+      - src/graphql/schemas/read.graphql
+      - src/graphql/schemas/write.graphql
+    plugins:
+      - typescript
+      - typescript-resolvers
+    config:
+      enumsAsTypes: true
+      useIndexSignature: false
+      strictScalars: true
+      contextType: 'import("../server/server").GraphQLContext'
+      rootValueType: 'import("../server/server").GraphQLRootValue'
+      scalars:
+        ID:
+          input: 'import("@cqrs-framework/core").AggregateId'
+          output: 'import("@cqrs-framework/core").AggregateId'
+        String: string
+        Int: number
+        Float: number
+        Boolean: boolean
+      avoidOptionals:
+        field: true
+        inputValue: false
+        object: false
+        defaultValue: false
+      maybeValue: 'T | null | undefined'
+      inputMaybeValue: 'T | null | undefined'
+      immutableTypes: true
+      # Domain mappers using framework types
+      mappers:
+        # Map GraphQL types to domain models
+        User: 'import("../domains/user/models/User").User'
+        CreateUserInput: 'import("../domains/user/models/User").CreateUserInput'
+        UpdateUserInput: 'import("../domains/user/models/User").UpdateUserInput'
+        # Error handling with framework GraphQL error type
+        Error: '{ field: string | null; message: string; code?: string }'
+      defaultMapper: 'Partial<{T}>'
+      
+  # Command types for write operations
+  src/generated/commands.ts:
+    schema: src/graphql/schemas/write.graphql
+    plugins:
+      - typescript
+      - add:
+          content: |
+            // Auto-generated command types for user domain
+            import type { CommandResult } from '@cqrs-framework/core';
+            import type { AggregateId } from '@cqrs-framework/core';
+            import type { UserEvent } from '../events/generic-types';
+            
+    config:
+      enumsAsTypes: true
+      scalars:
+        ID: 'import("@cqrs-framework/core").AggregateId'
+          
+  # Projection types for read operations
+  src/generated/projections.ts:
+    schema: src/graphql/schemas/read.graphql
+    plugins:
+      - typescript
+      - add:
+          content: |
+            // Auto-generated projection types for user read models
+            import type { UserEvent } from '../events/generic-types';
+            
+    config:
+      enumsAsTypes: true
+      scalars:
+        ID: 'import("@cqrs-framework/core").AggregateId'

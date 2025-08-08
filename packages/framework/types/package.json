@@ -1,0 +1,29 @@
+{
+  "name": "@cqrs-framework/types",
+  "version": "1.0.0",
+  "description": "Advanced type system for CQRS/Event Sourcing framework",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc && bun build src/index.ts --outdir=dist --format=esm --target=node",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "keywords": ["cqrs", "event-sourcing", "types", "branded-types", "typescript"],
+  "author": "CQRS Framework Team",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {},
+  "files": ["dist", "README.md"]
+}

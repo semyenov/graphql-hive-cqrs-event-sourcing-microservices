@@ -1,0 +1,38 @@
+{
+  "name": "@cqrs-framework/plugins",
+  "version": "1.0.0",
+  "description": "Plugin system and extensibility patterns for CQRS/Event Sourcing applications",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc && bun build src/index.ts --outdir=dist --format=esm --target=node",
+    "dev": "bun --watch src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "cqrs",
+    "event-sourcing",
+    "plugins",
+    "middleware",
+    "decorators",
+    "hooks",
+    "typescript"
+  ],
+  "dependencies": {
+    "@cqrs-framework/core": "workspace:*",
+    "@cqrs-framework/types": "workspace:*",
+    "reflect-metadata": "^0.2.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "bun-types": "^1.0.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "files": [
+    "dist/**/*",
+    "README.md"
+  ]
+}

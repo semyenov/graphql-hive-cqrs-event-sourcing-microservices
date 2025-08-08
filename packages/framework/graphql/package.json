@@ -1,0 +1,39 @@
+{
+  "name": "@cqrs-framework/graphql",
+  "version": "1.0.0",
+  "description": "GraphQL integration for CQRS/Event Sourcing framework",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir=dist --format=esm --target=node",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "keywords": ["cqrs", "event-sourcing", "graphql", "yoga", "hive", "typescript"],
+  "author": "CQRS Framework Team",
+  "license": "MIT",
+  "dependencies": {
+    "@cqrs-framework/core": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "graphql": "^16.0.0",
+    "@envelop/core": "^5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@graphql-hive/client": {
+      "optional": true
+    }
+  },
+  "files": ["dist", "README.md"]
+}

@@ -1,0 +1,51 @@
+# Write Schema - Mutation Operations Only
+type Query {
+  # Dummy query to satisfy GraphQL requirement
+  _empty: String
+}
+
+type Mutation {
+  createUser(input: CreateUserInput!): CreateUserPayload!
+  updateUser(id: ID!, input: UpdateUserInput!): UpdateUserPayload!
+  deleteUser(id: ID!): DeleteUserPayload!
+}
+
+input CreateUserInput {
+  name: String!
+  email: String!
+}
+
+input UpdateUserInput {
+  name: String
+  email: String
+}
+
+type CreateUserPayload {
+  success: Boolean!
+  user: User
+  errors: [Error!]
+}
+
+type UpdateUserPayload {
+  success: Boolean!
+  user: User
+  errors: [Error!]
+}
+
+type DeleteUserPayload {
+  success: Boolean!
+  errors: [Error!]
+}
+
+type User {
+  id: ID!
+  name: String!
+  email: String!
+  createdAt: String!
+  updatedAt: String!
+}
+
+type Error {
+  field: String
+  message: String!
+}

@@ -1,0 +1,40 @@
+{
+  "name": "@cqrs-framework/client",
+  "version": "1.0.0",
+  "description": "Generic client patterns for CQRS/Event Sourcing framework",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc && bun build src/index.ts --outdir=dist --format=esm --target=node",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "keywords": ["cqrs", "event-sourcing", "client", "graphql", "typescript"],
+  "author": "CQRS Framework Team",
+  "license": "MIT",
+  "dependencies": {
+    "@cqrs-framework/core": "workspace:*",
+    "@cqrs-framework/types": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "graphql": "^16.0.0",
+    "gql.tada": "^1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "gql.tada": {
+      "optional": true
+    }
+  },
+  "files": ["dist", "README.md"]
+}

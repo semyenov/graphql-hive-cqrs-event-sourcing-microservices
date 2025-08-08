@@ -1,0 +1,33 @@
+{
+  "name": "@cqrs-framework/validation",
+  "version": "1.0.0",
+  "description": "Advanced validation utilities for CQRS/Event Sourcing Framework",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "bun build ./src/index.ts --outdir=dist --format=esm --target=node",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "keywords": ["cqrs", "validation", "type-safety", "branded-types"],
+  "author": "CQRS Framework Team",
+  "license": "MIT",
+  "dependencies": {
+    "@cqrs-framework/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.0.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

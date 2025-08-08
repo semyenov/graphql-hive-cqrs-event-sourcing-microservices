@@ -1,0 +1,34 @@
+{
+  "name": "@cqrs-framework/testing",
+  "version": "1.0.0",
+  "description": "Testing utilities for CQRS/Event Sourcing Framework",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "bun build ./src/index.ts --outdir=dist --format=esm --target=node",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "keywords": ["cqrs", "testing", "test-utilities", "type-testing"],
+  "author": "CQRS Framework Team",
+  "license": "MIT",
+  "dependencies": {
+    "@cqrs-framework/core": "workspace:*",
+    "@cqrs-framework/validation": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.0.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
