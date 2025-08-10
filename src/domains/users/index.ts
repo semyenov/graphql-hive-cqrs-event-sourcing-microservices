@@ -7,7 +7,7 @@
 
 import type { IDomainModule } from '../../framework/core/types';
 
-// Public API exports
+// Public API exports (domain-only)
 export * from './events/types';
 export * from './events/factories';
 export * from './aggregates/user';
@@ -19,9 +19,6 @@ export * from './validators/command.validators';
 export * from './projections/user.projection';
 export * from './projections/user-list.projection';
 export * from './projections/user-stats.projection';
-export * from './user.schema';
-export * from './user.setup';
-
 
 // Convenience re-exports
 export { UserAggregate, type UserState } from './aggregates/user';

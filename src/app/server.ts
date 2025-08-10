@@ -8,9 +8,15 @@ import { createYoga } from 'graphql-yoga';
 import { makeExecutableSchema } from '@graphql-tools/schema';
 import {
   initializeFramework,
+  createCommandFactory,
+  createQueryFactory,
 } from '../framework';
-import { userGraphQLSchema, initializeUserDomain } from '../domains/users';
-import type { UserEvent } from '../domains/users';
+import type { ICommand } from '../framework/core/command';
+import { userGraphQLSchema } from '../domains/users/user.schema';
+import { initializeUserDomain } from '../domains/users/user.setup';
+import { UserCommandTypes } from '../domains/users/commands/types';
+import { UserQueryTypes } from '../domains/users/queries/types';
+import { BrandedTypes } from '../framework/core/branded/factories';
 
 // Initialize framework
 const framework = initializeFramework({
@@ -32,6 +38,16 @@ const {
   enableValidation: true,
 });
 
+// Command/query factories
+const createUserCmd = createCommandFactory<ICommand<UserCommandTypes.CreateUser, { name: string; email: string }>>(UserCommandTypes.CreateUser);
+const updateUserCmd = createCommandFactory<ICommand<UserCommandTypes.UpdateUser, { name?: string; email?: string }>>(UserCommandTypes.UpdateUser);
+const deleteUserCmd = createCommandFactory<ICommand<UserCommandTypes.DeleteUser, { reason?: string }>>(UserCommandTypes.DeleteUser);
+const verifyEmailCmd = createCommandFactory<ICommand<UserCommandTypes.VerifyUserEmail, { token?: string }>>(UserCommandTypes.VerifyUserEmail);
+const updateProfileCmd = createCommandFactory<ICommand<UserCommandTypes.UpdateUserProfile, { bio?: string; avatar?: string; location?: string }>>(UserCommandTypes.UpdateUserProfile);
+
+const getUserByIdQry = createQueryFactory<{ type: UserQueryTypes.GetUserById; parameters: { userId: string } }>(UserQueryTypes.GetUserById);
+const getUserByEmailQry = createQueryFactory<{ type: UserQueryTypes.GetUserByEmail; parameters: { email: string } }>(UserQueryTypes.GetUserByEmail);
+const listUsersQry = createQueryFactory<{ type: UserQueryTypes.ListUsers; parameters: { pagination: { offset: number; limit: number }; includeDeleted?: boolean } }>(UserQueryTypes.ListUsers);
 
 // Base GraphQL schema
 const baseSchema = `
@@ -56,40 +72,37 @@ const schema = makeExecutableSchema({
   typeDefs,
   resolvers: {
     Query: {
-      user: async (_, { id }) => {
-        // TODO: Implement query handler
-        return null;
+      user: async (_: unknown, { id }: { id: string }) => {
+        return queryBus.ask(getUserByIdQry({ userId: id }));
       },
-      users: async () => {
-        // TODO: Implement query handler
-        return [];
+      users: async (_: unknown, { pagination, includeDeleted }: any) => {
+        return queryBus.ask(listUsersQry({ pagination, includeDeleted }));
       },
-      userByEmail: async (_, { email }) => {
-        // TODO: Implement query handler
-        return null;
+      userByEmail: async (_: unknown, { email }: { email: string }) => {
+        return queryBus.ask(getUserByEmailQry({ email }));
       },
     },
     Mutation: {
-      createUser: async (_, { input }) => {
-        // TODO: Use command bus
-        return {
-          success: false,
-          errors: [{ message: 'Not implemented' }],
-        };
+      createUser: async (_: unknown, { input }: { input: { name: string; email: string } }) => {
+        const aggregateId = BrandedTypes.aggregateId(crypto.randomUUID());
+        const result = await commandBus.send(createUserCmd(aggregateId, input));
+        return { success: result.success };
       },
-      updateUser: async (_, { id, input }) => {
-        // TODO: Use command bus
-        return {
-          success: false,
-          errors: [{ message: 'Not implemented' }],
-        };
+      updateUser: async (_: unknown, { id, input }: { id: string; input: { name?: string; email?: string } }) => {
+        const result = await commandBus.send(updateUserCmd(BrandedTypes.aggregateId(id), input));
+        return { success: result.success };
       },
-      deleteUser: async (_, { id, reason }) => {
-        // TODO: Use command bus
-        return {
-          success: false,
-          errors: [{ message: 'Not implemented' }],
-        };
+      deleteUser: async (_: unknown, { id, reason }: { id: string; reason?: string }) => {
+        const result = await commandBus.send(deleteUserCmd(BrandedTypes.aggregateId(id), { reason }));
+        return { success: result.success };
+      },
+      verifyUserEmail: async (_: unknown, { id, token }: { id: string; token: string }) => {
+        const result = await commandBus.send(verifyEmailCmd(BrandedTypes.aggregateId(id), { token }));
+        return { success: result.success };
+      },
+      updateUserProfile: async (_: unknown, { id, input }: { id: string; input: { bio?: string; avatar?: string; location?: string } }) => {
+        const result = await commandBus.send(updateProfileCmd(BrandedTypes.aggregateId(id), input));
+        return { success: result.success };
       },
     },
   },

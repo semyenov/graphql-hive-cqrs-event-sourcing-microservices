@@ -97,11 +97,11 @@ export function initializeUserDomain(
   // Add command validation middleware if enabled
   if (config.enableValidation !== false) {
     const validatorMap = new Map<string, ICommandValidator<UserCommand>>([
-      [UserCommandTypes.CreateUser, validators.createUser as ICommandValidator<UserCommand>],
-      [UserCommandTypes.UpdateUser, validators.updateUser as ICommandValidator<UserCommand>],
-      [UserCommandTypes.DeleteUser, validators.deleteUser as ICommandValidator<UserCommand>],
-      [UserCommandTypes.VerifyUserEmail, validators.verifyEmail as ICommandValidator<UserCommand>],
-      [UserCommandTypes.UpdateUserProfile, validators.updateProfile as ICommandValidator<UserCommand>],
+      [UserCommandTypes.CreateUser, validators.createUser],
+      [UserCommandTypes.UpdateUser, validators.updateUser],
+      [UserCommandTypes.DeleteUser, validators.deleteUser],
+      [UserCommandTypes.VerifyUserEmail, validators.verifyEmail],
+      [UserCommandTypes.UpdateUserProfile, validators.updateProfile],
     ]);
 
     commandBus.use({
