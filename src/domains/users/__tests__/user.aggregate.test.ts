@@ -6,7 +6,8 @@
 
 import { test, expect, describe } from 'bun:test';
 import { UserAggregate } from '../aggregates/user';
-import { BrandedTypes } from '../../../framework/core/branded/factories';
+import { BrandedTypes } from '../../../framework/core/branded';
+import { UserBrandedTypes } from '../helpers/factories';
 import { UserEventFactories } from '../events/factories';
 import { UserEventTypes } from '../events/types';
 
@@ -24,8 +25,8 @@ describe('UserAggregate', () => {
       
       expect(aggregate.uncommittedEvents).toHaveLength(1);
       expect(aggregate.uncommittedEvents[0].type).toBe(UserEventTypes.UserCreated);
-      expect(aggregate.state?.name).toBe(BrandedTypes.personName('John Doe'));
-      expect(aggregate.state?.email).toBe(BrandedTypes.email('john@example.com'));
+      expect(aggregate.state?.name).toBe(UserBrandedTypes.personName('John Doe'));
+      expect(aggregate.state?.email).toBe(UserBrandedTypes.email('john@example.com'));
       expect(aggregate.state?.emailVerified).toBe(false);
       expect(aggregate.state?.deleted).toBe(false);
     });
@@ -60,7 +61,7 @@ describe('UserAggregate', () => {
       
       expect(aggregate.uncommittedEvents).toHaveLength(1);
       expect(aggregate.uncommittedEvents[0].type).toBe(UserEventTypes.UserUpdated);
-      expect(aggregate.state?.name).toBe(BrandedTypes.personName('John Smith'));
+      expect(aggregate.state?.name).toBe(UserBrandedTypes.personName('John Smith'));
     });
     
     test('should update user email and reset verification', () => {
@@ -76,7 +77,7 @@ describe('UserAggregate', () => {
       
       aggregate.update({ email: 'newemail@example.com' });
       
-      expect(aggregate.state?.email).toBe(BrandedTypes.email('newemail@example.com'));
+      expect(aggregate.state?.email).toBe(UserBrandedTypes.email('newemail@example.com'));
       expect(aggregate.state?.emailVerified).toBe(false);
     });
     
@@ -219,11 +220,11 @@ describe('UserAggregate', () => {
           name: 'John Doe',
           email: 'john@example.com',
         }),
-        UserEventFactories.createUserUpdated(userId, 2, {
+        UserEventFactories.createUserUpdated(userId, BrandedTypes.eventVersion(2), {
           name: 'John Smith',
         }),
-        UserEventFactories.createEmailVerified(userId, 3),
-        UserEventFactories.createProfileUpdated(userId, 4, {
+        UserEventFactories.createEmailVerified(userId, BrandedTypes.eventVersion(3)),
+        UserEventFactories.createProfileUpdated(userId, BrandedTypes.eventVersion(4), {
           bio: 'Developer',
         }),
       ];
@@ -232,8 +233,8 @@ describe('UserAggregate', () => {
       aggregate.loadFromHistory(events);
       
       // Verify state
-      expect(aggregate.state?.name).toBe(BrandedTypes.personName('John Smith'));
-      expect(aggregate.state?.email).toBe(BrandedTypes.email('john@example.com'));
+      expect(aggregate.state?.name).toBe(UserBrandedTypes.personName('John Smith'));
+      expect(aggregate.state?.email).toBe(UserBrandedTypes.email('john@example.com'));
       expect(aggregate.state?.emailVerified).toBe(true);
       expect(aggregate.state?.profile?.bio).toBe('Developer');
       expect(aggregate.version).toBe(4);
@@ -254,7 +255,7 @@ describe('UserAggregate', () => {
       
       expect(snapshot.aggregateId).toBe(userId);
       expect(snapshot.version).toBe(BrandedTypes.eventVersion(2));
-      expect(snapshot.state).toEqual(aggregate.state);
+      expect(snapshot.state).toEqual(aggregate.state!);
       
       // Load snapshot into new aggregate
       const newAggregate = new UserAggregate(userId);
@@ -287,8 +288,8 @@ describe('UserAggregate', () => {
       const user = aggregate.getUser();
       
       expect(user).not.toBeNull();
-      expect(user?.name).toBe(BrandedTypes.personName('John Doe'));
-      expect(user?.email).toBe(BrandedTypes.email('john@example.com'));
+      expect(user?.name).toBe(UserBrandedTypes.personName('John Doe'));
+      expect(user?.email).toBe(UserBrandedTypes.email('john@example.com'));
     });
   });
 });

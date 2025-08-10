@@ -86,7 +86,6 @@ export class AuditLogHandler {
       timestamp: event.timestamp.toString(),
       eventType: event.type,
       aggregateId: event.aggregateId as string,
-      userId: metadata?.userId as string | undefined,
     });
     
     // In production, persist to audit log storage
