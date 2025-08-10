@@ -110,14 +110,14 @@ export interface IEventStore<TEvent extends IEvent = IEvent> {
    * @throws {EventValidationError} If event validation fails
    * @throws {EventStorageError} If storage operation fails
    */
-  append(event: TEvent): Promise<void>;
+  append(event: TEvent, expectedVersion?: number): Promise<void>;
   
   /**
    * Append multiple events atomically
    * @throws {EventValidationError} If any event validation fails
    * @throws {EventStorageError} If batch storage operation fails
    */
-  appendBatch(events: readonly TEvent[]): Promise<void>;
+  appendBatch(events: readonly TEvent[], expectedVersion?: number): Promise<void>;
   
   /**
    * Retrieve events for a specific aggregate
