@@ -3,6 +3,11 @@
  * 
  * A generic framework for building event-sourced applications
  * with CQRS pattern, designed to be domain-agnostic and extensible.
+ * 
+ * Now with:
+ * - Runtime validation using Zod
+ * - Pattern matching with ts-pattern
+ * - Functional effects with Effect-TS
  */
 
 import type { IEvent, IEventStore, IEventBus } from './core/event';
@@ -14,6 +19,72 @@ import type { InMemoryEventStore } from './infrastructure/event-store/memory';
 // Core abstractions
 export * from './core';
 export * from './core/errors';
+
+// Modern enhancements - export selectively to avoid conflicts
+export {
+  // Validation exports (avoid conflicting Result and ValidationError)
+  createValidator,
+  validationMiddleware,
+  validateAndTransform,
+  Validators,
+  CommandSchema,
+  EventSchema,
+  AggregateIdSchema,
+  EventVersionSchema,
+  TimestampSchema,
+  EmailSchema,
+  PersonNameSchema,
+  PhoneNumberSchema,
+  URLSchema,
+  UUIDSchema,
+  PaginationSchema,
+  ResultSchema,
+  SuccessResultSchema,
+  ErrorResultSchema,
+  createCommandSchema,
+  createEventSchema,
+  createQuerySchema,
+  validates,
+  validatable,
+  validate,
+  param,
+  applyParamValidators,
+} from './validation';
+
+export {
+  // Pattern exports (avoid conflicting matchEvent)
+  exhaustiveReducer,
+  partialReducer,
+  combineReducers,
+  sequenceReducer,
+  timeAwareReducer,
+  conditionalReducer,
+  effectfulReducer,
+  memoizedReducer,
+  createPatternCommandHandler,
+  CommandPatternBuilder,
+  commandPattern,
+  matchCommandWithValidation,
+  PatternCommandRouter,
+  executeConditionally,
+  EventPatternBuilder,
+  eventPattern,
+  createPatternReducer,
+  createPatternHandler,
+  isEventType,
+  matchEvents,
+  createTypeSafeMatcher,
+  matchWithDefault,
+  createConditionalMatcher,
+  matchAll,
+  matchAny,
+  matchStrict,
+  createGuard,
+  isType,
+  hasProperty,
+} from './patterns';
+
+export * from './effect';
 
 // Branded types for type safety (avoid duplicating Brand/Maybe from core)
 export { BrandedTypes, BrandedTypeGuards } from './core/branded';

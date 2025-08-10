@@ -21,4 +21,4 @@ export * from './user.queries';
 export * from './user.errors';
 
 // Domain Aggregate Root
-export { UserAggregate } from './user.aggregate'; 
+export * from './user.aggregate'; 

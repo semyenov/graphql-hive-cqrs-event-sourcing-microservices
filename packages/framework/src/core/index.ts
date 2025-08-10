@@ -15,34 +15,34 @@ export * from './errors';
 
 // Type aliases for convenience
 export type {
-  IEvent as Event,
-  IEventMetadata as EventMetadata,
-  IEventStore as EventStore,
-  IEventBus as EventBus,
+  IEvent,
+  IEventMetadata,
+  IEventStore,
+  IEventBus,
 } from './event';
 
 export type {
-  ICommand as Command,
-  ICommandResult as CommandResult,
-  ICommandHandler as CommandHandler,
-  ICommandBus as CommandBus,
+  ICommand,
+  ICommandResult,
+  ICommandHandler,
+  ICommandBus,
 } from './command';
 
 export type {
-  IQuery as Query,
-  IQueryHandler as QueryHandler,
-  IQueryBus as QueryBus,
-  IProjection as Projection,
-  IProjectionBuilder as ProjectionBuilder,
+  IQuery,
+  IQueryHandler,
+  IQueryBus,
+  IProjection,
+  IProjectionBuilder,
 } from './query';
 
 export type {
-  IAggregate as AggregateRoot,
-  ISnapshot as Snapshot,
+  IAggregate,
+  ISnapshot,
 } from './aggregate';
 
 export type {
-  IAggregateRepository as Repository,
-  IAggregateFactory as Factory,
-  IUnitOfWork as UnitOfWork,
+  IAggregateRepository,
+  IAggregateFactory,
+  IUnitOfWork,
 } from './repository';

@@ -5,9 +5,9 @@
  * Each handler represents a specific business use case.
  */
 
-export { createUserHandler } from './create-user.handler';
-export { updateUserHandler } from './update-user.handler';
-export { deleteUserHandler } from './delete-user.handler';
-export { verifyEmailHandler } from './verify-email.handler';
-export { updateProfileHandler } from './update-profile.handler';
-export { changePasswordHandler } from './change-password.handler'; 
+export * from './create-user.handler';
+export * from './update-user.handler';
+export * from './delete-user.handler';
+export * from './verify-email.handler';
+export * from './update-profile.handler';
+export * from './change-password.handler'; 

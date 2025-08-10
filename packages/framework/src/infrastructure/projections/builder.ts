@@ -17,6 +17,7 @@ export class ProjectionBuilder<
 > implements IProjectionBuilder<TEvent, TProjection> {
   
   private projections = new Map<string, TProjection>();
+  private eventsByAggregate = new Map<string, TEvent[]>();
   private version = 0;
 
   constructor(
@@ -42,11 +43,13 @@ export class ProjectionBuilder<
       aggregateEvents.get(aggregateKey)!.push(event);
     }
 
-    // Clear existing projections
+    // Clear existing projections and events
     this.projections.clear();
+    this.eventsByAggregate.clear();
 
-    // Rebuild projections for each aggregate
+    // Store events and rebuild projections for each aggregate
     for (const [aggregateId, aggEvents] of aggregateEvents) {
+      this.eventsByAggregate.set(aggregateId, aggEvents);
       const projection = this.buildProjection(aggregateId, aggEvents);
       if (projection) {
         this.projections.set(aggregateId, projection);
@@ -112,6 +115,7 @@ export class ProjectionBuilder<
    */
   clear(): void {
     this.projections.clear();
+    this.eventsByAggregate.clear();
     this.version = 0;
   }
 
@@ -139,14 +143,20 @@ export class ProjectionBuilder<
     const aggregateKey = aggregateId as string;
     
     // Get existing events for this aggregate
-    const existingProjection = this.projections.get(aggregateKey);
+    const existingEvents = this.eventsByAggregate.get(aggregateKey) || [];
+    
+    // Combine existing and new events
+    const allEvents = [...existingEvents, ...newEvents];
+    
+    // Store the updated event list
+    this.eventsByAggregate.set(aggregateKey, allEvents);
     
     // Rebuild projection with all events
-    const projection = this.buildProjection(aggregateKey, newEvents);
+    const projection = this.buildProjection(aggregateKey, allEvents);
     
     if (projection) {
       this.projections.set(aggregateKey, projection);
-    } else if (existingProjection) {
+    } else {
       // Remove projection if builder returns null
       this.projections.delete(aggregateKey);
     }

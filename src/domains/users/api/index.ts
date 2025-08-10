@@ -6,7 +6,7 @@
  */
 
 // GraphQL Schema
-export { userGraphQLSchema } from './graphql/user.schema';
+export * from './graphql/user.schema';
 
 // Data Transfer Objects
 export * from './dto/user.dto'; 

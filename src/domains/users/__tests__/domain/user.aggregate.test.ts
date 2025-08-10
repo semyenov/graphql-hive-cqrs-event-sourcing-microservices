@@ -5,21 +5,20 @@
  */
 
 import { test, expect, describe, beforeEach } from 'bun:test';
-import { UserAggregate } from '../domain/user.aggregate';
-import { BrandedTypes } from '@cqrs/framework/core/branded';
-import { UserEventTypes, UserEvent } from '../domain/user.events';
-import { TestFramework } from '@cqrs/framework/testing/harness';
-import { UserRepository } from '../infrastructure/persistence/user.repository';
+import { UserAggregate } from '../../domain/user.aggregate';
+import { BrandedTypes } from '@cqrs/framework';
+import { UserEventTypes, UserEvent } from '../../domain/user.events';
+import { UserRepository } from '../../infrastructure/persistence/user.repository';
 
 describe('UserAggregate', () => {
   const userId = BrandedTypes.aggregateId('user-123');
-  let testFramework: TestFramework<UserEvent, UserAggregate>;
   let userRepository: UserRepository;
 
   beforeEach(async () => {
-    testFramework = new TestFramework<UserEvent, UserAggregate>();
-    await testFramework.setup();
-    userRepository = new UserRepository(testFramework.eventStore);
+    // Create a simple in-memory event store for testing
+    const { createEventStore } = await import('@cqrs/framework');
+    const eventStore = createEventStore<UserEvent>();
+    userRepository = new UserRepository(eventStore);
   });
   
   describe('create', () => {

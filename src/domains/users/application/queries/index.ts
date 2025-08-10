@@ -5,6 +5,6 @@
  * Each handler represents a specific data retrieval use case.
  */
 
-export { getUserHandler, getUserByEmailHandler } from './get-user.handler';
-export { listUsersHandler, type ListUsersResult } from './list-users.handler';
-export { getUserStatsHandler, type UserStatsResult } from './get-stats.handler'; 
+export * from './get-user.handler';
+export * from './list-users.handler';
+export * from './get-stats.handler'; 
