@@ -5,7 +5,7 @@
  * These are the business operations that can be performed on users.
  */
 
-import type { ICommand } from '../../../framework/core/command';
+import type { ICommand } from '@cqrs/framework/core/command';
 import type {
   CreateUserData,
   UpdateUserData,

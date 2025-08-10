@@ -5,10 +5,10 @@
  * Handles persistence and retrieval of user aggregates.
  */
 
-import { AggregateRepository } from '../../../../framework/infrastructure/repository/aggregate';
-import type { IEventStore, IEventBus } from '../../../../framework/core/event';
-import type { ISnapshotStore } from '../../../../framework/core/repository';
-import type { AggregateId } from '../../../../framework/core/branded/types';
+import { AggregateRepository } from '@cqrs/framework/infrastructure/repository/aggregate';
+import type { IEventStore, IEventBus } from '@cqrs/framework/core/event';
+import type { ISnapshotStore } from '@cqrs/framework/core/repository';
+import type { AggregateId } from '@cqrs/framework/core/branded/types';
 import type { UserEvent } from '../../domain/user.events';
 import type { UserState } from '../../domain/user.types';
 import { UserAggregate } from '../../domain/user.aggregate';

@@ -5,10 +5,10 @@
  * Orchestrates domain logic and infrastructure concerns.
  */
 
-import type { ICommandResult } from '../../../../framework/core/command';
+import type { ICommandResult } from '@cqrs/framework/core/command';
 import type { UserRepository } from '../../infrastructure/persistence/user.repository';
 import type { CreateUserCommand } from '../../domain/user.commands';
-import { makeCommandSuccess } from '../../../../framework/core/command';
+import { makeCommandSuccess } from '@cqrs/framework/core/command';
 
 /**
  * Create user command handler
@@ -22,10 +22,9 @@ export async function createUserHandler(
   command: CreateUserCommand
 ): Promise<ICommandResult> {
   // Create new aggregate
-  const aggregate = repository.createAggregate(command.aggregateId);
-  
-  // Execute domain logic
-  aggregate.create(command.payload);
+  const aggregate = repository
+    .createAggregate(command.aggregateId)
+    .create(command.payload);
   
   // Persist changes
   await repository.save(aggregate);

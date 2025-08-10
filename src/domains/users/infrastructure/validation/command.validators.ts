@@ -9,9 +9,9 @@ import type {
   ICommandValidator, 
   ValidationResult, 
   ValidationError 
-} from '../../../../framework/core/command';
+} from '@cqrs/framework/core/command';
 import type { CreateUserCommand, UpdateUserCommand } from '../../domain/user.commands';
-import { BrandedTypes } from '../../../../framework/core/branded/factories';
+import { BrandedTypes } from '@cqrs/framework/core/branded/factories';
 
 /**
  * Validator for CreateUser command

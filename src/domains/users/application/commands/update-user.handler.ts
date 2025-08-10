@@ -5,10 +5,10 @@
  * Retrieves existing user, applies changes, and persists updates.
  */
 
-import type { ICommandResult } from '../../../../framework/core/command';
+import type { ICommandResult } from '@cqrs/framework/core/command';
 import type { UserRepository } from '../../infrastructure/persistence/user.repository';
 import type { UpdateUserCommand } from '../../domain/user.commands';
-import { makeCommandSuccess } from '../../../../framework/core/command';
+import { makeCommandSuccess } from '@cqrs/framework/core/command';
 
 /**
  * Update user command handler

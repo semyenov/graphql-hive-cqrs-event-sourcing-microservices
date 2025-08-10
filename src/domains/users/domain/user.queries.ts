@@ -5,8 +5,8 @@
  * These define what data can be read from the user domain.
  */
 
-import type { IQuery } from '../../../framework/core/query';
-import type { AggregateId } from '../../../framework/core/branded/types';
+import type { IQuery } from '@cqrs/framework/core/query';
+import type { AggregateId } from '@cqrs/framework/core/branded/types';
 
 /**
  * User query types - string literals for better type safety

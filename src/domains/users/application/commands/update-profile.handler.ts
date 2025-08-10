@@ -5,10 +5,10 @@
  * Updates bio, avatar, location and other profile data.
  */
 
-import type { ICommandResult } from '../../../../framework/core/command';
+import type { ICommandResult } from '@cqrs/framework/core/command';
 import type { UserRepository } from '../../infrastructure/persistence/user.repository';
 import type { UpdateUserProfileCommand } from '../../domain/user.commands';
-import { makeCommandSuccess } from '../../../../framework/core/command';
+import { makeCommandSuccess } from '@cqrs/framework/core/command';
 
 /**
  * Update profile command handler

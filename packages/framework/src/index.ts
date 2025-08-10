@@ -75,11 +75,11 @@ export {
 export {
   // Core
   Aggregate,
-  type IEvent as Event,
-  type ICommand as Command,
-  type IQuery as Query,
-  type IAggregate as AggregateRoot,
-  type ISnapshot as Snapshot,
+  type IEvent,
+  type ICommand,
+  type IQuery,
+  type IAggregate,
+  type ISnapshot,
   type EventReducer,
   type EventHandler,
   type EventPattern,

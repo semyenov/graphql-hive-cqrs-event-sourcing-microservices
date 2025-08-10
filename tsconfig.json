@@ -14,6 +14,12 @@
     "verbatimModuleSyntax": true,
     "noEmit": true,
 
+    // Path mapping for workspace packages
+    "paths": {
+      "@cqrs/framework": ["./packages/framework/src/index.ts"],
+      "@cqrs/framework/*": ["./packages/framework/src/*"]
+    },
+
     // Best practices
     "strict": true,
     "skipLibCheck": true,
@@ -36,8 +42,8 @@
     ]
   },
   "include": [
-    "src/framework/**/*.ts",
-    "src/domains/**/*.ts"
+    "packages/framework/src/**/*.ts",
+    "src/**/*.ts"
   ],
   "exclude": [
     "src/**/__tests__/**",

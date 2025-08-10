@@ -5,7 +5,7 @@
  * These capture domain-specific error conditions.
  */
 
-import { DomainError } from '../../../framework/core/errors';
+import { DomainError } from '@cqrs/framework/core/errors';
 
 /**
  * User already exists error - attempt to create a user that already exists

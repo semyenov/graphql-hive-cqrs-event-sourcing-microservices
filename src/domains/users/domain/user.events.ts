@@ -5,8 +5,8 @@
  * These events capture the business-meaningful changes to user state.
  */
 
-import type { IEvent } from '../../../framework/core/event';
-import type { AggregateId } from '../../../framework/core/branded/types';
+import type { IEvent } from '@cqrs/framework/core/event';
+import type { AggregateId } from '@cqrs/framework/core/branded/types';
 import type { Email, PersonName } from './user.types';
 
 /**

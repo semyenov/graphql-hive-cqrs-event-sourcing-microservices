@@ -5,10 +5,10 @@
  * using the new layered architecture.
  */
 
-import type { IEventStore } from '../../framework/core/event';
-import { bootstrapFramework } from '../../framework';
-import type { CommandBus, EventBus, QueryBus } from '../../framework/infrastructure/bus';
-import { createEventStore } from '../../framework/infrastructure/event-store/memory';
+import type { IEventStore } from '@cqrs/framework/core/event';
+import { bootstrapFramework } from '@cqrs/framework';
+import type { CommandBus, EventBus, QueryBus } from '@cqrs/framework/infrastructure/bus';
+import { createEventStore } from '@cqrs/framework/infrastructure/event-store/memory';
 
 // Domain layer
 import { UserEventTypes } from './domain/user.events';

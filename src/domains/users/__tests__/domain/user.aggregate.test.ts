@@ -6,9 +6,9 @@
 
 import { test, expect, describe, beforeEach } from 'bun:test';
 import { UserAggregate } from '../domain/user.aggregate';
-import { BrandedTypes } from '../../../framework/core/branded';
+import { BrandedTypes } from '@cqrs/framework/core/branded';
 import { UserEventTypes, UserEvent } from '../domain/user.events';
-import { TestFramework } from '../../../framework/testing/harness';
+import { TestFramework } from '@cqrs/framework/testing/harness';
 import { UserRepository } from '../infrastructure/persistence/user.repository';
 
 describe('UserAggregate', () => {

@@ -5,10 +5,10 @@
  * Validates current password and updates to new password.
  */
 
-import type { ICommandResult } from '../../../../framework/core/command';
+import type { ICommandResult } from '@cqrs/framework/core/command';
 import type { UserRepository } from '../../infrastructure/persistence/user.repository';
 import type { ChangeUserPasswordCommand } from '../../domain/user.commands';
-import { makeCommandSuccess } from '../../../../framework/core/command';
+import { makeCommandSuccess } from '@cqrs/framework/core/command';
 
 /**
  * Change password command handler

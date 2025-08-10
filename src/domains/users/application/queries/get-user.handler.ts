@@ -7,7 +7,7 @@
 
 import type { GetUserByIdQuery } from '../../domain/user.queries';
 import type { UserState } from '../../domain/user.types';
-import type { ProjectionBuilder } from '../../../../framework/infrastructure/projections/builder';
+import type { ProjectionBuilder } from '@cqrs/framework/infrastructure/projections/builder';
 import type { UserEvent } from '../../domain/user.events';
 
 /**

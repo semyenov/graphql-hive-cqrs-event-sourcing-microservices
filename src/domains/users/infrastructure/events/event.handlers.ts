@@ -5,14 +5,14 @@
  * Manages projection updates and external system notifications.
  */
 
-import type { EventBus } from '../../../../framework/infrastructure/bus';
-import type { ProjectionBuilder } from '../../../../framework/infrastructure/projections/builder';
+import type { EventBus } from '@cqrs/framework/infrastructure/bus';
+import type { ProjectionBuilder } from '@cqrs/framework/infrastructure/projections/builder';
 import type { UserEvent } from '../../domain/user.events';
 import type { UserState } from '../../domain/user.types';
 import type { UserListItem } from '../projections/user-list.projection';
 import type { UserStats } from '../projections/user-stats.projection';
 import { UserEventTypes } from '../../domain/user.events';
-import { subscribeEventPattern } from '../../../../framework/infrastructure/bus/event-bus';
+import { subscribeEventPattern } from '@cqrs/framework/infrastructure/bus/event-bus';
 
 /**
  * Projection update handler - manages read model consistency

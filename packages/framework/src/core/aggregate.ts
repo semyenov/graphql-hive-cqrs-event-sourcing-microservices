@@ -67,9 +67,9 @@ export abstract class Aggregate<
   TAggregateId extends AggregateId = AggregateId
 > implements IAggregateBehavior<TState, TEvent, TAggregateId> {
   
-  protected _state: TState | null = null;
-  protected _version = 0;
-  protected _uncommittedEvents: TEvent[] = [];
+  #state: TState | null = null;
+  #version = 0;
+  #uncommittedEvents: TEvent[] = [];
 
   constructor(
     public readonly id: TAggregateId,
@@ -78,25 +78,25 @@ export abstract class Aggregate<
   ) {}
 
   get state(): TState | null {
-    return this._state;
+    return this.#state;
   }
 
   get version(): number {
-    return this._version;
+    return this.#version;
   }
 
   get uncommittedEvents(): ReadonlyArray<TEvent> {
-    return [...this._uncommittedEvents];
+    return [...this.#uncommittedEvents];
   }
 
   /**
    * Get current state or throw a descriptive error if state is not initialized.
    */
   getStateOrThrow(message?: string): TState {
-    if (this._state === null) {
+    if (this.#state === null) {
       throw new InvalidStateError(message ?? `Aggregate ${String(this.id)} has no state yet. Apply events or load from history/snapshot first.`);
     }
-    return this._state;
+    return this.#state;
   }
 
   /**
@@ -107,11 +107,11 @@ export abstract class Aggregate<
       throw new IdMismatchError(`Event aggregate ID mismatch: expected ${String(this.id)}, got ${String(event.aggregateId)}`);
     }
 
-    this._state = this.reducer(this._state ?? this.initialState, event);
-    this._version = event.version;
+    this.#state = this.reducer(this.#state ?? this.initialState, event);
+    this.#version = event.version;
 
     if (isNew) {
-      this._uncommittedEvents.push(event);
+      this.#uncommittedEvents.push(event);
     }
   }
 
@@ -119,7 +119,7 @@ export abstract class Aggregate<
    * Mark all uncommitted events as committed
    */
   markEventsAsCommitted(): void {
-    this._uncommittedEvents = [];
+    this.#uncommittedEvents = [];
   }
 
   /**
@@ -136,22 +136,22 @@ export abstract class Aggregate<
     if (snapshot.aggregateId !== this.id) {
       throw new IdMismatchError(`Snapshot aggregate ID mismatch: expected ${String(this.id)}, got ${String(snapshot.aggregateId)}`);
     }
-    this._state = snapshot.state;
-    this._version = snapshot.version;
+    this.#state = snapshot.state;
+    this.#version = snapshot.version;
   }
 
   /**
    * Create snapshot of current state
    */
   createSnapshot(): ISnapshot<TState, TAggregateId> {
-    if (!this._state) {
+    if (!this.#state) {
       throw new InvalidStateError('Cannot create snapshot without state');
     }
 
     return {
       aggregateId: this.id,
-      version: BrandedTypes.eventVersion(this._version),
-      state: this._state,
+      version: BrandedTypes.eventVersion(this.#version),
+      state: this.#state,
       timestamp: BrandedTypes.timestamp(),
     };
   }

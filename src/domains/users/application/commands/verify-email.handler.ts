@@ -5,10 +5,10 @@
  * Confirms email ownership and updates verification status.
  */
 
-import type { ICommandResult } from '../../../../framework/core/command';
+import type { ICommandResult } from '@cqrs/framework/core/command';
 import type { UserRepository } from '../../infrastructure/persistence/user.repository';
 import type { VerifyUserEmailCommand } from '../../domain/user.commands';
-import { makeCommandSuccess } from '../../../../framework/core/command';
+import { makeCommandSuccess } from '@cqrs/framework/core/command';
 
 /**
  * Verify email command handler
@@ -25,7 +25,7 @@ export async function verifyEmailHandler(
   const aggregate = await repository.getOrThrow(command.aggregateId, 'User not found');
   
   // Execute domain logic (token validation could be added here)
-  aggregate.verifyEmail();
+  aggregate.verifyEmail(command.payload);
   
   // Persist changes
   await repository.save(aggregate);

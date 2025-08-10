@@ -5,11 +5,11 @@
  * This projection is used for single user lookups and detailed views.
  */
 
-import { createProjectionBuilder } from '../../../../framework/infrastructure/projections/builder';
+import { createProjectionBuilder } from '@cqrs/framework/infrastructure/projections/builder';
 import type { UserEvent } from '../../domain/user.events';
 import type { UserState } from '../../domain/user.types';
 import { UserEventTypes } from '../../domain/user.events';
-import { matchEvent } from '../../../../framework/core/event';
+import { matchEvent } from '@cqrs/framework/core/event';
 
 /**
  * Build user details projection from events

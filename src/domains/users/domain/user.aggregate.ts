@@ -5,12 +5,12 @@
  * This is the main entry point for all user-related business operations.
  */
 
-import { Aggregate } from '../../../framework/core/aggregate';
-import type { EventReducer } from '../../../framework/core/event';
-import type { AggregateId } from '../../../framework/core/branded/types';
-import { BrandedTypes } from '../../../framework/core/branded/factories';
-import { createReducerFromEventPattern } from '../../../framework/core/event';
-import { InvalidStateError } from '../../../framework/core/errors';
+import { Aggregate } from '@cqrs/framework/core/aggregate';
+import type { EventReducer } from '@cqrs/framework/core/event';
+import type { AggregateId } from '@cqrs/framework/core/branded/types';
+import { BrandedTypes } from '@cqrs/framework/core/branded/factories';
+import { createReducerFromEventPattern } from '@cqrs/framework/core/event';
+import { InvalidStateError } from '@cqrs/framework/core/errors';
 
 // Domain imports
 import type { 
@@ -22,6 +22,7 @@ import type {
   DeleteUserData,
   UpdateProfileData,
   ChangePasswordData,
+  VerifyEmailData,
 } from './user.types';
 import type { UserEvent, UserEventData, UserEventType } from './user.events';
 import { UserEventTypes } from './user.events';
@@ -50,9 +51,9 @@ export class UserAggregate extends Aggregate<UserState, UserEvent, AggregateId> 
   /**
    * Create a new user - register them in the system
    */
-  create(data: CreateUserData): void {
-    if (this._state && !this._state.deleted) {
-      throw new UserAlreadyExistsError(this._state.email);
+  create(data: CreateUserData): this {
+    if (this.state && !this.state.deleted) {
+      throw new UserAlreadyExistsError(this.state.email);
     }
 
     const event = this.createEvent(UserEventTypes.UserCreated, {
@@ -62,12 +63,13 @@ export class UserAggregate extends Aggregate<UserState, UserEvent, AggregateId> 
     });
     
     this.applyEvent(event, true);
+    return this;
   }
 
   /**
    * Update user basic information
    */
-  update(data: UpdateUserData): void {
+  update(data: UpdateUserData): this {
     this.ensureNotDeleted();
     this.ensureExists();
 
@@ -82,45 +84,49 @@ export class UserAggregate extends Aggregate<UserState, UserEvent, AggregateId> 
     });
     
     this.applyEvent(event, true);
+    return this;
   }
 
   /**
    * Delete user from the system
    */
-  delete(reason?: string): void {
+  delete(data: DeleteUserData): this {
     this.ensureExists();
     this.ensureNotDeleted();
 
     const event = this.createEvent(UserEventTypes.UserDeleted, {
       deletedAt: new Date().toISOString(),
-      ...(reason && { reason }),
+      ...(data.reason && { reason: data.reason }),
     });
     
     this.applyEvent(event, true);
+    return this;
   }
 
   /**
    * Verify user's email address
    */
-  verifyEmail(): void {
+  verifyEmail(data: VerifyEmailData): this {
     this.ensureExists();
     this.ensureNotDeleted();
 
-    if (this._state!.emailVerified) {
+    if (this.state!.emailVerified) {
       throw new EmailAlreadyVerifiedError();
     }
 
     const event = this.createEvent(UserEventTypes.UserEmailVerified, {
       verifiedAt: new Date().toISOString(),
+      ...(data.verificationToken && { verificationToken: data.verificationToken }),
     });
     
     this.applyEvent(event, true);
+    return this;
   }
 
   /**
    * Change user's password
    */
-  changePassword(data: ChangePasswordData): void {
+  changePassword(data: ChangePasswordData): this {
     this.ensureExists();
     this.ensureNotDeleted();
 
@@ -129,12 +135,13 @@ export class UserAggregate extends Aggregate<UserState, UserEvent, AggregateId> 
     });
     
     this.applyEvent(event, true);
+    return this;
   }
 
   /**
    * Update user's profile information
    */
-  updateProfile(data: UpdateProfileData): void {
+  updateProfile(data: UpdateProfileData): this {
     this.ensureExists();
     this.ensureNotDeleted();
 
@@ -144,6 +151,7 @@ export class UserAggregate extends Aggregate<UserState, UserEvent, AggregateId> 
     });
     
     this.applyEvent(event, true);
+    return this;
   }
 
   /**
@@ -154,38 +162,38 @@ export class UserAggregate extends Aggregate<UserState, UserEvent, AggregateId> 
    * Check if user is deleted
    */
   isDeleted(): boolean {
-    return this._state?.deleted ?? false;
+    return this.state?.deleted ?? false;
   }
 
   /**
    * Check if email is verified
    */
   isEmailVerified(): boolean {
-    return this._state?.emailVerified ?? false;
+    return this.state?.emailVerified ?? false;
   }
 
   /**
    * Get user data (returns null if deleted)
    */
   getUserData(): UserState | null {
-    if (!this._state || this._state.deleted) {
+    if (!this.state || this.state.deleted) {
       return null;
     }
-    return { ...this._state };
+    return { ...this.state };
   }
 
   /**
    * Get user email
    */
   getEmail(): Email | null {
-    return this._state?.email ?? null;
+    return this.state?.email ?? null;
   }
 
   /**
    * Get user name
    */
   getName(): PersonName | null {
-    return this._state?.name ?? null;
+    return this.state?.name ?? null;
   }
 
   /**
@@ -193,13 +201,13 @@ export class UserAggregate extends Aggregate<UserState, UserEvent, AggregateId> 
    */
 
   private ensureExists(): void {
-    if (!this._state) {
+    if (!this.state) {
       throw new InvalidStateError('User not found');
     }
   }
 
   private ensureNotDeleted(): void {
-    if (this._state?.deleted) {
+    if (this.state?.deleted) {
       throw new UserDeletedError();
     }
   }
@@ -211,7 +219,7 @@ export class UserAggregate extends Aggregate<UserState, UserEvent, AggregateId> 
     return {
       aggregateId: this.id,
       type,
-      version: BrandedTypes.eventVersion(this._version + 1),
+      version: BrandedTypes.eventVersion(this.version + 1),
       timestamp: BrandedTypes.timestamp(),
       data,
     } as UserEvent;

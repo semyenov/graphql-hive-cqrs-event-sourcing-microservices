@@ -5,7 +5,7 @@
  */
 
 import { initializeUserDomain, UserAggregate } from '../domains/users';
-import { BrandedTypes } from '../framework/core/branded';
+import { BrandedTypes } from '@cqrs/framework/core/branded';
 
 async function testFramework() {
   console.log('🧪 Testing CQRS/Event Sourcing Framework\n');
@@ -32,7 +32,7 @@ async function testFramework() {
   console.log('✅ User created successfully');
   console.log(`   ID: ${userId}`);
   console.log(`   Version: ${userAggregate.version}`);
-  console.log(`   State:`, userAggregate.getUser());
+  console.log(`   State:`, userAggregate.state);
   console.log();
 
   // Test 2: Load aggregate from events
@@ -43,7 +43,7 @@ async function testFramework() {
   }
   console.log('✅ User loaded successfully');
   console.log(`   Version: ${loadedUser.version}`);
-  console.log(`   State:`, loadedUser.getUser());
+  console.log(`   State:`, loadedUser.state);
   console.log();
 
   // Test 3: Update user
@@ -52,7 +52,7 @@ async function testFramework() {
   await userRepository.save(loadedUser);
   console.log('✅ User updated successfully');
   console.log(`   Version: ${loadedUser.version}`);
-  console.log(`   State:`, loadedUser.getUser());
+  console.log(`   State:`, loadedUser.state);
   console.log();
 
   // Test 4: Event count
@@ -66,7 +66,7 @@ async function testFramework() {
 
   // Test 5: Delete user
   console.log('Test 5: Deleting user...');
-  loadedUser.delete('Test cleanup');
+  loadedUser.delete({ reason: 'Test cleanup' });
   await userRepository.save(loadedUser);
   console.log('✅ User deleted successfully');
   console.log(`   Is deleted: ${loadedUser.isDeleted()}`);

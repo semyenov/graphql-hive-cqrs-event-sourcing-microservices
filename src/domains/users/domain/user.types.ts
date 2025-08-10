@@ -5,7 +5,7 @@
  * These represent the fundamental concepts in the user domain.
  */
 
-import type { Brand } from '../../../framework/core/branded/types';
+import type { Brand } from '@cqrs/framework/core/branded/types';
 
 /**
  * User domain branded types for type safety

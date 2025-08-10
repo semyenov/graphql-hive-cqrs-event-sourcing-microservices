@@ -5,7 +5,7 @@
  */
 
 import { createYoga } from 'graphql-yoga';
-import { BrandedTypes } from '../framework/core/branded/factories';
+import { BrandedTypes } from '@cqrs/framework/core/branded/factories';
 import { makeExecutableSchema } from '@graphql-tools/schema';
 
 // User domain - new structure

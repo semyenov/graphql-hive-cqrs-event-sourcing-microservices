@@ -3,6 +3,9 @@
   "module": "src/app/server.ts",
   "type": "module",
   "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "dev": "bun --hot src/app/server.ts",
     "start": "bun src/app/server.ts",
