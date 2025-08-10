@@ -35,7 +35,7 @@ export class CommandBus implements ICommandBus {
    * Register a command handler with explicit command type
    */
   registerWithType<TCommand extends ICommand>(
-    commandType: string,
+    commandType: TCommand['type'],
     handler: ICommandHandler<TCommand>
   ): void {
     this.handlers.set(commandType, handler);

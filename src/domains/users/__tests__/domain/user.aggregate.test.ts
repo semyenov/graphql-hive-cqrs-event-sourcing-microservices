@@ -5,13 +5,11 @@
  */
 
 import { test, expect, describe, beforeEach } from 'bun:test';
-import { UserAggregate } from '../aggregates/user';
+import { UserAggregate } from '../domain/user.aggregate';
 import { BrandedTypes } from '../../../framework/core/branded';
-import { UserBrandedTypes } from '../helpers/factories';
-import { UserEventFactories } from '../events/factories';
-import { UserEventTypes, UserEvent } from '../events/types';
+import { UserEventTypes, UserEvent } from '../domain/user.events';
 import { TestFramework } from '../../../framework/testing/harness';
-import { UserRepository } from '../aggregates/repository';
+import { UserRepository } from '../infrastructure/persistence/user.repository';
 
 describe('UserAggregate', () => {
   const userId = BrandedTypes.aggregateId('user-123');

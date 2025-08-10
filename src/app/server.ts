@@ -1,48 +1,39 @@
 /**
  * Application Server
  * 
- * Main server using the CQRS/Event Sourcing framework.
+ * Main server using the CQRS/Event Sourcing framework with restructured users domain.
  */
 
 import { createYoga } from 'graphql-yoga';
 import { BrandedTypes } from '../framework/core/branded/factories';
 import { makeExecutableSchema } from '@graphql-tools/schema';
-import {
-  createCommandFactory,
-  createQueryFactory,
-} from '../framework';
-import type { ICommand } from '../framework/core/command';
 
-// User domain
+// User domain - new structure
 import { 
   userGraphQLSchema,
   initializeUserDomain,
   UserCommandTypes,
   UserQueryTypes,
+  // Import command and query handlers directly
+  createUserHandler,
+  updateUserHandler,
+  deleteUserHandler,
+  verifyEmailHandler,
+  updateProfileHandler,
+  getUserHandler,
+  getUserByEmailHandler,
+  listUsersHandler,
+  getUserStatsHandler,
 } from '../domains/users';
 
-// Initialize domains
-const { 
-  commandBus, 
-  queryBus, 
-  eventBus,
-  eventStore, 
-} = await initializeUserDomain({
+// Initialize user domain
+const userDomain = await initializeUserDomain({
   enableCache: true,
   enableProjections: true,
   enableValidation: true,
 });
 
-// Command/query factories
-const createUserCmd = createCommandFactory<ICommand<UserCommandTypes.CreateUser, { name: string; email: string }>>(UserCommandTypes.CreateUser);
-const updateUserCmd = createCommandFactory<ICommand<UserCommandTypes.UpdateUser, { name?: string; email?: string }>>(UserCommandTypes.UpdateUser);
-const deleteUserCmd = createCommandFactory<ICommand<UserCommandTypes.DeleteUser, { reason?: string }>>(UserCommandTypes.DeleteUser);
-const verifyEmailCmd = createCommandFactory<ICommand<UserCommandTypes.VerifyUserEmail, { token?: string }>>(UserCommandTypes.VerifyUserEmail);
-const updateProfileCmd = createCommandFactory<ICommand<UserCommandTypes.UpdateUserProfile, { bio?: string; avatar?: string; location?: string }>>(UserCommandTypes.UpdateUserProfile);
-
-const getUserByIdQry = createQueryFactory<{ type: UserQueryTypes.GetUserById; parameters: { userId: string } }>(UserQueryTypes.GetUserById);
-const getUserByEmailQry = createQueryFactory<{ type: UserQueryTypes.GetUserByEmail; parameters: { email: string } }>(UserQueryTypes.GetUserByEmail);
-const listUsersQry = createQueryFactory<{ type: UserQueryTypes.ListUsers; parameters: { pagination: { offset: number; limit: number }; includeDeleted?: boolean } }>(UserQueryTypes.ListUsers);
+const { repository, projections } = userDomain;
 
 // Base GraphQL schema
 const baseSchema = `
@@ -68,39 +59,149 @@ const schema = makeExecutableSchema({
   resolvers: {
     Query: {
       user: async (_: unknown, { id }: { id: string }) => {
-        return queryBus.ask(getUserByIdQry({ userId: id }));
+        const query = {
+          type: UserQueryTypes.GetUserById,
+          parameters: { userId: BrandedTypes.aggregateId(id) }
+        };
+        return getUserHandler(projections.userDetailsProjection, query);
       },
       users: async (_: unknown, { pagination, includeDeleted }: { 
-        pagination: { offset: number; limit: number; sortBy?: string; sortOrder?: 'asc' | 'desc' }; 
+        pagination?: { offset?: number; limit?: number; sortBy?: string; sortOrder?: 'asc' | 'desc' }; 
         includeDeleted?: boolean 
       }) => {
-        return queryBus.ask(listUsersQry({ pagination, includeDeleted }));
+        const query = {
+          type: UserQueryTypes.ListUsers,
+          parameters: { 
+            pagination: {
+              offset: pagination?.offset || 0,
+              limit: pagination?.limit || 10,
+              sortBy: pagination?.sortBy,
+              sortOrder: pagination?.sortOrder
+            },
+            includeDeleted 
+          }
+        };
+        return listUsersHandler(projections.userDetailsProjection, query);
       },
       userByEmail: async (_: unknown, { email }: { email: string }) => {
-        return queryBus.ask(getUserByEmailQry({ email }));
+        const query = {
+          parameters: { email }
+        };
+        return getUserByEmailHandler(projections.userDetailsProjection, query);
+      },
+      userStats: async () => {
+        const query = {
+          type: UserQueryTypes.GetUserStats,
+          parameters: {}
+        };
+        return getUserStatsHandler(projections.userDetailsProjection, query);
       },
     },
     Mutation: {
       createUser: async (_: unknown, { input }: { input: { name: string; email: string } }) => {
-        const aggregateId = BrandedTypes.aggregateId(crypto.randomUUID());
-        const result = await commandBus.send(createUserCmd(aggregateId, input));
-        return { success: result.success };
+        const command = {
+          type: UserCommandTypes.CreateUser,
+          aggregateId: BrandedTypes.aggregateId(crypto.randomUUID()),
+          payload: input
+        };
+        
+        try {
+          const result = await createUserHandler(repository, command);
+          return { 
+            success: true, 
+            userId: command.aggregateId,
+            message: 'User created successfully'
+          };
+        } catch (error) {
+          return { 
+            success: false, 
+            error: error instanceof Error ? error.message : 'Unknown error'
+          };
+        }
       },
       updateUser: async (_: unknown, { id, input }: { id: string; input: { name?: string; email?: string } }) => {
-        const result = await commandBus.send(updateUserCmd(BrandedTypes.aggregateId(id), input));
-        return { success: result.success };
+        const command = {
+          type: UserCommandTypes.UpdateUser,
+          aggregateId: BrandedTypes.aggregateId(id),
+          payload: input
+        };
+        
+        try {
+          const result = await updateUserHandler(repository, command);
+          return { 
+            success: true, 
+            userId: id,
+            message: 'User updated successfully'
+          };
+        } catch (error) {
+          return { 
+            success: false, 
+            error: error instanceof Error ? error.message : 'Unknown error'
+          };
+        }
       },
       deleteUser: async (_: unknown, { id, reason }: { id: string; reason?: string }) => {
-        const result = await commandBus.send(deleteUserCmd(BrandedTypes.aggregateId(id), { reason }));
-        return { success: result.success };
+        const command = {
+          type: UserCommandTypes.DeleteUser,
+          aggregateId: BrandedTypes.aggregateId(id),
+          payload: { reason }
+        };
+        
+        try {
+          const result = await deleteUserHandler(repository, command);
+          return { 
+            success: true, 
+            userId: id,
+            message: 'User deleted successfully'
+          };
+        } catch (error) {
+          return { 
+            success: false, 
+            error: error instanceof Error ? error.message : 'Unknown error'
+          };
+        }
       },
       verifyUserEmail: async (_: unknown, { id, token }: { id: string; token: string }) => {
-        const result = await commandBus.send(verifyEmailCmd(BrandedTypes.aggregateId(id), { token }));
-        return { success: result.success };
+        const command = {
+          type: UserCommandTypes.VerifyUserEmail,
+          aggregateId: BrandedTypes.aggregateId(id),
+          payload: { verificationToken: token }
+        };
+        
+        try {
+          const result = await verifyEmailHandler(repository, command);
+          return { 
+            success: true, 
+            userId: id,
+            message: 'Email verified successfully'
+          };
+        } catch (error) {
+          return { 
+            success: false, 
+            error: error instanceof Error ? error.message : 'Unknown error'
+          };
+        }
       },
       updateUserProfile: async (_: unknown, { id, input }: { id: string; input: { bio?: string; avatar?: string; location?: string } }) => {
-        const result = await commandBus.send(updateProfileCmd(BrandedTypes.aggregateId(id), input));
-        return { success: result.success };
+        const command = {
+          type: UserCommandTypes.UpdateUserProfile,
+          aggregateId: BrandedTypes.aggregateId(id),
+          payload: input
+        };
+        
+        try {
+          const result = await updateProfileHandler(repository, command);
+          return { 
+            success: true, 
+            userId: id,
+            message: 'Profile updated successfully'
+          };
+        } catch (error) {
+          return { 
+            success: false, 
+            error: error instanceof Error ? error.message : 'Unknown error'
+          };
+        }
       },
     },
   },
@@ -125,12 +226,18 @@ const serverConfig = {
           status: 'ok',
           framework: {
             initialized: true,
-            eventStore: eventStore ? 'active' : 'inactive',
-            commandBus: commandBus ? 'active' : 'inactive',
-            eventBus: eventBus ? 'active' : 'inactive',
-            queryBus: queryBus ? 'active' : 'inactive',
+            eventStore: userDomain.eventStore ? 'active' : 'inactive',
+            commandBus: userDomain.commandBus ? 'active' : 'inactive',
+            eventBus: userDomain.eventBus ? 'active' : 'inactive',
+            queryBus: userDomain.queryBus ? 'active' : 'inactive',
           },
-          domains: ['users'],
+          domains: {
+            users: {
+              status: 'active',
+              projections: Object.keys(userDomain.projections),
+              validators: Object.keys(userDomain.validators),
+            }
+          },
           timestamp: new Date().toISOString(),
         }),
         {
@@ -152,6 +259,7 @@ const serverConfig = {
 
 // Only start server if this is the main module
 if (import.meta.main) {
+  console.log('🚀 Starting CQRS/Event Sourcing Server...');
   const server = Bun.serve(serverConfig);
   console.log(`🚀 Server running at http://localhost:${server.port}`);
   console.log(`📊 GraphQL endpoint: http://localhost:${server.port}/graphql`);

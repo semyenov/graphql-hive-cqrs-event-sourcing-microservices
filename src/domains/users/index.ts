@@ -1,49 +1,25 @@
 /**
- * User Domain Module
+ * User Domain - Main Entry Point
  * 
- * Best-in-class domain module for user management with CQRS/Event Sourcing.
- * This serves as a comprehensive template for implementing new domains.
+ * Exports the public API of the user domain using the new layered architecture.
+ * Provides clean separation between layers and controlled access to domain functionality.
  */
 
-import type { IDomainModule } from '../../framework/core/types';
+// Domain Layer - Pure business logic
+export * from './domain';
 
-// Barrel exports for users domain – import ONLY from this file in other modules
+// Application Layer - Use cases and workflows  
+export * from './application/commands';
+export * from './application/queries';
 
-// Branded helpers
-export * from './helpers/types';
-export { UserBrandedTypes } from './helpers/factories';
-export { UserBrandedTypeGuards } from './helpers/guards';
+// Infrastructure Layer - Technical implementation
+export * from './infrastructure';
 
-// Core domain contracts
-export * from './commands/types';
-export * from './queries/types';
-export * from './events/types';
+// API Layer - External interfaces
+export * from './api';
 
-// Aggregate + repository
-export { UserAggregate } from './aggregates/user';
-export { createUserRepository, UserRepository } from './aggregates/repository';
+// Shared utilities
+export * from './shared/type-guards';
 
-// GraphQL schema
-export { userGraphQLSchema } from './user.schema';
-
-// Setup/bootstrap
-export { initializeUserDomain } from './user.setup';
-
-// Event handler helpers
-export { buildUserEventHandlers, registerUserEventHandlers } from './events/handlers';
-
-/**
- * User domain module definition
- */
-export const UserDomainModule: IDomainModule = {
-  name: 'users',
-  version: '1.0.0',
-  
-  async initialize() {
-    console.log('[UserDomain] Module initialized');
-  },
-  
-  async shutdown() {
-    console.log('[UserDomain] Module shut down');
-  },
-};
+// Module initialization  
+export { createUserDomain, initializeUserDomain, type UserDomainConfig, type UserDomainContext } from './user.module';
