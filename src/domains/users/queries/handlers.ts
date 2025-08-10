@@ -19,7 +19,7 @@ export function registerUserQueryHandlersWithPattern(
   queryBus: Parameters<typeof registerQueryPattern<UserQuery, unknown>>[0],
   userProjection: ProjectionBuilder<UserEvent, UserState>
 ): void {
-  const pattern = {
+  registerQueryPattern<UserQuery, unknown>(queryBus, {
     [UserQueryTypes.GetUserById]: async (query: Queries.GetUserByIdQuery) => {
       const userId = query.parameters.userId as string;
       return userProjection.get(userId);
@@ -69,7 +69,5 @@ export function registerUserQueryHandlersWithPattern(
       }
       return stats;
     },
-  } as const;
-
-  registerQueryPattern(queryBus as any, pattern as any);
+  });
 }

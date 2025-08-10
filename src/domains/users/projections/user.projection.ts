@@ -9,94 +9,88 @@ import type { UserState } from '../aggregates/user';
 import type { UserEvent } from '../events/types';
 import { UserEventTypes } from '../events/types';
 import { matchUserEvent } from '../helpers/type-guards';
-
-/**
- * Build user projection from events
- */
-function buildUserProjection(
-  aggregateId: string,
-  events: UserEvent[]
-): UserState | null {
-  if (events.length === 0) {
-    return null;
-  }
-
-  let state: UserState | null = null;
-
-  for (const event of events) {
-    state = matchUserEvent<UserState | null>(event, {
-      [UserEventTypes.UserCreated]: (e) => ({
-        id: aggregateId,
-        name: e.data.name,
-        email: e.data.email,
-        emailVerified: false,
-        deleted: false,
-        createdAt: e.data.createdAt,
-        updatedAt: e.data.createdAt,
-      }),
-
-      [UserEventTypes.UserUpdated]: (e) => {
-        if (!state) return null;
-        return {
-          ...state,
-          ...(e.data.name && { name: e.data.name }),
-          ...(e.data.email && { 
-            email: e.data.email, 
-            emailVerified: false 
-          }),
-          updatedAt: e.data.updatedAt,
-        };
-      },
-
-      [UserEventTypes.UserDeleted]: (e) => {
-        if (!state) return null;
-        return {
-          ...state,
-          deleted: true,
-          updatedAt: e.data.deletedAt,
-        };
-      },
-
-      [UserEventTypes.UserEmailVerified]: (e) => {
-        if (!state) return null;
-        return {
-          ...state,
-          emailVerified: true,
-          updatedAt: e.data.verifiedAt,
-        };
-      },
-
-      [UserEventTypes.UserPasswordChanged]: (e) => {
-        if (!state) return null;
-        return {
-          ...state,
-          updatedAt: e.data.changedAt,
-        };
-      },
-
-      [UserEventTypes.UserProfileUpdated]: (e) => {
-        if (!state) return null;
-        return {
-          ...state,
-          profile: {
-            ...state.profile,
-            ...e.data,
-          },
-          updatedAt: e.data.updatedAt,
-        };
-      },
-    });
-  }
-
-  return state;
-}
-
 /**
  * Create user projection builder
  */
 export function createUserProjection() {
   return createProjectionBuilder<UserEvent, UserState>(
-    buildUserProjection,
-    'UserProjection'
+    'UserProjection',
+    function buildUserProjection(
+      aggregateId: string,
+      events: UserEvent[]
+    ): UserState | null {
+      if (events.length === 0) {
+        return null;
+      }
+    
+      let state: UserState | null = null;
+    
+      for (const event of events) {
+        state = matchUserEvent<UserState | null>(event, {
+          [UserEventTypes.UserCreated]: (e) => ({
+            id: aggregateId,
+            name: e.data.name,
+            email: e.data.email,
+            emailVerified: false,
+            deleted: false,
+            createdAt: e.data.createdAt,
+            updatedAt: e.data.createdAt,
+          }),
+    
+          [UserEventTypes.UserUpdated]: (e) => {
+            if (!state) return null;
+            return {
+              ...state,
+              ...(e.data.name && { name: e.data.name }),
+              ...(e.data.email && { 
+                email: e.data.email, 
+                emailVerified: false 
+              }),
+              updatedAt: e.data.updatedAt,
+            };
+          },
+    
+          [UserEventTypes.UserDeleted]: (e) => {
+            if (!state) return null;
+            return {
+              ...state,
+              deleted: true,
+              updatedAt: e.data.deletedAt,
+            };
+          },
+    
+          [UserEventTypes.UserEmailVerified]: (e) => {
+            if (!state) return null;
+            return {
+              ...state,
+              emailVerified: true,
+              updatedAt: e.data.verifiedAt,
+            };
+          },
+    
+          [UserEventTypes.UserPasswordChanged]: (e) => {
+            if (!state) return null;
+            return {
+              ...state,
+              updatedAt: e.data.changedAt,
+            };
+          },
+    
+          [UserEventTypes.UserProfileUpdated]: (e) => {
+            if (!state) return null;
+            return {
+              ...state,
+              profile: {
+                ...state.profile,
+                ...e.data,
+              },
+              updatedAt: e.data.updatedAt,
+            };
+          },
+        });
+      }
+    
+      return state;
+    }
   );
 }

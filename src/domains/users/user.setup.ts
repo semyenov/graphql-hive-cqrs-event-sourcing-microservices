@@ -66,7 +66,7 @@ export async function initializeUserDomain(
   });
   
   // Create repository
-  const repository = createUserRepository(eventStore);
+  const repository = createUserRepository(eventStore, eventBus);
   
   // Create projections
   const projections = {

@@ -22,67 +22,62 @@ export interface UserListItem {
 }
 
 /**
- * Build user list projection from events
- */
-function buildUserListProjection(
-  aggregateId: string,
-  events: UserEvent[]
-): UserListItem | null {
-  if (events.length === 0) {
-    return null;
-  }
-
-  let item: UserListItem | null = null;
-
-  for (const event of events) {
-    item = matchUserEvent<UserListItem | null>(event, {
-      [UserEventTypes.UserCreated]: (e) => ({
-        id: aggregateId,
-        name: e.data.name as string,
-        email: e.data.email as string,
-        emailVerified: false,
-        deleted: false,
-        createdAt: e.data.createdAt,
-      }),
-      [UserEventTypes.UserUpdated]: (e) => {
-        if (!item) return null;
-        return {
-          ...item,
-          ...(e.data.name && { name: e.data.name as string }),
-          ...(e.data.email && { 
-            email: e.data.email as string,
-            emailVerified: false 
-          }),
-        };
-      },
-      [UserEventTypes.UserDeleted]: () => {
-        if (!item) return null;
-        return {
-          ...item,
-          deleted: true,
-        };
-      },
-      [UserEventTypes.UserEmailVerified]: () => {
-        if (!item) return null;
-        return {
-          ...item,
-          emailVerified: true,
-        };
-      },
-      [UserEventTypes.UserPasswordChanged]: () => item,
-      [UserEventTypes.UserProfileUpdated]: () => item,
-    });
-  }
-
-  return item;
-}
-
-/**
  * Create user list projection builder
  */
 export function createUserListProjection() {
   return createProjectionBuilder<UserEvent, UserListItem>(
-    buildUserListProjection,
-    'UserListProjection'
+    'UserListProjection',
+    function buildUserListProjection(
+      aggregateId: string,
+      events: UserEvent[]
+    ): UserListItem | null {
+      if (events.length === 0) {
+        return null;
+      }
+    
+      let item: UserListItem | null = null;
+    
+      for (const event of events) {
+        item = matchUserEvent<UserListItem | null>(event, {
+          [UserEventTypes.UserCreated]: (e) => ({
+            id: aggregateId,
+            name: e.data.name as string,
+            email: e.data.email as string,
+            emailVerified: false,
+            deleted: false,
+            createdAt: e.data.createdAt,
+          }),
+          [UserEventTypes.UserUpdated]: (e) => {
+            if (!item) return null;
+            return {
+              ...item,
+              ...(e.data.name && { name: e.data.name as string }),
+              ...(e.data.email && { 
+                email: e.data.email as string,
+                emailVerified: false 
+              }),
+            };
+          },
+          [UserEventTypes.UserDeleted]: () => {
+            if (!item) return null;
+            return {
+              ...item,
+              deleted: true,
+            };
+          },
+          [UserEventTypes.UserEmailVerified]: () => {
+            if (!item) return null;
+            return {
+              ...item,
+              emailVerified: true,
+            };
+          },
+          [UserEventTypes.UserPasswordChanged]: () => item,
+          [UserEventTypes.UserProfileUpdated]: () => item,
+        });
+      }
+    
+      return item;
+    },
   );
 }

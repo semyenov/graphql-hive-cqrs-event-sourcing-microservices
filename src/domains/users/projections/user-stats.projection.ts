@@ -7,115 +7,130 @@
 import { createProjectionBuilder } from '../../../framework/infrastructure/projections/builder';
 import type { UserEvent } from '../events/types';
 import { UserEventTypes } from '../events/types';
+import { matchUserEvent } from '../helpers/type-guards';
 
 /**
  * User statistics data
  */
 export interface UserStats {
-  aggregateId: string; // Using 'stats' as the single key
-  totalCreated: number;
-  totalDeleted: number;
-  totalVerified: number;
+  totalUsers: number;
+  activeUsers: number;
+  deletedUsers: number;
+  verifiedEmails: number;
+  createdToday: number;
   lastActivity: string;
-  dailyStats: Map<string, {
-    created: number;
-    deleted: number;
-    verified: number;
-  }>;
-}
-
-/**
- * Build user statistics from all events
- */
-function buildUserStatsProjection(
-  aggregateId: string, // Will be 'stats' for the single stats object
-  events: UserEvent[]
-): UserStats | null {
-  if (aggregateId !== 'stats') {
-    // Only build stats for the special 'stats' aggregate
-    return null;
-  }
-
-  const stats: UserStats = {
-    aggregateId: 'stats',
-    totalCreated: 0,
-    totalDeleted: 0,
-    totalVerified: 0,
-    lastActivity: new Date().toISOString(),
-    dailyStats: new Map(),
-  };
-
-  for (const event of events) {
-    const date = new Date(event.timestamp.toString()).toISOString().split('T')[0];
-    if (!date) {
-      continue;
-    }
-    
-    if (!stats.dailyStats.has(date)) {
-      stats.dailyStats.set(date, {
-        created: 0,
-        deleted: 0,
-        verified: 0,
-      });
-    }
-    
-    const dailyStat = stats.dailyStats.get(date)!;
-
-    switch (event.type) {
-      case UserEventTypes.UserCreated:
-        stats.totalCreated++;
-        dailyStat.created++;
-        stats.lastActivity = event.timestamp.toString();
-        break;
-        
-      case UserEventTypes.UserDeleted:
-        stats.totalDeleted++;
-        dailyStat.deleted++;
-        stats.lastActivity = event.timestamp.toString();
-        break;
-        
-      case UserEventTypes.UserEmailVerified:
-        stats.totalVerified++;
-        dailyStat.verified++;
-        stats.lastActivity = event.timestamp.toString();
-        break;
-        
-      default:
-        // Update last activity for any event
-        stats.lastActivity = event.timestamp.toString();
-    }
-  }
-
-  return stats;
 }
 
 /**
  * Create user statistics projection builder
- * 
- * Note: This is a special projection that aggregates ALL user events
- * into a single statistics object. It should be rebuilt from all events.
  */
 export function createUserStatsProjection() {
   return createProjectionBuilder<UserEvent, UserStats>(
-    buildUserStatsProjection,
-    'UserStatsProjection'
-  );
-}
+    'UserStatsProjection',
+    function buildUserStatsProjection(
+      aggregateId: string,
+      events: UserEvent[]
+    ): UserStats | null {
+      if (aggregateId !== 'stats') {
+        // Only build stats for the special 'stats' aggregate
+        return null;
+      }
 
-/**
- * Helper to rebuild stats from all user events
- */
-export async function rebuildUserStats(
-  projection: ReturnType<typeof createUserStatsProjection>,
-  allUserEvents: UserEvent[]
-): Promise<UserStats | null> {
-  // Group all events under a single 'stats' key
-  await projection.rebuild([
-    ...allUserEvents.map(event => ({
-      ...event,
-      aggregateId: 'stats' as any, // Override aggregateId for stats aggregation
-    }))
-  ]);
-  
-  return projection.get('stats');
+      if (events.length === 0) {
+        return {
+          totalUsers: 0,
+          activeUsers: 0,
+          deletedUsers: 0,
+          verifiedEmails: 0,
+          createdToday: 0,
+          lastActivity: new Date().toISOString(),
+        };
+      }
+
+      let stats: UserStats = {
+        totalUsers: 0,
+        activeUsers: 0,
+        deletedUsers: 0,
+        verifiedEmails: 0,
+        createdToday: 0,
+        lastActivity: new Date().toISOString(),
+      };
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayTime = today.getTime();
+
+      // Track user states to calculate accurate stats
+      const userStates = new Map<string, {
+        created: boolean;
+        deleted: boolean;
+        emailVerified: boolean;
+        createdAt: string;
+      }>();
+
+      for (const event of events) {
+        const userId = event.aggregateId;
+        
+        if (!userStates.has(userId)) {
+          userStates.set(userId, {
+            created: false,
+            deleted: false,
+            emailVerified: false,
+            createdAt: '',
+          });
+        }
+
+        const userState = userStates.get(userId)!;
+        stats.lastActivity = event.timestamp.toString();
+
+        matchUserEvent<void>(event, {
+          [UserEventTypes.UserCreated]: (e) => {
+            userState.created = true;
+            userState.createdAt = e.data.createdAt;
+            
+            // Check if created today
+            const createdDate = new Date(e.data.createdAt);
+            createdDate.setHours(0, 0, 0, 0);
+            if (createdDate.getTime() === todayTime) {
+              stats.createdToday++;
+            }
+          },
+          [UserEventTypes.UserDeleted]: () => {
+            userState.deleted = true;
+          },
+          [UserEventTypes.UserEmailVerified]: () => {
+            userState.emailVerified = true;
+          },
+          [UserEventTypes.UserUpdated]: () => {
+            // No state change for stats
+          },
+          [UserEventTypes.UserPasswordChanged]: () => {
+            // No state change for stats
+          },
+          [UserEventTypes.UserProfileUpdated]: () => {
+            // No state change for stats
+          },
+        });
+      }
+
+      // Calculate final stats from user states
+      for (const userState of userStates.values()) {
+        if (userState.created) {
+          stats.totalUsers++;
+          
+          if (!userState.deleted) {
+            stats.activeUsers++;
+          } else {
+            stats.deletedUsers++;
+          }
+          
+          if (userState.emailVerified) {
+            stats.verifiedEmails++;
+          }
+        }
+      }
+
+      return stats;
+    },
+  );
 }

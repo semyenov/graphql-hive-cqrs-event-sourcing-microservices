@@ -7,7 +7,7 @@
 
 import type { IEvent, IEventStore, EventHandler } from '../../core/event';
 import type { AggregateId } from '../../core/branded/types';
-import { InvalidStateError, PatternHandlerNotFoundError, VersionMismatchError } from '../../core/errors';
+import { InvalidStateError, VersionMismatchError } from '../../core/errors';
 
 /**
  * In-memory event store implementation

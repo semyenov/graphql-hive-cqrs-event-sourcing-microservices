@@ -174,8 +174,8 @@ export function createProjectionBuilder<
   TEvent extends IEvent,
   TProjection
 >(
-  buildProjection: (aggregateId: string, events: TEvent[]) => TProjection | null,
-  name?: string
+  name: string,
+  buildProjection: (aggregateId: string, events: TEvent[]) => TProjection | null
 ): ProjectionBuilder<TEvent, TProjection> {
   return new ProjectionBuilder(buildProjection, name);
 }

@@ -5,7 +5,7 @@
  */
 
 import type { AggregateId } from '../../core/branded/types';
-import type { IEvent, IEventStore } from '../../core/event';
+import type { IEvent, IEventStore, IEventBus } from '../../core/event';
 import type { IAggregateBehavior } from '../../core/aggregate';
 import type { IAggregateRepository, ISnapshotStore } from '../../core/repository';
 import { AggregateNotFoundError } from '../../core/errors';
@@ -28,6 +28,7 @@ export abstract class AggregateRepository<
       IEventStore<TEvent>, 
       'append' | 'appendBatch' | 'getEvents'
     >,
+    protected readonly eventBus?: IEventBus<TEvent>,
     protected readonly snapshotStore?: ISnapshotStore<TState, TAggregateId>,
     protected readonly cacheEnabled = true
   ) {}
@@ -90,7 +91,13 @@ export abstract class AggregateRepository<
   async save(aggregate: TAggregate): Promise<void> {
     const events = aggregate.uncommittedEvents;
     if (events.length > 0) {
+      // Persist events to event store
       await this.eventStore.appendBatch(events);
+
+      // Publish events to event bus for side effects (projections, notifications, etc.)
+      if (this.eventBus) {
+        await this.eventBus.publishBatch(events);
+      }
 
       if (this.shouldCreateSnapshot(aggregate)) {
         await this.snapshotStore?.save(aggregate.createSnapshot());

@@ -70,7 +70,10 @@ const schema = makeExecutableSchema({
       user: async (_: unknown, { id }: { id: string }) => {
         return queryBus.ask(getUserByIdQry({ userId: id }));
       },
-      users: async (_: unknown, { pagination, includeDeleted }: any) => {
+      users: async (_: unknown, { pagination, includeDeleted }: { 
+        pagination: { offset: number; limit: number; sortBy?: string; sortOrder?: 'asc' | 'desc' }; 
+        includeDeleted?: boolean 
+      }) => {
         return queryBus.ask(listUsersQry({ pagination, includeDeleted }));
       },
       userByEmail: async (_: unknown, { email }: { email: string }) => {
@@ -109,10 +112,10 @@ const yoga = createYoga({
   graphiql: process.env.NODE_ENV !== 'production',
 });
 
-// Create Bun server
-const server = Bun.serve({
+// Create Bun server configuration
+const serverConfig = {
   port: process.env.PORT || 3005,
-  async fetch(req) {
+  async fetch(req: Request) {
     const url = new URL(req.url);
 
     // Health check
@@ -145,10 +148,14 @@ const server = Bun.serve({
 
     return new Response('Not Found', { status: 404 });
   },
-});
+};
 
-console.log(`🚀 Server running at http://localhost:${server.port}`);
-console.log(`📊 GraphQL endpoint: http://localhost:${server.port}/graphql`);
-console.log(`❤️  Health check: http://localhost:${server.port}/health`);
+// Only start server if this is the main module
+if (import.meta.main) {
+  const server = Bun.serve(serverConfig);
+  console.log(`🚀 Server running at http://localhost:${server.port}`);
+  console.log(`📊 GraphQL endpoint: http://localhost:${server.port}/graphql`);
+  console.log(`❤️  Health check: http://localhost:${server.port}/health`);
+}
 
-export default server;
+export default serverConfig;

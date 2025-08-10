@@ -86,9 +86,24 @@ export const buildUserEventHandlers = (
   const emailHandler = new EmailNotificationHandler();
 
   return {
-    [UserEventTypes.UserCreated]: (event: UserEvent) => emailHandler.handleUserCreated(event as any),
-    [UserEventTypes.UserEmailVerified]: (event: UserEvent) => emailHandler.handleEmailVerified(event as any),
-    [UserEventTypes.UserPasswordChanged]: (event: UserEvent) => emailHandler.handlePasswordChanged(event as any),
+    [UserEventTypes.UserCreated]: async (event: UserEvent) => {
+      await projectionHandler.handleEvent(event);
+      if (event.type === UserEventTypes.UserCreated) {
+        await emailHandler.handleUserCreated(event);
+      }
+    },
+    [UserEventTypes.UserEmailVerified]: async (event: UserEvent) => {
+      await projectionHandler.handleEvent(event);
+      if (event.type === UserEventTypes.UserEmailVerified) {
+        await emailHandler.handleEmailVerified(event);
+      }
+    },
+    [UserEventTypes.UserPasswordChanged]: async (event: UserEvent) => {
+      await projectionHandler.handleEvent(event);
+      if (event.type === UserEventTypes.UserPasswordChanged) {
+        await emailHandler.handlePasswordChanged(event);
+      }
+    },
     [UserEventTypes.UserUpdated]: (event: UserEvent) => projectionHandler.handleEvent(event),
     [UserEventTypes.UserDeleted]: (event: UserEvent) => projectionHandler.handleEvent(event),
     [UserEventTypes.UserProfileUpdated]: (event: UserEvent) => projectionHandler.handleEvent(event),
