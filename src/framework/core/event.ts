@@ -5,7 +5,7 @@
  * domain-agnostic and can be used by any domain module.
  */
 
-import type { AggregateId, EventVersion, Timestamp, CorrelationId, CausationId, UserId } from './branded/types';
+import type { AggregateId, EventVersion, Timestamp, CorrelationId, CausationId } from './branded/types';
 import { BrandedTypes } from './branded/factories';
 
 /**
@@ -39,12 +39,10 @@ export interface IEvent<
  */
 export interface IEventMetadata<
   TCorrelationId extends CorrelationId = CorrelationId,
-  TCausationId extends CausationId = CausationId,
-  TUserId extends UserId = UserId
+  TCausationId extends CausationId = CausationId
 > {
   readonly correlationId?: TCorrelationId;
   readonly causationId?: TCausationId;
-  readonly userId?: TUserId;
   readonly timestamp: Timestamp;
   readonly schemaVersion?: number;
   readonly source?: string;
@@ -345,4 +343,21 @@ export function createReducerFromEventPattern<
     }
     return handler(state, event);
   };
+}
+
+/**
+ * Subscribe an event store to a pattern of handlers.
+ * Returns an array with a single unsubscribe function.
+ */
+export function subscribeEventStorePattern<TEvent extends IEvent>(
+  store: IEventStore<TEvent>,
+  pattern: EventPattern<TEvent, void | Promise<void>>
+): Array<() => void> {
+  const unsubscribe = store.subscribe(async (event) => {
+    const handler = (pattern as any)[event.type] as ((e: TEvent) => void | Promise<void>) | undefined;
+    if (handler) {
+      await handler(event);
+    }
+  });
+  return [unsubscribe];
 }

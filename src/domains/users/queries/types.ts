@@ -5,7 +5,8 @@
  */
 
 import type { IQuery, IPaginationParams } from '../../../framework/core/query';
-import type { AggregateId, Email } from '../../../framework/core/branded/types';
+import type { AggregateId } from '../../../framework/core/branded/types';
+import type { Email } from '../helpers/types';
 import type { UserState } from '../aggregates/user';
 
 /**

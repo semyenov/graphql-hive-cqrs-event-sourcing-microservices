@@ -6,8 +6,10 @@
 
 import { Aggregate } from '../../../framework/core/aggregate';
 import type { EventReducer } from '../../../framework/core/event';
-import type { AggregateId, Email, PersonName } from '../../../framework/core/branded/types';
-import { BrandedTypes } from '../../../framework/core/branded/factories';
+import type { AggregateId } from '../../../framework/core/branded/types';
+import { BrandedTypes } from '../../../framework/core/branded';
+import type { Email, PersonName } from '../helpers/types';
+import { UserBrandedTypes } from '../helpers/factories';
 import { UserEventTypes, type UserEvent } from '../events/types';
 import { UserEventFactories } from '../events/factories';
 import { matchUserEvent } from '../helpers/type-guards';
@@ -57,10 +59,9 @@ export class UserAggregate extends Aggregate<UserState, UserEvent, AggregateId> 
       throw new UserAlreadyExistsError();
     }
 
-    const event = UserEventFactories.createUserCreated(this.id, BrandedTypes.eventVersion(1), {
-      name: BrandedTypes.personName(data.name),
-      email: BrandedTypes.email(data.email),
-      createdAt: new Date().toISOString(),
+    const event = UserEventFactories.createUserCreated(this.id, {
+      name: data.name,
+      email: data.email,
     });
     this.applyEvent(event, true);
   }
@@ -79,8 +80,8 @@ export class UserAggregate extends Aggregate<UserState, UserEvent, AggregateId> 
       this.id,
       BrandedTypes.eventVersion(this._version + 1),
       {
-        ...(data.name && { name: BrandedTypes.personName(data.name) }),
-        ...(data.email && { email: BrandedTypes.email(data.email) }),
+        ...(data.name && { name: data.name }),
+        ...(data.email && { email: data.email }),
         updatedAt: new Date().toISOString(),
       }
     );
@@ -133,7 +134,6 @@ export class UserAggregate extends Aggregate<UserState, UserEvent, AggregateId> 
       BrandedTypes.eventVersion(this._version + 1),
       {
         changedAt: new Date().toISOString(),
-        newPassword: data.newPassword,
       }
     );
     this.applyEvent(event, true);

@@ -4,8 +4,16 @@
  * Event types with metadata for distributed systems.
  */
 
-import type { IEnhancedEvent, IEventMetadata } from '../../../framework/core/event';
-import type { UserEvent } from './types';
+import type { IEnhancedEvent, IEvent, IEventMetadata } from "../../../framework";
+import type { UserId } from "../helpers/types";
+import type { UserEvent } from "./types";
+
+/**
+ * User-specific event metadata, including the user who triggered the event.
+ */
+export interface UserEventMetadata extends IEventMetadata {
+  readonly userId?: UserId;
+}
 
 /**
  * User event with metadata

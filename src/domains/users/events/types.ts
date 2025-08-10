@@ -5,7 +5,8 @@
  */
 
 import type { IEvent } from '../../../framework/core/event';
-import type { AggregateId, EventVersion, Timestamp, Email, PersonName } from '../../../framework/core/branded/types';
+import type { AggregateId } from '../../../framework/core/branded/types';
+import type { Email, PersonName } from '../helpers/types';
 
 /**
  * User event types enum

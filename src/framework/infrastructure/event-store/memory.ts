@@ -116,6 +116,13 @@ export class InMemoryEventStore<TEvent extends IEvent = IEvent>
     return latestEvent?.version || 0;
   }
 
+  // NEW: implement optional interface method
+  async getLastVersion<TAggregateId extends AggregateId>(
+    aggregateId: TAggregateId
+  ): Promise<number> {
+    return this.getAggregateVersion(aggregateId);
+  }
+
   clear(): void {
     this.events = [];
     this.eventsByAggregate.clear();

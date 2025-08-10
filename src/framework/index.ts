@@ -16,15 +16,10 @@ export type {
   EventId,
   CommandId,
   QueryId,
-  UserId,
   CorrelationId,
   CausationId,
   TransactionId,
   SessionId,
-  Email,
-  PersonName,
-  CompanyName,
-  PhoneNumber,
   URL,
   UUID,
   JSONString,
@@ -99,8 +94,11 @@ export const VERSION = '1.0.0';
  * Framework configuration helper
  */
 export interface FrameworkConfig {
+  /** @deprecated Use IFrameworkConfig from core/types instead */
   eventStore?: 'memory' | 'custom';
+  /** @deprecated Use IFrameworkConfig from core/types instead */
   enableCache?: boolean;
+  /** @deprecated Use IFrameworkConfig from core/types instead */
   enableMonitoring?: boolean;
 }
 
@@ -112,6 +110,20 @@ export function initializeFramework(config?: FrameworkConfig) {
     eventStore: config?.eventStore || 'memory',
     cache: config?.enableCache || false,
     monitoring: config?.enableMonitoring || false,
+  };
+}
+
+// Unified bootstrap using IFrameworkConfig
+export type { IFrameworkConfig } from './core/types';
+
+export function createFramework(config?: import('./core/types').IFrameworkConfig) {
+  // For now, just pass through minimal normalized view; future: wire buses/store based on config
+  return {
+    eventStore: config?.eventStore?.type ?? 'memory',
+    commandBus: { middleware: config?.commandBus?.middleware ?? [], timeout: config?.commandBus?.timeout },
+    queryBus: { cache: config?.queryBus?.cache ?? false, cacheTimeout: config?.queryBus?.cacheTimeout },
+    graphql: config?.graphql ?? {},
+    monitoring: config?.monitoring ?? {},
   };
 }
 

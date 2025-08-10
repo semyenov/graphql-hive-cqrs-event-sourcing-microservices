@@ -17,7 +17,6 @@ export type AggregateId = Brand<string, 'AggregateId'>;
 export type EventId = Brand<string, 'EventId'>;
 export type CommandId = Brand<string, 'CommandId'>;
 export type QueryId = Brand<string, 'QueryId'>;
-export type UserId = Brand<string, 'UserId'>;
 export type CorrelationId = Brand<string, 'CorrelationId'>;
 export type CausationId = Brand<string, 'CausationId'>;
 export type TransactionId = Brand<string, 'TransactionId'>;
@@ -26,10 +25,6 @@ export type SessionId = Brand<string, 'SessionId'>;
 /**
  * Value object types
  */
-export type Email = Brand<string, 'Email'>;
-export type PersonName = Brand<string, 'PersonName'>;
-export type CompanyName = Brand<string, 'CompanyName'>;
-export type PhoneNumber = Brand<string, 'PhoneNumber'>;
 export type URL = Brand<string, 'URL'>;
 export type UUID = Brand<string, 'UUID'>;
 export type JSONString = Brand<string, 'JSONString'>;

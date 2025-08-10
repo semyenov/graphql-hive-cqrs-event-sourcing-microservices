@@ -33,13 +33,6 @@ export const BrandedTypes = {
     return id as Types.CommandId;
   },
 
-  userId: (id: string): Types.UserId => {
-    if (!id || typeof id !== 'string') {
-      throw new Error('Invalid user ID');
-    }
-    return id as Types.UserId;
-  },
-
   correlationId: (id: string): Types.CorrelationId => {
     if (!id || typeof id !== 'string') {
       throw new Error('Invalid correlation ID');
@@ -55,29 +48,6 @@ export const BrandedTypes = {
   },
 
   // Value object factories
-  email: (email: string): Types.Email => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      throw new Error('Invalid email format');
-    }
-    return email.toLowerCase() as Types.Email;
-  },
-
-  personName: (name: string): Types.PersonName => {
-    if (!name || name.trim().length < 2 || name.length > 100) {
-      throw new Error('Person name must be between 2 and 100 characters');
-    }
-    return name.trim() as Types.PersonName;
-  },
-
-  phoneNumber: (phone: string): Types.PhoneNumber => {
-    const phoneRegex = /^[\d\s\-\+\(\)]+$/;
-    if (!phoneRegex.test(phone) || phone.length < 10) {
-      throw new Error('Invalid phone number format');
-    }
-    return phone as Types.PhoneNumber;
-  },
-
   uuid: (uuid: string): Types.UUID => {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(uuid)) {

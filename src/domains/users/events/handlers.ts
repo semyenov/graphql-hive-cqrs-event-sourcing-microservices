@@ -12,7 +12,7 @@ import type { UserListItem } from '../projections/user-list.projection';
 import type { UserStats } from '../projections/user-stats.projection';
 import { UserEventTypes } from './types';
 import { STATS_AGGREGATE_ID } from '../helpers/constants';
-import { getEventMetadata } from './enhanced-types';
+import { getEventMetadata, type UserEventMetadata } from './enhanced-types';
 import { subscribeEventPattern } from '../../../framework/infrastructure/bus/event-bus';
 
 /**
@@ -80,7 +80,7 @@ export class AuditLogHandler {
   }> = [];
 
   async handleEvent(event: UserEvent): Promise<void> {
-    const metadata = getEventMetadata(event);
+    const metadata = getEventMetadata(event) as UserEventMetadata | undefined;
     
     this.auditLog.push({
       timestamp: event.timestamp.toString(),

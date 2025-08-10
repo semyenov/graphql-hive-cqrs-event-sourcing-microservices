@@ -19,31 +19,11 @@ export const BrandedTypeGuards = {
     return typeof value === 'string' && value.length > 0;
   },
 
-  isUserId: (value: unknown): value is Types.UserId => {
-    return typeof value === 'string' && value.length > 0;
-  },
-
   isCorrelationId: (value: unknown): value is Types.CorrelationId => {
     return typeof value === 'string' && value.length > 0;
   },
 
   // Value object type guards
-  isEmail: (value: unknown): value is Types.Email => {
-    return typeof value === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-  },
-
-  isPersonName: (value: unknown): value is Types.PersonName => {
-    return typeof value === 'string' && 
-           value.trim().length >= 2 && 
-           value.length <= 100;
-  },
-
-  isPhoneNumber: (value: unknown): value is Types.PhoneNumber => {
-    return typeof value === 'string' && 
-           /^[\d\s\-\+\(\)]+$/.test(value) && 
-           value.length >= 10;
-  },
-
   isUUID: (value: unknown): value is Types.UUID => {
     return typeof value === 'string' && 
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
