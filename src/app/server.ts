@@ -27,7 +27,7 @@ const {
   queryBus, 
   eventBus,
   eventStore, 
-} = initializeUserDomain({
+} = await initializeUserDomain({
   enableCache: true,
   enableProjections: true,
   enableValidation: true,

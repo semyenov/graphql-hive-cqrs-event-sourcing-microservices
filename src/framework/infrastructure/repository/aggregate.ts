@@ -7,7 +7,7 @@
 import type { AggregateId } from '../../core/branded/types';
 import type { IEvent, IEventStore } from '../../core/event';
 import type { IAggregateBehavior } from '../../core/aggregate';
-import type { IAggregateRepository } from '../../core/repository';
+import type { IAggregateRepository, ISnapshotStore } from '../../core/repository';
 import { AggregateNotFoundError } from '../../core/errors';
 
 /**
@@ -21,12 +21,14 @@ export abstract class AggregateRepository<
 > implements IAggregateRepository<TAggregate, TAggregateId> {
   
   private cache = new Map<string, TAggregate>();
+  private readonly SNAPSHOT_THRESHOLD = 10; // Every 10 events
 
   constructor(
     protected readonly eventStore: Pick<
       IEventStore<TEvent>, 
       'append' | 'appendBatch' | 'getEvents'
     >,
+    protected readonly snapshotStore?: ISnapshotStore<TState, TAggregateId>,
     protected readonly cacheEnabled = true
   ) {}
 
@@ -45,15 +47,22 @@ export abstract class AggregateRepository<
       return this.cache.get(cacheKey)!;
     }
 
-    // Load events from store
-    const events = await this.eventStore.getEvents(id);
-    if (events.length === 0) {
-      return null;
-    }
-
-    // Rebuild aggregate from events
+    // Try to load from snapshot
+    const snapshot = await this.snapshotStore?.get(id);
     const aggregate = this.createAggregate(id);
-    aggregate.loadFromHistory(events);
+
+    if (snapshot) {
+      aggregate.loadFromSnapshot(snapshot);
+      const events = await this.eventStore.getEvents(id, snapshot.version);
+      aggregate.loadFromHistory(events);
+    } else {
+      // Load all events if no snapshot
+      const events = await this.eventStore.getEvents(id);
+      if (events.length === 0) {
+        return null;
+      }
+      aggregate.loadFromHistory(events);
+    }
 
     // Cache the aggregate
     if (this.cacheEnabled) {
@@ -82,6 +91,11 @@ export abstract class AggregateRepository<
     const events = aggregate.uncommittedEvents;
     if (events.length > 0) {
       await this.eventStore.appendBatch(events);
+
+      if (this.shouldCreateSnapshot(aggregate)) {
+        await this.snapshotStore?.save(aggregate.createSnapshot());
+      }
+
       aggregate.markEventsAsCommitted();
 
       // Update cache
@@ -105,6 +119,19 @@ export abstract class AggregateRepository<
     // Check event store
     const events = await this.eventStore.getEvents(id);
     return events.length > 0;
+  }
+
+  private shouldCreateSnapshot(aggregate: TAggregate): boolean {
+    if (!this.snapshotStore) {
+      return false;
+    }
+    const uncommittedCount = aggregate.uncommittedEvents.length;
+    if (uncommittedCount === 0) {
+      return false;
+    }
+    const lastVersion = aggregate.version - uncommittedCount;
+    const newVersion = aggregate.version;
+    return Math.floor(lastVersion / this.SNAPSHOT_THRESHOLD) < Math.floor(newVersion / this.SNAPSHOT_THRESHOLD);
   }
 
   /**

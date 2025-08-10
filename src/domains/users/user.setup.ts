@@ -1,13 +1,8 @@
-import type { IDomainModule } from '../../framework/core/types';
 import type { IEventStore } from '../../framework/core/event';
 import { 
-  createCommandBus, 
-  createEventBus, 
-  createQueryBus,
-  type CommandBus, 
-  type EventBus, 
-  type QueryBus 
-} from '../../framework/infrastructure/bus';
+  bootstrapFramework
+} from '../../framework';
+import type { CommandBus, EventBus, QueryBus } from '../../framework/infrastructure/bus';
 import { createEventStore } from '../../framework/infrastructure/event-store/memory';
 
 // Domain components
@@ -59,16 +54,16 @@ export interface UserDomainContext {
  *   enableProjections: true,
  * });
  */
-export function initializeUserDomain(
+export async function initializeUserDomain(
   config: UserDomainConfig = {}
-): UserDomainContext {
+): Promise<UserDomainContext> {
   // Create or use provided event store
   const eventStore = config.eventStore || createEventStore<UserEvent>();
   
   // Create infrastructure
-  const commandBus = createCommandBus();
-  const queryBus = createQueryBus(config.enableCache);
-  const eventBus = createEventBus<UserEvent>();
+  const { commandBus, queryBus, eventBus } = await bootstrapFramework<UserEvent>({
+    queryBus: { cache: config.enableCache },
+  });
   
   // Create repository
   const repository = createUserRepository(eventStore);
@@ -78,7 +73,7 @@ export function initializeUserDomain(
     userProjection: createUserProjection(),
     userListProjection: createUserListProjection(),
     userStatsProjection: createUserStatsProjection(),
-  };
+  } as const;
   
   // Create validators
   const validators = createUserCommandValidators();

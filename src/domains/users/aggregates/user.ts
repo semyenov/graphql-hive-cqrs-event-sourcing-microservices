@@ -9,10 +9,8 @@ import type { EventReducer } from '../../../framework/core/event';
 import type { AggregateId } from '../../../framework/core/branded/types';
 import { BrandedTypes } from '../../../framework/core/branded';
 import type { Email, PersonName } from '../helpers/types';
-import { UserBrandedTypes } from '../helpers/factories';
 import { UserEventTypes, type UserEvent } from '../events/types';
 import { UserEventFactories } from '../events/factories';
-import { matchUserEvent } from '../helpers/type-guards';
 import { createReducerFromEventPattern } from '../../../framework/core/event';
 import { InvalidStateError } from '../../../framework';
 import { UserAlreadyExistsError, EmailAlreadyVerifiedError } from './errors';
@@ -211,7 +209,6 @@ const userReducer: EventReducer<UserEvent, UserState> = createReducerFromEventPa
     createdAt: e.data.createdAt,
     updatedAt: e.data.createdAt,
   }),
-
   [UserEventTypes.UserUpdated]: (state, e) => {
     if (!state) throw new InvalidStateError('Cannot update non-existent user');
     return {
@@ -221,7 +218,6 @@ const userReducer: EventReducer<UserEvent, UserState> = createReducerFromEventPa
       updatedAt: e.data.updatedAt,
     };
   },
-
   [UserEventTypes.UserDeleted]: (state, e) => {
     if (!state) throw new InvalidStateError('Cannot delete non-existent user');
     return {
@@ -230,7 +226,6 @@ const userReducer: EventReducer<UserEvent, UserState> = createReducerFromEventPa
       updatedAt: e.data.deletedAt,
     };
   },
-
   [UserEventTypes.UserEmailVerified]: (state, e) => {
     if (!state) throw new InvalidStateError('Cannot verify email for non-existent user');
     return {
@@ -239,7 +234,6 @@ const userReducer: EventReducer<UserEvent, UserState> = createReducerFromEventPa
       updatedAt: e.data.verifiedAt,
     };
   },
-
   [UserEventTypes.UserPasswordChanged]: (state, e) => {
     if (!state) throw new InvalidStateError('Cannot change password for non-existent user');
     return {
@@ -247,7 +241,6 @@ const userReducer: EventReducer<UserEvent, UserState> = createReducerFromEventPa
       updatedAt: e.data.changedAt,
     };
   },
-
   [UserEventTypes.UserProfileUpdated]: (state, e) => {
     if (!state) throw new InvalidStateError('Cannot update profile for non-existent user');
     return {

@@ -5,6 +5,12 @@
  * with CQRS pattern, designed to be domain-agnostic and extensible.
  */
 
+import type { IEvent, IEventStore, IEventBus } from './core/event';
+import type { ICommandBus } from './core/command';
+import type { IQueryBus } from './core/query';
+import type { CommandBus, EventBus, QueryBus } from './infrastructure/bus';
+import type { InMemoryEventStore } from './infrastructure/event-store/memory';
+
 // Core abstractions
 export * from './core';
 export * from './core/errors';
@@ -117,6 +123,23 @@ export function createFramework(config?: import('./core/types').IFrameworkConfig
 }
 
 /**
- * DX alias for initializeFramework
+ * Convenience boot-strap that wires an in-memory event store and buses ready for use
+ *   const { commandBus, queryBus, eventBus, eventStore } = bootstrapFramework();
  */
-export const newFramework = initializeFramework;
+export async function bootstrapFramework<
+  TEvent extends IEvent = IEvent
+>(opts?: import('./core/types').IFrameworkConfig): Promise<{
+  eventStore: InMemoryEventStore<TEvent>;
+  commandBus: CommandBus;
+  queryBus: QueryBus;
+  eventBus: EventBus<TEvent>;
+}> {
+  const { createCommandBus, createQueryBus, createEventBus } = await import('./infrastructure/bus');
+  const { createEventStore } = await import('./infrastructure/event-store/memory');
+
+  const eventStore = createEventStore<TEvent>();
+  const commandBus = createCommandBus();
+  const queryBus = createQueryBus(opts?.queryBus?.cache, opts?.queryBus?.cacheTimeout);
+  const eventBus = createEventBus<TEvent>();
+  return { eventStore, commandBus, queryBus, eventBus } as const;
+}

@@ -6,6 +6,7 @@
 
 import { AggregateRepository } from '../../../framework/infrastructure/repository/aggregate';
 import type { IEventStore } from '../../../framework/core/event';
+import type { ISnapshotStore } from '../../../framework/core/repository';
 import type { AggregateId } from '../../../framework/core/branded/types';
 import type { UserEvent } from '../events/types';
 import type { UserState } from './user';
@@ -22,9 +23,10 @@ export class UserRepository extends AggregateRepository<
 > {
   constructor(
     eventStore: Pick<IEventStore<UserEvent>, 'append' | 'appendBatch' | 'getEvents'>,
+    snapshotStore?: ISnapshotStore<UserState, AggregateId>,
     cacheEnabled = true
   ) {
-    super(eventStore, cacheEnabled);
+    super(eventStore, snapshotStore, cacheEnabled);
   }
 
   /**
@@ -75,7 +77,8 @@ export class UserRepository extends AggregateRepository<
  * Factory for creating user repository
  */
 export function createUserRepository(
-  eventStore: Pick<IEventStore<UserEvent>, 'append' | 'appendBatch' | 'getEvents'>
+  eventStore: Pick<IEventStore<UserEvent>, 'append' | 'appendBatch' | 'getEvents'>,
+  snapshotStore?: ISnapshotStore<UserState, AggregateId>
 ): UserRepository {
-  return new UserRepository(eventStore);
+  return new UserRepository(eventStore, snapshotStore);
 }

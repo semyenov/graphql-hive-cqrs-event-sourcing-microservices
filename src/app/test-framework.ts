@@ -4,20 +4,17 @@
  * Simple test to verify the framework works correctly.
  */
 
-import { createEventStore, createCommandBus, createEventBus } from '../framework';
-import { UserAggregate, UserRepository, type UserEvent } from '../domains/users';
-import { BrandedTypes } from '../framework/core/branded/factories';
+import { initializeUserDomain, UserAggregate } from '../domains/users';
+import { BrandedTypes } from '../framework/core/branded';
 
 async function testFramework() {
   console.log('🧪 Testing CQRS/Event Sourcing Framework\n');
 
-  // Create infrastructure
-  const eventStore = createEventStore<UserEvent>();
-  const commandBus = createCommandBus();
-  const eventBus = createEventBus<UserEvent>();
-
-  // Create repository
-  const userRepository = new UserRepository(eventStore);
+  // Initialize the domain
+  const { repository: userRepository, eventStore } = await initializeUserDomain({
+    enableProjections: false,
+    enableValidation: false,
+  });
 
   // Test 1: Create user aggregate
   console.log('Test 1: Creating user aggregate...');
