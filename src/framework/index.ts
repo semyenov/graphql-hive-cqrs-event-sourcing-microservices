@@ -102,17 +102,6 @@ export interface FrameworkConfig {
   enableMonitoring?: boolean;
 }
 
-/**
- * Initialize framework with configuration
- */
-export function initializeFramework(config?: FrameworkConfig) {
-  return {
-    eventStore: config?.eventStore || 'memory',
-    cache: config?.enableCache || false,
-    monitoring: config?.enableMonitoring || false,
-  };
-}
-
 // Unified bootstrap using IFrameworkConfig
 export type { IFrameworkConfig } from './core/types';
 

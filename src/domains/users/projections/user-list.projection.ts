@@ -44,7 +44,6 @@ function buildUserListProjection(
         deleted: false,
         createdAt: e.data.createdAt,
       }),
-
       [UserEventTypes.UserUpdated]: (e) => {
         if (!item) return null;
         return {
@@ -56,7 +55,6 @@ function buildUserListProjection(
           }),
         };
       },
-
       [UserEventTypes.UserDeleted]: () => {
         if (!item) return null;
         return {
@@ -64,7 +62,6 @@ function buildUserListProjection(
           deleted: true,
         };
       },
-
       [UserEventTypes.UserEmailVerified]: () => {
         if (!item) return null;
         return {
@@ -72,9 +69,7 @@ function buildUserListProjection(
           emailVerified: true,
         };
       },
-
       [UserEventTypes.UserPasswordChanged]: () => item,
-      
       [UserEventTypes.UserProfileUpdated]: () => item,
     });
   }

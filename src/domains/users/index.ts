@@ -7,27 +7,30 @@
 
 import type { IDomainModule } from '../../framework/core/types';
 
-// Public API exports (domain-only)
-export * from './events/types';
-export * from './events/factories';
-export * from './aggregates/user';
-export * from './aggregates/repository';
+// Barrel exports for users domain – import ONLY from this file in other modules
+
+// Branded helpers
+export * from './helpers/types';
+export { UserBrandedTypes } from './helpers/factories';
+export { UserBrandedTypeGuards } from './helpers/guards';
+
+// Core domain contracts
 export * from './commands/types';
 export * from './queries/types';
-export * from './queries/specifications';
-export * from './validators/command.validators';
-export * from './projections/user.projection';
-export * from './projections/user-list.projection';
-export * from './projections/user-stats.projection';
+export * from './events/types';
 
-// Convenience re-exports
-export { UserAggregate, type UserState } from './aggregates/user';
-export { UserRepository, createUserRepository } from './aggregates/repository';
-export { UserEventFactories } from './events/factories';
-export { UserEventTypes, type UserEvent } from './events/types';
-export { UserCommandTypes, type UserCommand } from './commands/types';
-export { UserQueryTypes, type UserQuery } from './queries/types';
-export { UserSpecifications, filterBySpecification } from './queries/specifications';
+// Aggregate + repository
+export { UserAggregate } from './aggregates/user';
+export { createUserRepository, UserRepository } from './aggregates/repository';
+
+// GraphQL schema
+export { userGraphQLSchema } from './user.schema';
+
+// Setup/bootstrap
+export { initializeUserDomain } from './user.setup';
+
+// Event handler helpers
+export { buildUserEventHandlers, registerUserEventHandlers } from './events/handlers';
 
 /**
  * User domain module definition

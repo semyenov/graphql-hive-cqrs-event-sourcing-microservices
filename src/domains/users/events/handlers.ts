@@ -12,7 +12,6 @@ import type { UserListItem } from '../projections/user-list.projection';
 import type { UserStats } from '../projections/user-stats.projection';
 import { UserEventTypes } from './types';
 import { STATS_AGGREGATE_ID } from '../helpers/constants';
-import { getEventMetadata, type UserEventMetadata } from './enhanced-types';
 import { subscribeEventPattern } from '../../../framework/infrastructure/bus/event-bus';
 
 /**
@@ -69,35 +68,34 @@ export class EmailNotificationHandler {
 }
 
 /**
- * Audit log handler
+ * Build user event handlers
  */
-export class AuditLogHandler {
-  private readonly auditLog: Array<{
-    timestamp: string;
-    eventType: string;
-    aggregateId: string;
-    userId?: string;
-  }> = [];
-
-  async handleEvent(event: UserEvent): Promise<void> {
-    const metadata = getEventMetadata(event) as UserEventMetadata | undefined;
-    
-    this.auditLog.push({
-      timestamp: event.timestamp.toString(),
-      eventType: event.type,
-      aggregateId: event.aggregateId as string,
-    });
-    
-    // In production, persist to audit log storage
-    console.log(`[Audit] Event ${event.type} for aggregate ${event.aggregateId}`);
+export const buildUserEventHandlers = (
+  projections: {
+    userProjection: ProjectionBuilder<UserEvent, UserState>;
+    userListProjection?: ProjectionBuilder<UserEvent, UserListItem>;
+    userStatsProjection?: ProjectionBuilder<UserEvent, UserStats>;
   }
+) => {
+  const projectionHandler = new ProjectionEventHandler(
+    projections.userProjection,
+    projections.userListProjection,
+    projections.userStatsProjection,
+  );
 
-  getAuditLog() {
-    return [...this.auditLog];
-  }
-}
+  const emailHandler = new EmailNotificationHandler();
 
-export function registerUserEventHandlersWithPattern(
+  return {
+    [UserEventTypes.UserCreated]: (event: UserEvent) => emailHandler.handleUserCreated(event as any),
+    [UserEventTypes.UserEmailVerified]: (event: UserEvent) => emailHandler.handleEmailVerified(event as any),
+    [UserEventTypes.UserPasswordChanged]: (event: UserEvent) => emailHandler.handlePasswordChanged(event as any),
+    [UserEventTypes.UserUpdated]: (event: UserEvent) => projectionHandler.handleEvent(event),
+    [UserEventTypes.UserDeleted]: (event: UserEvent) => projectionHandler.handleEvent(event),
+    [UserEventTypes.UserProfileUpdated]: (event: UserEvent) => projectionHandler.handleEvent(event),
+  } as const;
+};
+
+export function registerUserEventHandlers(
   eventBus: EventBus<UserEvent>,
   projections: {
     userProjection: ProjectionBuilder<UserEvent, UserState>;
@@ -105,26 +103,8 @@ export function registerUserEventHandlersWithPattern(
     userStatsProjection?: ProjectionBuilder<UserEvent, any>;
   }
 ): Array<() => void> {
-  const projectionHandler = new ProjectionEventHandler(
-    projections.userProjection,
-    projections.userListProjection,
-    projections.userStatsProjection
+  return subscribeEventPattern(
+    eventBus, 
+    buildUserEventHandlers(projections)
   );
-
-  const emailHandler = new EmailNotificationHandler();
-  const auditHandler = new AuditLogHandler();
-
-  const unsubAll = eventBus.subscribeAll(async (event) => {
-    await projectionHandler.handleEvent(event);
-    await auditHandler.handleEvent(event);
-  });
-
-  const pattern = {
-    [UserEventTypes.UserCreated]: async (event: Extract<UserEvent, { type: typeof UserEventTypes.UserCreated }>) => emailHandler.handleUserCreated(event),
-    [UserEventTypes.UserEmailVerified]: async (event: Extract<UserEvent, { type: typeof UserEventTypes.UserEmailVerified }>) => emailHandler.handleEmailVerified(event),
-    [UserEventTypes.UserPasswordChanged]: async (event: Extract<UserEvent, { type: typeof UserEventTypes.UserPasswordChanged }>) => emailHandler.handlePasswordChanged(event),
-  } as const;
-
-  const unsubPattern = subscribeEventPattern(eventBus as any, pattern as any);
-  return [unsubAll, ...unsubPattern];
 }

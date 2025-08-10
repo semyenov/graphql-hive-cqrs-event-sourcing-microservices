@@ -5,25 +5,21 @@
  */
 
 import { createYoga } from 'graphql-yoga';
+import { BrandedTypes } from '../framework/core/branded/factories';
 import { makeExecutableSchema } from '@graphql-tools/schema';
 import {
-  initializeFramework,
   createCommandFactory,
   createQueryFactory,
 } from '../framework';
 import type { ICommand } from '../framework/core/command';
-import { userGraphQLSchema } from '../domains/users/user.schema';
-import { initializeUserDomain } from '../domains/users/user.setup';
-import { UserCommandTypes } from '../domains/users/commands/types';
-import { UserQueryTypes } from '../domains/users/queries/types';
-import { BrandedTypes } from '../framework/core/branded/factories';
 
-// Initialize framework
-const framework = initializeFramework({
-  eventStore: 'memory',
-  enableCache: true,
-  enableMonitoring: true,
-});
+// User domain
+import { 
+  userGraphQLSchema,
+  initializeUserDomain,
+  UserCommandTypes,
+  UserQueryTypes,
+} from '../domains/users';
 
 // Initialize domains
 const { 
@@ -31,7 +27,6 @@ const {
   queryBus, 
   eventBus,
   eventStore, 
-  repository: userRepository 
 } = initializeUserDomain({
   enableCache: true,
   enableProjections: true,

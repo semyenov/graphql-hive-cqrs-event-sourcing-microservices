@@ -21,7 +21,7 @@ import type { ICommandValidator } from '../../framework/core/command';
 import type { UserEvent } from './events/types';
 import { registerUserCommandHandlersWithPattern } from './commands/handlers';
 import { registerUserQueryHandlersWithPattern } from './queries/handlers';
-import { registerUserEventHandlersWithPattern } from './events/handlers';
+import { registerUserEventHandlers } from './events/handlers';
 
 /**
  * User domain configuration
@@ -92,7 +92,7 @@ export function initializeUserDomain(
   }
   
   // Register event handlers
-  registerUserEventHandlersWithPattern(eventBus, projections);
+  registerUserEventHandlers(eventBus, projections);
   
   // Add command validation middleware if enabled
   if (config.enableValidation !== false) {

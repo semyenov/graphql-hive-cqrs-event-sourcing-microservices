@@ -4,13 +4,12 @@
  * Handlers that process user commands and generate events.
  */
 
-import type { ICommandHandler, ICommandResult } from '../../../framework/core/command';
+import type { ICommandResult } from '../../../framework/core/command';
 import type { UserRepository } from '../aggregates/repository';
 import type * as Commands from './types';
 import { UserCommandTypes, type UserCommand } from './types';
 import { registerCommandPattern } from '../../../framework/infrastructure/bus/command-bus';
 import { makeCommandSuccess } from '../../../framework';
-import { AggregateNotFoundError } from '../../../framework/core/errors';
 
 /**
  * Register all user command handlers with pattern-based registration
