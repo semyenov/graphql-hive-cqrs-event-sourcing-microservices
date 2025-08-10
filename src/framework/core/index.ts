@@ -11,6 +11,7 @@ export * from './query';
 export * from './aggregate';
 export * from './repository';
 export * from './types';
+export * from './errors';
 
 // Type aliases for convenience
 export type {

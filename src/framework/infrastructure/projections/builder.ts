@@ -65,6 +65,17 @@ export class ProjectionBuilder<
   }
 
   /**
+   * Get projection or throw a descriptive error
+   */
+  getOrThrow(id: string, message?: string): TProjection {
+    const result = this.get(id);
+    if (result == null) {
+      throw new Error(message ?? `Projection '${this.name}' does not contain id '${id}'.`);
+    }
+    return result;
+  }
+
+  /**
    * Get all projections
    */
   getAll(): TProjection[] {

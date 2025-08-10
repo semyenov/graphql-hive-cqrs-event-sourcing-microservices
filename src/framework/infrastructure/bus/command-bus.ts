@@ -4,13 +4,13 @@
  * Routes commands to their appropriate handlers.
  */
 
-import type { 
-  ICommand, 
+import type { CommandPattern, ICommand, 
   ICommandHandler, 
   ICommandBus, 
   ICommandResult,
   ICommandMiddleware 
 } from '../../core/command';
+import { CommandHandlerNotFoundError } from '../../core/errors';
 
 /**
  * Command bus implementation
@@ -20,16 +20,25 @@ export class CommandBus implements ICommandBus {
   private middleware: ICommandMiddleware[] = [];
 
   /**
-   * Register a command handler
+   * Register a command handler (cannot infer type)
+   * Use registerWithType(commandType, handler) instead.
    */
   register<TCommand extends ICommand>(
+    _handler: ICommandHandler<TCommand>
+  ): void {
+    throw new Error(
+      'CommandBus.register cannot infer command type. Use registerWithType(commandType, handler) or registerCommandHandler(bus, commandType, handler).'
+    );
+  }
+
+  /**
+   * Register a command handler with explicit command type
+   */
+  registerWithType<TCommand extends ICommand>(
+    commandType: string,
     handler: ICommandHandler<TCommand>
   ): void {
-    // Get command types this handler can handle
-    const commandType = this.getHandlerCommandType(handler);
-    if (commandType) {
-      this.handlers.set(commandType, handler);
-    }
+    this.handlers.set(commandType, handler);
   }
 
   /**
@@ -41,7 +50,8 @@ export class CommandBus implements ICommandBus {
     const handler = this.handlers.get(command.type);
     
     if (!handler) {
-      throw new Error(`No handler registered for command type: ${command.type}`);
+      const registered = Array.from(this.handlers.keys());
+      throw new CommandHandlerNotFoundError(command.type, registered);
     }
 
     if (!handler.canHandle(command)) {
@@ -59,6 +69,13 @@ export class CommandBus implements ICommandBus {
    */
   use(middleware: ICommandMiddleware): void {
     this.middleware.push(middleware);
+  }
+
+  /**
+   * Add multiple middleware to the command pipeline in order
+   */
+  useAll(middlewares: ICommandMiddleware[]): void {
+    for (const m of middlewares) this.use(m);
   }
 
   /**
@@ -107,23 +124,6 @@ export class CommandBus implements ICommandBus {
 
     return chain(command);
   }
-
-  /**
-   * Private: Extract command type from handler
-   */
-  private getHandlerCommandType(handler: ICommandHandler<any>): string | null {
-    // This is a simplified approach - in production, you might want to
-    // use decorators or explicit registration with command type
-    const testCommand: ICommand = {
-      type: '__test__',
-      aggregateId: '' as any,
-      payload: {}
-    };
-
-    // Try to infer from canHandle method
-    // In real implementation, handlers should declare their command type
-    return null; // Requires explicit registration with command type
-  }
 }
 
 /**
@@ -147,5 +147,25 @@ export function registerCommandHandler<TCommand extends ICommand>(
     canHandle: (command) => command.type === commandType
   };
   
-  bus.register(wrappedHandler);
+  bus.registerWithType(commandType, wrappedHandler);
+}
+
+export function registerCommandPattern<TCommand extends ICommand, TResult>(
+  bus: CommandBus,
+  pattern: CommandPattern<TCommand, TResult>
+): void {
+  for (const type of Object.keys(pattern)) {
+    const t = type as TCommand['type'];
+    const handle = (pattern as any)[t] as (cmd: TCommand) => Promise<TResult>;
+    const handler = {
+      async handle(command: TCommand) {
+        return handle(command as any) as unknown as Promise<ICommandResult>;
+      },
+      canHandle(command: ICommand) {
+        return command.type === t;
+      },
+    } satisfies ICommandHandler<TCommand> as ICommandHandler<TCommand>;
+
+    bus.registerWithType(t, handler);
+  }
 }

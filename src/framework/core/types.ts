@@ -141,3 +141,18 @@ export type Maybe<T> = T | null | undefined;
  * Brand type for nominal typing
  */
 export type Brand<T, TBrand extends string> = T & { readonly __brand: TBrand };
+
+export function ok<T>(value: T): Result<T> {
+  return { success: true, value };
+}
+
+export function err<E = Error>(error: E): Result<never, E> {
+  return { success: false, error };
+}
+
+export function unwrap<T, E = Error>(result: Result<T, E>): T {
+  if ('error' in result) {
+    throw (result as any).error;
+  }
+  return (result as any).value;
+}

@@ -6,6 +6,7 @@
  */
 
 import type { AggregateId } from './branded/types';
+import { BrandedTypes } from './branded/factories';
 import type { IEventMetadata } from './event';
 
 /**
@@ -104,6 +105,29 @@ export type CommandFactory<TCommand extends ICommand> = (
 ) => TCommand;
 
 /**
+ * Create a type-safe command factory for a command type
+ * 
+ * @example
+ * const createCmd = createCommandFactory<CreateUserCommand>('CreateUser');
+ * const command = createCmd(aggregateId, { name: 'John' });
+ */
+export function createCommandFactory<TCommand extends ICommand>(
+  type: TCommand['type']
+): CommandFactory<TCommand> {
+  return (aggregateId, payload, metadata) => {
+    const meta = metadata
+      ? ({ ...(metadata as object), timestamp: metadata.timestamp ?? BrandedTypes.timestamp() } as IEventMetadata)
+      : undefined;
+    return {
+      type,
+      aggregateId,
+      payload,
+      ...(meta ? ({ metadata: meta } as { metadata: NonNullable<TCommand['metadata']> }) : {}),
+    } as TCommand;
+  };
+}
+
+/**
  * Extract command payload type
  */
 export type ExtractCommandPayload<TCommand extends ICommand> = TCommand['payload'];
@@ -123,9 +147,70 @@ export type CommandPattern<TCommand extends ICommand, TResult> = {
 };
 
 /**
+ * Type guard for a specific command type
+ */
+export function isCommandOfType<TCommand extends ICommand, TType extends TCommand['type']>(
+  command: TCommand,
+  type: TType
+): command is Extract<TCommand, { type: TType }> {
+  return command.type === type;
+}
+
+/**
  * Saga interface for handling cross-aggregate transactions
  */
 export interface ISaga<TCommand extends ICommand> {
   handleCommand(command: TCommand): Promise<ICommand[]>;
   getHandledCommandTypes(): TCommand['type'][];
+}
+
+export async function matchCommand<TCommand extends ICommand, TResult>(
+  command: TCommand,
+  patterns: CommandPattern<TCommand, TResult>
+): Promise<TResult> {
+  const handler = (patterns as any)[command.type] as ((c: TCommand) => Promise<TResult>) | undefined;
+  if (!handler) {
+    throw new Error(`No handler for command type: ${String(command.type)}`);
+  }
+  return handler(command);
+}
+
+export function defineCommandPattern<TCommand extends ICommand, TResult>(
+  pattern: CommandPattern<TCommand, TResult>
+): CommandPattern<TCommand, TResult> {
+  return pattern;
+}
+
+/**
+ * Build a successful command result
+ */
+export function makeCommandSuccess<TData = unknown>(
+  data?: TData,
+  metadata?: ICommandResult['metadata']
+): ICommandResult<TData> {
+  return { success: true, data, metadata };
+}
+
+/**
+ * Build a failed command result
+ */
+export function makeCommandFailure<TError extends Error = Error>(
+  error: TError,
+  metadata?: ICommandResult['metadata']
+): ICommandResult<never, TError> {
+  return { success: false, error, metadata };
+}
+
+/**
+ * Unwrap a command result or throw its error
+ */
+export function unwrapCommandResult<TData, TError = Error>(
+  result: ICommandResult<TData, TError>
+): TData {
+  if (!result.success) {
+    // Re-throw Error-like or wrap otherwise
+    const err = (result.error ?? new Error('Unknown command error')) as any;
+    throw err instanceof Error ? err : new Error(String(err));
+  }
+  return result.data as TData;
 }

@@ -7,6 +7,7 @@
 
 import type { IEvent, IEventStore, EventHandler } from '../../core/event';
 import type { AggregateId } from '../../core/branded/types';
+import { InvalidStateError, PatternHandlerNotFoundError, VersionMismatchError } from '../../core/errors';
 
 /**
  * In-memory event store implementation
@@ -66,6 +67,9 @@ export class InMemoryEventStore<TEvent extends IEvent = IEvent>
 
   async getAllEvents(fromPosition?: number): Promise<TEvent[]> {
     if (fromPosition !== undefined) {
+      if (fromPosition < 0) {
+        throw new InvalidStateError(`fromPosition must be >= 0, got ${fromPosition}`);
+      }
       return this.events.slice(fromPosition);
     }
     return [...this.events];
@@ -124,16 +128,16 @@ export class InMemoryEventStore<TEvent extends IEvent = IEvent>
   
   private validateEvent(event: TEvent): void {
     if (!event.aggregateId) {
-      throw new Error('Event must have an aggregateId');
+      throw new InvalidStateError('Event must have an aggregateId');
     }
     if (!event.type) {
-      throw new Error('Event must have a type');
+      throw new InvalidStateError('Event must have a type');
     }
     if (typeof event.version !== 'number' || event.version < 1) {
-      throw new Error('Event must have a valid version number');
+      throw new InvalidStateError(`Event must have a valid version number (>=1), got ${event.version}`);
     }
     if (!(event.timestamp instanceof Date)) {
-      throw new Error('Event must have a valid timestamp');
+      throw new InvalidStateError('Event must have a valid timestamp');
     }
 
     // Check version consistency
@@ -142,9 +146,8 @@ export class InMemoryEventStore<TEvent extends IEvent = IEvent>
     const expectedVersion = existingEvents.length + 1;
 
     if (event.version !== expectedVersion) {
-      throw new Error(
-        `Version mismatch: expected ${expectedVersion}, got ${event.version}`
-      );
+      throw new VersionMismatchError(
+        `Version mismatch for aggregate ${aggregateKey}: expected ${expectedVersion}, got ${event.version}`);
     }
   }
 

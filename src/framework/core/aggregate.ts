@@ -9,6 +9,7 @@ import type { AggregateId, EventVersion, Timestamp } from './branded/types';
 import type { IEvent, EventReducer, EventPattern } from './event';
 import type { ICommand } from './command';
 import { BrandedTypes } from './branded/factories';
+import { IdMismatchError, InvalidStateError, PatternHandlerNotFoundError } from './errors';
 
 /**
  * Snapshot for performance optimization
@@ -51,6 +52,10 @@ export interface IAggregateBehavior<
   createSnapshot(): ISnapshot<TState, TAggregateId>;
   loadFromHistory(events: TEvent[]): void;
   loadFromSnapshot(snapshot: ISnapshot<TState, TAggregateId>): void;
+  /**
+   * Get current state or throw a descriptive error if state is not initialized.
+   */
+  getStateOrThrow(message?: string): TState;
 }
 
 /**
@@ -85,11 +90,21 @@ export abstract class Aggregate<
   }
 
   /**
+   * Get current state or throw a descriptive error if state is not initialized.
+   */
+  getStateOrThrow(message?: string): TState {
+    if (this._state === null) {
+      throw new InvalidStateError(message ?? `Aggregate ${String(this.id)} has no state yet. Apply events or load from history/snapshot first.`);
+    }
+    return this._state;
+  }
+
+  /**
    * Apply an event to update aggregate state
    */
   applyEvent(event: TEvent, isNew = false): void {
     if (event.aggregateId !== this.id) {
-      throw new Error(`Event aggregate ID mismatch: ${event.aggregateId} !== ${this.id}`);
+      throw new IdMismatchError(`Event aggregate ID mismatch: expected ${String(this.id)}, got ${String(event.aggregateId)}`);
     }
 
     this._state = this.reducer(this._state ?? this.initialState, event);
@@ -119,7 +134,7 @@ export abstract class Aggregate<
    */
   loadFromSnapshot(snapshot: ISnapshot<TState, TAggregateId>): void {
     if (snapshot.aggregateId !== this.id) {
-      throw new Error(`Snapshot aggregate ID mismatch`);
+      throw new IdMismatchError(`Snapshot aggregate ID mismatch: expected ${String(this.id)}, got ${String(snapshot.aggregateId)}`);
     }
     this._state = snapshot.state;
     this._version = snapshot.version;
@@ -130,7 +145,7 @@ export abstract class Aggregate<
    */
   createSnapshot(): ISnapshot<TState, TAggregateId> {
     if (!this._state) {
-      throw new Error('Cannot create snapshot without state');
+      throw new InvalidStateError('Cannot create snapshot without state');
     }
 
     return {
@@ -204,7 +219,7 @@ export abstract class Aggregate<
   ): TResult {
     const handler = patterns[event.type as TEvent['type']];
     if (!handler) {
-      throw new Error(`No handler for event type: ${event.type}`);
+      throw new PatternHandlerNotFoundError(event.type);
     }
     return handler(event as Parameters<typeof handler>[0]);
   }

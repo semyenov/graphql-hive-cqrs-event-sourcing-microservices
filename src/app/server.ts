@@ -7,13 +7,9 @@
 import { createYoga } from 'graphql-yoga';
 import { makeExecutableSchema } from '@graphql-tools/schema';
 import {
-  createEventStore,
-  createCommandBus,
-  createEventBus,
-  createQueryBus,
   initializeFramework,
 } from '../framework';
-import { registerUserDomain, userGraphQLSchema } from '../domains/users';
+import { userGraphQLSchema, initializeUserDomain } from '../domains/users';
 import type { UserEvent } from '../domains/users';
 
 // Initialize framework
@@ -23,18 +19,19 @@ const framework = initializeFramework({
   enableMonitoring: true,
 });
 
-// Create infrastructure
-const eventStore = createEventStore<UserEvent>();
-const commandBus = createCommandBus();
-const eventBus = createEventBus<UserEvent>();
-const queryBus = createQueryBus(true, 60000);
+// Initialize domains
+const { 
+  commandBus, 
+  queryBus, 
+  eventBus,
+  eventStore, 
+  repository: userRepository 
+} = initializeUserDomain({
+  enableCache: true,
+  enableProjections: true,
+  enableValidation: true,
+});
 
-// Register domains
-const { repository: userRepository } = registerUserDomain(
-  eventStore,
-  commandBus,
-  queryBus
-);
 
 // Base GraphQL schema
 const baseSchema = `

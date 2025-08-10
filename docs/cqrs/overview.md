@@ -48,3 +48,26 @@ type Mutation {
   updateUser(id: ID!, input: UpdateUserInput!): User!
 }
 ```
+
+## Pattern helpers and factories
+
+- Define events with `defineEventFactory` and match with `matchEvent` or reducers from `createReducerFromEventPattern`.
+- Define commands/queries with `createCommandFactory` / `createQueryFactory`.
+- Register many handlers at once:
+
+```ts
+import { registerCommandPattern, registerQueryPattern, subscribeEventPattern } from '../../src/framework';
+
+registerCommandPattern(commandBus, {
+  CreateUser: async (cmd) => { /* ... */ return makeCommandSuccess(); },
+  DeleteUser: async (cmd) => { /* ... */ return makeCommandSuccess(); },
+});
+
+registerQueryPattern(queryBus, {
+  GetUserById: async (q) => repo.findById(q.parameters!.userId as string),
+});
+
+subscribeEventPattern(eventBus, {
+  UserCreated: (e) => console.log('User created', e.aggregateId),
+});
+```

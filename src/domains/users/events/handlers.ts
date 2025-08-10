@@ -11,13 +11,9 @@ import type { UserState } from '../aggregates/user';
 import type { UserListItem } from '../projections/user-list.projection';
 import type { UserStats } from '../projections/user-stats.projection';
 import { UserEventTypes } from './types';
-import { 
-  isUserCreatedEvent, 
-  isUserEmailVerifiedEvent, 
-  isUserPasswordChangedEvent 
-} from '../helpers/type-guards';
 import { STATS_AGGREGATE_ID } from '../helpers/constants';
 import { getEventMetadata } from './enhanced-types';
+import { subscribeEventPattern } from '../../../framework/infrastructure/bus/event-bus';
 
 /**
  * Update projections when events occur
@@ -102,53 +98,34 @@ export class AuditLogHandler {
   }
 }
 
-/**
- * Register event handlers with the event bus
- */
-export function registerUserEventHandlers(
+export function registerUserEventHandlersWithPattern(
   eventBus: EventBus<UserEvent>,
   projections: {
     userProjection: ProjectionBuilder<UserEvent, UserState>;
     userListProjection?: ProjectionBuilder<UserEvent, any>;
     userStatsProjection?: ProjectionBuilder<UserEvent, any>;
   }
-): void {
-  // Create handlers
+): Array<() => void> {
   const projectionHandler = new ProjectionEventHandler(
     projections.userProjection,
     projections.userListProjection,
     projections.userStatsProjection
   );
-  
+
   const emailHandler = new EmailNotificationHandler();
   const auditHandler = new AuditLogHandler();
-  
-  // Subscribe projection handler to all events
-  eventBus.subscribeAll(async (event) => {
+
+  const unsubAll = eventBus.subscribeAll(async (event) => {
     await projectionHandler.handleEvent(event);
-  });
-  
-  // Subscribe email handler to specific events
-  eventBus.subscribe(UserEventTypes.UserCreated, async (event) => {
-    if (isUserCreatedEvent(event)) {
-      await emailHandler.handleUserCreated(event);
-    }
-  });
-  
-  eventBus.subscribe(UserEventTypes.UserEmailVerified, async (event) => {
-    if (isUserEmailVerifiedEvent(event)) {
-      await emailHandler.handleEmailVerified(event);
-    }
-  });
-  
-  eventBus.subscribe(UserEventTypes.UserPasswordChanged, async (event) => {
-    if (isUserPasswordChangedEvent(event)) {
-      await emailHandler.handlePasswordChanged(event);
-    }
-  });
-  
-  // Subscribe audit handler to all events
-  eventBus.subscribeAll(async (event) => {
     await auditHandler.handleEvent(event);
   });
+
+  const pattern = {
+    [UserEventTypes.UserCreated]: async (event: Extract<UserEvent, { type: typeof UserEventTypes.UserCreated }>) => emailHandler.handleUserCreated(event),
+    [UserEventTypes.UserEmailVerified]: async (event: Extract<UserEvent, { type: typeof UserEventTypes.UserEmailVerified }>) => emailHandler.handleEmailVerified(event),
+    [UserEventTypes.UserPasswordChanged]: async (event: Extract<UserEvent, { type: typeof UserEventTypes.UserPasswordChanged }>) => emailHandler.handlePasswordChanged(event),
+  } as const;
+
+  const unsubPattern = subscribeEventPattern(eventBus as any, pattern as any);
+  return [unsubAll, ...unsubPattern];
 }

@@ -11,6 +11,9 @@ import { BrandedTypes } from '../../../framework/core/branded/factories';
 import { UserEventTypes, type UserEvent } from '../events/types';
 import { UserEventFactories } from '../events/factories';
 import { matchUserEvent } from '../helpers/type-guards';
+import { createReducerFromEventPattern } from '../../../framework/core/event';
+import { InvalidStateError } from '../../../framework';
+import { UserAlreadyExistsError, EmailAlreadyVerifiedError } from './errors';
 
 /**
  * User aggregate state
@@ -51,10 +54,14 @@ export class UserAggregate extends Aggregate<UserState, UserEvent, AggregateId> 
    */
   create(data: { name: string; email: string }): void {
     if (this._state && !this._state.deleted) {
-      throw new Error('User already exists');
+      throw new UserAlreadyExistsError();
     }
 
-    const event = UserEventFactories.createUserCreated(this.id, data);
+    const event = UserEventFactories.createUserCreated(this.id, BrandedTypes.eventVersion(1), {
+      name: BrandedTypes.personName(data.name),
+      email: BrandedTypes.email(data.email),
+      createdAt: new Date().toISOString(),
+    });
     this.applyEvent(event, true);
   }
 
@@ -65,13 +72,17 @@ export class UserAggregate extends Aggregate<UserState, UserEvent, AggregateId> 
     this.ensureExists();
 
     if (!data.name && !data.email) {
-      throw new Error('No updates provided');
+      throw new InvalidStateError('No updates provided');
     }
 
     const event = UserEventFactories.createUserUpdated(
       this.id,
-      this._version + 1,
-      data
+      BrandedTypes.eventVersion(this._version + 1),
+      {
+        ...(data.name && { name: BrandedTypes.personName(data.name) }),
+        ...(data.email && { email: BrandedTypes.email(data.email) }),
+        updatedAt: new Date().toISOString(),
+      }
     );
     this.applyEvent(event, true);
   }
@@ -84,8 +95,11 @@ export class UserAggregate extends Aggregate<UserState, UserEvent, AggregateId> 
 
     const event = UserEventFactories.createUserDeleted(
       this.id,
-      this._version + 1,
-      reason
+      BrandedTypes.eventVersion(this._version + 1),
+      {
+        deletedAt: new Date().toISOString(),
+        ...(reason && { reason }),
+      }
     );
     this.applyEvent(event, true);
   }
@@ -97,12 +111,13 @@ export class UserAggregate extends Aggregate<UserState, UserEvent, AggregateId> 
     this.ensureExists();
 
     if (this._state!.emailVerified) {
-      throw new Error('Email already verified');
+      throw new EmailAlreadyVerifiedError();
     }
 
     const event = UserEventFactories.createEmailVerified(
       this.id,
-      this._version + 1
+      BrandedTypes.eventVersion(this._version + 1),
+      { verifiedAt: new Date().toISOString() }
     );
     this.applyEvent(event, true);
   }
@@ -115,7 +130,8 @@ export class UserAggregate extends Aggregate<UserState, UserEvent, AggregateId> 
 
     const event = UserEventFactories.createPasswordChanged(
       this.id,
-      this._version + 1
+      BrandedTypes.eventVersion(this._version + 1),
+      { changedAt: new Date().toISOString() }
     );
     this.applyEvent(event, true);
   }
@@ -132,8 +148,11 @@ export class UserAggregate extends Aggregate<UserState, UserEvent, AggregateId> 
 
     const event = UserEventFactories.createProfileUpdated(
       this.id,
-      this._version + 1,
-      data
+      BrandedTypes.eventVersion(this.version + 1),
+      {
+        ...data,
+        updatedAt: new Date().toISOString(),
+      }
     );
     this.applyEvent(event, true);
   }
@@ -171,7 +190,7 @@ export class UserAggregate extends Aggregate<UserState, UserEvent, AggregateId> 
    */
   private ensureExists(): void {
     if (!this._state || this._state.deleted) {
-      throw new Error('User not found or deleted');
+      throw new InvalidStateError('User not found or deleted');
     }
   }
 }
@@ -179,67 +198,65 @@ export class UserAggregate extends Aggregate<UserState, UserEvent, AggregateId> 
 /**
  * Event reducer for user state
  */
-const userReducer: EventReducer<UserEvent, UserState> = (state, event) => {
-  return matchUserEvent<UserState>(event, {
-    [UserEventTypes.UserCreated]: (e) => ({
-      id: e.aggregateId as string,
-      name: e.data.name,
-      email: e.data.email,
-      emailVerified: false,
-      deleted: false,
-      createdAt: e.data.createdAt,
-      updatedAt: e.data.createdAt,
-    }),
+const userReducer: EventReducer<UserEvent, UserState> = createReducerFromEventPattern<UserEvent, UserState>({
+  [UserEventTypes.UserCreated]: (_state, e) => ({
+    id: e.aggregateId as string,
+    name: e.data.name,
+    email: e.data.email,
+    emailVerified: false,
+    deleted: false,
+    createdAt: e.data.createdAt,
+    updatedAt: e.data.createdAt,
+  }),
 
-    [UserEventTypes.UserUpdated]: (e) => {
-      if (!state) throw new Error('Cannot update non-existent user');
-      return {
-        ...state,
-        ...(e.data.name && { name: e.data.name }),
-        ...(e.data.email && { email: e.data.email, emailVerified: false }),
-        updatedAt: e.data.updatedAt,
-      };
-    },
+  [UserEventTypes.UserUpdated]: (state, e) => {
+    if (!state) throw new InvalidStateError('Cannot update non-existent user');
+    return {
+      ...state,
+      ...(e.data.name && { name: e.data.name }),
+      ...(e.data.email && { email: e.data.email, emailVerified: false }),
+      updatedAt: e.data.updatedAt,
+    };
+  },
 
-    [UserEventTypes.UserDeleted]: (e) => {
-      if (!state) throw new Error('Cannot delete non-existent user');
-      return {
-        ...state,
-        deleted: true,
-        updatedAt: e.data.deletedAt,
-      };
-    },
+  [UserEventTypes.UserDeleted]: (state, e) => {
+    if (!state) throw new InvalidStateError('Cannot delete non-existent user');
+    return {
+      ...state,
+      deleted: true,
+      updatedAt: e.data.deletedAt,
+    };
+  },
 
-    [UserEventTypes.UserEmailVerified]: (e) => {
-      if (!state) throw new Error('Cannot verify email for non-existent user');
-      return {
-        ...state,
-        emailVerified: true,
-        updatedAt: e.data.verifiedAt,
-      };
-    },
+  [UserEventTypes.UserEmailVerified]: (state, e) => {
+    if (!state) throw new InvalidStateError('Cannot verify email for non-existent user');
+    return {
+      ...state,
+      emailVerified: true,
+      updatedAt: e.data.verifiedAt,
+    };
+  },
 
-    [UserEventTypes.UserPasswordChanged]: (e) => {
-      if (!state) throw new Error('Cannot change password for non-existent user');
-      return {
-        ...state,
-        updatedAt: e.data.changedAt,
-      };
-    },
+  [UserEventTypes.UserPasswordChanged]: (state, e) => {
+    if (!state) throw new InvalidStateError('Cannot change password for non-existent user');
+    return {
+      ...state,
+      updatedAt: e.data.changedAt,
+    };
+  },
 
-    [UserEventTypes.UserProfileUpdated]: (e) => {
-      if (!state) throw new Error('Cannot update profile for non-existent user');
-      return {
-        ...state,
-        profile: {
-          ...state.profile,
-          ...e.data,
-        },
-        updatedAt: e.data.updatedAt,
-      };
-    },
-  });
-};
+  [UserEventTypes.UserProfileUpdated]: (state, e) => {
+    if (!state) throw new InvalidStateError('Cannot update profile for non-existent user');
+    return {
+      ...state,
+      profile: {
+        ...state.profile,
+        ...e.data,
+      },
+      updatedAt: e.data.updatedAt,
+    };
+  },
+});
 
 /**
  * Create initial user state

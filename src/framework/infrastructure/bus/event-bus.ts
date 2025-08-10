@@ -4,7 +4,8 @@
  * Publishes events to subscribers and manages event flow.
  */
 
-import type { IEvent, IEventBus, EventHandler } from '../../core/event';
+import type { IEvent, IEventBus, EventHandler, EventPattern } from '../../core/event';
+import { EventHandlerError } from '../../core/errors';
 
 /**
  * Event bus implementation
@@ -62,6 +63,23 @@ export class EventBus<TEvent extends IEvent = IEvent> implements IEventBus<TEven
   }
 
   /**
+   * Subscribe once to specific event type and auto-unsubscribe
+   */
+  subscribeOnce<TSpecificEvent extends TEvent>(
+    eventType: TSpecificEvent['type'],
+    handler: EventHandler<TSpecificEvent>
+  ): () => void {
+    const unsubscribe = this.subscribe<TSpecificEvent>(eventType, async (event) => {
+      try {
+        await handler(event);
+      } finally {
+        unsubscribe();
+      }
+    });
+    return unsubscribe;
+  }
+
+  /**
    * Subscribe to all events
    */
   subscribeAll(handler: EventHandler<TEvent>): () => void {
@@ -104,6 +122,19 @@ export class EventBus<TEvent extends IEvent = IEvent> implements IEventBus<TEven
   }
 
   /**
+   * Introspection: get all subscribers for a given type
+   */
+  getSubscribers(eventType?: string): Array<EventHandler<any>> {
+    if (eventType) {
+      return Array.from(this.subscribers.get(eventType) ?? []);
+    }
+    return [
+      ...Array.from(this.allSubscribers),
+      ...Array.from(this.subscribers.values()).flatMap(set => Array.from(set)),
+    ];
+  }
+
+  /**
    * Private: Notify subscribers with error handling
    */
   private async notifySubscribers<T extends TEvent>(
@@ -112,8 +143,8 @@ export class EventBus<TEvent extends IEvent = IEvent> implements IEventBus<TEven
   ): Promise<void> {
     const promises = Array.from(subscribers).map(subscriber =>
       Promise.resolve(subscriber(event)).catch(error => {
-        console.error(`Event handler error for event ${event.type}:`, error);
-        // Could emit error event here for monitoring
+        const aggregate = (event as any)?.aggregateId ?? 'n/a';
+        console.error(new EventHandlerError(String(event.type), aggregate, error));
       })
     );
     
@@ -185,4 +216,17 @@ export class ReplayableEventBus<TEvent extends IEvent = IEvent>
     }
     await super.publish(event);
   }
+}
+
+export function subscribeEventPattern<TEvent extends IEvent>(
+  bus: EventBus<TEvent>,
+  pattern: EventPattern<TEvent, void | Promise<void>>
+): Array<() => void> {
+  const unsubscribes: Array<() => void> = [];
+  for (const type of Object.keys(pattern)) {
+    const t = type as TEvent['type'];
+    const handler = (pattern as any)[t] as (e: TEvent) => void | Promise<void>;
+    unsubscribes.push(bus.subscribe(t, handler));
+  }
+  return unsubscribes;
 }

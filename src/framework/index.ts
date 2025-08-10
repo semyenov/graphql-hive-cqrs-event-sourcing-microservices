@@ -7,15 +7,68 @@
 
 // Core abstractions
 export * from './core';
+export * from './core/errors';
 
-// Branded types for type safety
-export * from './core/branded';
+// Branded types for type safety (avoid duplicating Brand/Maybe from core)
+export { BrandedTypes, BrandedTypeGuards } from './core/branded';
+export type {
+  AggregateId,
+  EventId,
+  CommandId,
+  QueryId,
+  UserId,
+  CorrelationId,
+  CausationId,
+  TransactionId,
+  SessionId,
+  Email,
+  PersonName,
+  CompanyName,
+  PhoneNumber,
+  URL,
+  UUID,
+  JSONString,
+  Base64String,
+  JWTToken,
+  Timestamp,
+  CreatedAt,
+  UpdatedAt,
+  DeletedAt,
+  ExpiredAt,
+  EventVersion,
+  AggregateVersion,
+  SchemaVersion,
+  APIVersion,
+  PositiveNumber,
+  NonNegativeNumber,
+  Percentage,
+  Money,
+  Count,
+  Index,
+  UnBrand,
+  ReBrand,
+  Nullable,
+  Optional,
+} from './core/branded/types';
 
 // Infrastructure components
 export * from './infrastructure/event-store/memory';
 export * from './infrastructure/repository/aggregate';
-export * from './infrastructure/projections/builder';
-export * from './infrastructure/bus';
+// Avoid naming collision with type ProjectionBuilder from core
+export { 
+  ProjectionBuilder as ProjectionBuilderImpl, 
+  createProjectionBuilder 
+} from './infrastructure/projections/builder';
+// Avoid naming collision with type CommandBus/EventBus/QueryBus from core
+export {
+  CommandBus as CommandBusImpl,
+  createCommandBus,
+  EventBus as EventBusImpl,
+  ReplayableEventBus,
+  createEventBus,
+  QueryBus as QueryBusImpl,
+  createQueryBus,
+} from './infrastructure/bus';
 
 // Convenience exports for common use cases
 export {
@@ -36,23 +89,10 @@ export {
   type IProjectionBuilder as ProjectionBuilder,
 } from './core';
 
-export {
-  // Infrastructure
-  InMemoryEventStore,
-  createEventStore,
-  AggregateRepository,
-  ProjectionBuilder,
-  createProjectionBuilder,
-  CommandBus,
-  createCommandBus,
-  EventBus,
-  ReplayableEventBus,
-  createEventBus,
-  QueryBus,
-  createQueryBus,
-} from './infrastructure/bus';
-
-// Framework version
+/**
+ * Framework version
+ * @deprecated Prefer importing from your package.json or build metadata instead.
+ */
 export const VERSION = '1.0.0';
 
 /**
@@ -74,3 +114,8 @@ export function initializeFramework(config?: FrameworkConfig) {
     monitoring: config?.enableMonitoring || false,
   };
 }
+
+/**
+ * DX alias for initializeFramework
+ */
+export const newFramework = initializeFramework;

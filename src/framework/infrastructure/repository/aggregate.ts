@@ -8,6 +8,7 @@ import type { AggregateId } from '../../core/branded/types';
 import type { IEvent, IEventStore } from '../../core/event';
 import type { IAggregateBehavior } from '../../core/aggregate';
 import type { IAggregateRepository } from '../../core/repository';
+import { AggregateNotFoundError } from '../../core/errors';
 
 /**
  * Generic aggregate repository with event sourcing
@@ -59,6 +60,18 @@ export abstract class AggregateRepository<
       this.cache.set(cacheKey, aggregate);
     }
 
+    return aggregate;
+  }
+
+  /**
+   * Get aggregate or throw a descriptive error
+   */
+  async getOrThrow(id: TAggregateId, message?: string): Promise<TAggregate> {
+    const aggregate = await this.get(id);
+    if (!aggregate) {
+      if (message) throw new AggregateNotFoundError(message);
+      throw new AggregateNotFoundError(String(id));
+    }
     return aggregate;
   }
 

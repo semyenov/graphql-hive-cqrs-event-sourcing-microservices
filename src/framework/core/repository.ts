@@ -8,6 +8,7 @@
 import type { AggregateId } from './branded/types';
 import type { IEvent } from './event';
 import type { IAggregateBehavior, ISnapshot } from './aggregate';
+import { AggregateNotFoundError } from './errors';
 
 /**
  * Aggregate repository interface
@@ -74,4 +75,23 @@ export interface IRepositoryFactory {
   >(
     aggregateType: string
   ): IAggregateRepository<TAggregate, TAggregateId>;
+}
+
+/**
+ * Helper: fetch aggregate or throw a descriptive error
+ */
+export async function getAggregateOrThrow<
+  TAggregate extends IAggregateBehavior<unknown, IEvent>,
+  TAggregateId extends AggregateId
+>(
+  repository: IAggregateRepository<TAggregate, TAggregateId>,
+  id: TAggregateId,
+  message?: string
+): Promise<TAggregate> {
+  const aggregate = await repository.get(id);
+  if (!aggregate) {
+    if (message) throw new AggregateNotFoundError(message);
+    throw new AggregateNotFoundError(String(id));
+  }
+  return aggregate;
 }

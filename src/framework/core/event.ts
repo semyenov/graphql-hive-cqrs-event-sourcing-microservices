@@ -6,6 +6,7 @@
  */
 
 import type { AggregateId, EventVersion, Timestamp, CorrelationId, CausationId, UserId } from './branded/types';
+import { BrandedTypes } from './branded/factories';
 
 /**
  * Base event interface - the fundamental unit of state change
@@ -266,8 +267,82 @@ export type EventFactory<TEvent extends IEvent> = (
 ) => TEvent;
 
 /**
+ * Define an event factory for a fixed type that auto-fills timestamp
+ * 
+ * @example
+ * const userCreated = defineEventFactory<UserCreatedEvent>('UserCreated');
+ * const event = userCreated(aggregateId, 1, { name: 'John Doe' });
+ */
+export function defineEventFactory<TEvent extends IEvent, TType extends TEvent['type']>(
+  type: TType
+): EventFactory<TEvent> {
+  return (aggregateId, version, data) => ({
+    type,
+    aggregateId,
+    version,
+    timestamp: BrandedTypes.timestamp(),
+    data,
+  } as unknown as TEvent);
+}
+
+/**
  * Timestamp generator strategy
  */
 export interface ITimestampStrategy {
   generateTimestamp(): Timestamp;
+}
+
+export function matchEvent<TEvent extends IEvent, TResult>(
+  event: TEvent,
+  patterns: EventPattern<TEvent, TResult>
+): TResult {
+  const handler = (patterns as any)[event.type];
+  if (!handler) {
+    throw new Error(`No handler for event type: ${String(event.type)}`);
+  }
+  return handler(event);
+}
+
+export function matchEventPartial<TEvent extends IEvent, TResult>(
+  event: TEvent,
+  patterns: PartialEventPattern<TEvent, TResult>
+): TResult {
+  const handler = (patterns as any)[event.type] as ((e: TEvent) => TResult) | undefined;
+  if (handler) {
+    return handler(event);
+  }
+  if (patterns._default) {
+    return patterns._default(event);
+  }
+  throw new Error(`No handler for event type: ${String(event.type)} and no _default provided`);
+}
+
+export function defineEventPattern<TEvent extends IEvent, TResult>(
+  pattern: EventPattern<TEvent, TResult>
+): EventPattern<TEvent, TResult> {
+  return pattern;
+}
+
+export function definePartialEventPattern<TEvent extends IEvent, TResult>(
+  pattern: PartialEventPattern<TEvent, TResult>
+): PartialEventPattern<TEvent, TResult> {
+  return pattern;
+}
+
+export function createReducerFromEventPattern<
+  TEvent extends IEvent,
+  TState
+>(pattern: {
+  readonly [K in TEvent['type']]: (
+    state: TState | undefined,
+    event: Extract<TEvent, { type: K }>
+  ) => TState;
+}): EventReducer<TEvent, TState> {
+  return (state, event) => {
+    const handler = (pattern as any)[event.type] as (s: TState | undefined, e: TEvent) => TState;
+    if (!handler) {
+      throw new Error(`No reducer for event type: ${String(event.type)}`);
+    }
+    return handler(state, event);
+  };
 }

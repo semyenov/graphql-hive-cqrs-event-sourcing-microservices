@@ -119,6 +119,38 @@ export type QueryFactory<TQuery extends IQuery> = (
 ) => TQuery;
 
 /**
+ * Create a type-safe query factory
+ * 
+ * @example
+ * const getById = createQueryFactory<GetUserByIdQuery>('GetUserById');
+ * const query = getById({ userId: '123' });
+ */
+export function createQueryFactory<TQuery extends IQuery>(
+  type: TQuery['type']
+): QueryFactory<TQuery> {
+  return (parameters) => ({ type, parameters } as TQuery);
+}
+
+/**
+ * Build a paginated result with derived flags
+ */
+export function makePaginatedResult<TData>(
+  items: TData[],
+  total: number,
+  offset: number,
+  limit: number
+): IPaginatedResult<TData> {
+  return {
+    items,
+    total,
+    offset,
+    limit,
+    hasNext: offset + items.length < total,
+    hasPrevious: offset > 0,
+  };
+}
+
+/**
  * Extract query result type
  */
 export type ExtractQueryResult<TQuery> = 
@@ -132,3 +164,20 @@ export type QueryPattern<TQuery extends IQuery, TResult> = {
     query: Extract<TQuery, { type: K }>
   ) => Promise<TResult>;
 };
+
+export async function matchQuery<TQuery extends IQuery, TResult>(
+  query: TQuery,
+  patterns: QueryPattern<TQuery, TResult>
+): Promise<TResult> {
+  const handler = (patterns as any)[query.type] as ((q: TQuery) => Promise<TResult>) | undefined;
+  if (!handler) {
+    throw new Error(`No handler for query type: ${String(query.type)}`);
+  }
+  return handler(query);
+}
+
+export function defineQueryPattern<TQuery extends IQuery, TResult>(
+  pattern: QueryPattern<TQuery, TResult>
+): QueryPattern<TQuery, TResult> {
+  return pattern;
+}

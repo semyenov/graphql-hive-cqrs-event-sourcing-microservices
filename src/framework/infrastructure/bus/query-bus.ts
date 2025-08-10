@@ -4,7 +4,8 @@
  * Routes queries to their appropriate handlers for read operations.
  */
 
-import type { IQuery, IQueryHandler, IQueryBus } from '../../core/query';
+import type { IQuery, IQueryHandler, IQueryBus, QueryPattern } from '../../core/query';
+import { QueryHandlerNotFoundError } from '../../core/errors';
 
 /**
  * Query bus implementation
@@ -15,7 +16,7 @@ export class QueryBus implements IQueryBus {
   private cacheTimeout = 60000; // 1 minute default
 
   constructor(
-    private readonly cacheEnabled = false,
+    private cacheEnabled = false,
     cacheTimeout?: number
   ) {
     if (cacheTimeout) {
@@ -25,12 +26,14 @@ export class QueryBus implements IQueryBus {
 
   /**
    * Register a query handler
+   * Use registerWithType(queryType, handler) instead.
    */
   register<TQuery extends IQuery, TResult>(
-    handler: IQueryHandler<TQuery, TResult>
+    _handler: IQueryHandler<TQuery, TResult>
   ): void {
-    // In production, use decorators or explicit type registration
-    // For now, handlers need to be registered with their query type
+    throw new Error(
+      'QueryBus.register cannot infer query type. Use registerWithType(queryType, handler) or registerQueryHandler(bus, queryType, handler).'
+    );
   }
 
   /**
@@ -63,7 +66,8 @@ export class QueryBus implements IQueryBus {
     const handler = this.handlers.get(query.type);
     
     if (!handler) {
-      throw new Error(`No handler registered for query type: ${query.type}`);
+      const registered = Array.from(this.handlers.keys());
+      throw new QueryHandlerNotFoundError(query.type, registered);
     }
 
     if (!handler.canHandle(query)) {
@@ -132,8 +136,33 @@ export class QueryBus implements IQueryBus {
    * Enable/disable caching
    */
   setCache(enabled: boolean): void {
+    this.cacheEnabled = enabled;
     if (!enabled) {
       this.cache.clear();
+    }
+  }
+
+  /**
+   * Inspect cache setting
+   */
+  isCacheEnabled(): boolean {
+    return this.cacheEnabled;
+  }
+
+  /**
+   * Prime the cache for a given query shape (type+parameters)
+   */
+  primeCache<TResult>(query: IQuery, result: TResult): void {
+    const key = this.getCacheKey(query);
+    this.cache.set(key, { result, timestamp: Date.now() });
+  }
+
+  /**
+   * Prime cache for many entries
+   */
+  primeCacheMany(entries: Array<{ query: IQuery; result: unknown }>): void {
+    for (const { query, result } of entries) {
+      this.primeCache(query, result);
     }
   }
 
@@ -164,4 +193,27 @@ export function registerQueryHandler<TQuery extends IQuery, TResult>(
   handler: IQueryHandler<TQuery, TResult>
 ): void {
   bus.registerWithType(queryType, handler);
+}
+
+/**
+ * Bulk register handlers from a QueryPattern
+ */
+export function registerQueryPattern<TQuery extends IQuery, TResult>(
+  bus: QueryBus,
+  pattern: QueryPattern<TQuery, TResult>
+): void {
+  for (const type of Object.keys(pattern)) {
+    const t = type as TQuery['type'];
+    const handle = (pattern as any)[t] as (q: TQuery) => Promise<TResult>;
+    const handler = {
+      async handle(query: TQuery): Promise<TResult> {
+        return handle(query);
+      },
+      canHandle(query: IQuery): boolean {
+        return query.type === t;
+      },
+    } as IQueryHandler<TQuery, TResult>;
+
+    bus.registerWithType(t, handler);
+  }
 }
