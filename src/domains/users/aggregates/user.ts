@@ -125,13 +125,16 @@ export class UserAggregate extends Aggregate<UserState, UserEvent, AggregateId> 
   /**
    * Change user password
    */
-  changePassword(): void {
+  changePassword(data: { newPassword: string }): void {
     this.ensureExists();
 
     const event = UserEventFactories.createPasswordChanged(
       this.id,
       BrandedTypes.eventVersion(this._version + 1),
-      { changedAt: new Date().toISOString() }
+      {
+        changedAt: new Date().toISOString(),
+        newPassword: data.newPassword,
+      }
     );
     this.applyEvent(event, true);
   }

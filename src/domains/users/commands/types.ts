@@ -5,7 +5,6 @@
  */
 
 import type { ICommand } from '../../../framework/core/command';
-import type { AggregateId } from '../../../framework/core/branded/types';
 
 /**
  * User command types enum

@@ -6,8 +6,6 @@
 
 import type * as Events from './types';
 import { UserEventTypes } from './types';
-import type { AggregateId, EventVersion } from '../../../framework/core/branded/types';
-import { BrandedTypes } from '../../../framework/core/branded/factories';
 import { defineEventFactory } from '../../../framework/core/event';
 
 /**
