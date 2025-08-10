@@ -70,46 +70,6 @@ export class EmailNotificationHandler {
 /**
  * Build user event handlers
  */
-export const buildUserEventHandlers = (
-  projections: {
-    userProjection: ProjectionBuilder<UserEvent, UserState>;
-    userListProjection?: ProjectionBuilder<UserEvent, UserListItem>;
-    userStatsProjection?: ProjectionBuilder<UserEvent, UserStats>;
-  }
-) => {
-  const projectionHandler = new ProjectionEventHandler(
-    projections.userProjection,
-    projections.userListProjection,
-    projections.userStatsProjection,
-  );
-
-  const emailHandler = new EmailNotificationHandler();
-
-  return {
-    [UserEventTypes.UserCreated]: async (event: UserEvent) => {
-      await projectionHandler.handleEvent(event);
-      if (event.type === UserEventTypes.UserCreated) {
-        await emailHandler.handleUserCreated(event);
-      }
-    },
-    [UserEventTypes.UserEmailVerified]: async (event: UserEvent) => {
-      await projectionHandler.handleEvent(event);
-      if (event.type === UserEventTypes.UserEmailVerified) {
-        await emailHandler.handleEmailVerified(event);
-      }
-    },
-    [UserEventTypes.UserPasswordChanged]: async (event: UserEvent) => {
-      await projectionHandler.handleEvent(event);
-      if (event.type === UserEventTypes.UserPasswordChanged) {
-        await emailHandler.handlePasswordChanged(event);
-      }
-    },
-    [UserEventTypes.UserUpdated]: (event: UserEvent) => projectionHandler.handleEvent(event),
-    [UserEventTypes.UserDeleted]: (event: UserEvent) => projectionHandler.handleEvent(event),
-    [UserEventTypes.UserProfileUpdated]: (event: UserEvent) => projectionHandler.handleEvent(event),
-  } as const;
-};
-
 export function registerUserEventHandlers(
   eventBus: EventBus<UserEvent>,
   projections: {
@@ -118,8 +78,38 @@ export function registerUserEventHandlers(
     userStatsProjection?: ProjectionBuilder<UserEvent, any>;
   }
 ): Array<() => void> {
+  const emailHandler = new EmailNotificationHandler();
+
+  const projectionHandler = new ProjectionEventHandler(
+    projections.userProjection,
+    projections.userListProjection,
+    projections.userStatsProjection,
+  );
+
   return subscribeEventPattern(
     eventBus, 
-    buildUserEventHandlers(projections)
+    {
+      [UserEventTypes.UserCreated]: async (event: UserEvent) => {
+        await projectionHandler.handleEvent(event);
+        if (event.type === UserEventTypes.UserCreated) {
+          await emailHandler.handleUserCreated(event);
+        }
+      },
+      [UserEventTypes.UserEmailVerified]: async (event: UserEvent) => {
+        await projectionHandler.handleEvent(event);
+        if (event.type === UserEventTypes.UserEmailVerified) {
+          await emailHandler.handleEmailVerified(event);
+        }
+      },
+      [UserEventTypes.UserPasswordChanged]: async (event: UserEvent) => {
+        await projectionHandler.handleEvent(event);
+        if (event.type === UserEventTypes.UserPasswordChanged) {
+          await emailHandler.handlePasswordChanged(event);
+        }
+      },
+      [UserEventTypes.UserUpdated]: (event: UserEvent) => projectionHandler.handleEvent(event),
+      [UserEventTypes.UserDeleted]: (event: UserEvent) => projectionHandler.handleEvent(event),
+      [UserEventTypes.UserProfileUpdated]: (event: UserEvent) => projectionHandler.handleEvent(event),
+    }
   );
 }
