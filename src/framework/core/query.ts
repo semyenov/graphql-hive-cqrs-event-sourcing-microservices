@@ -169,7 +169,7 @@ export async function matchQuery<TQuery extends IQuery, TResult>(
   query: TQuery,
   patterns: QueryPattern<TQuery, TResult>
 ): Promise<TResult> {
-  const handler = (patterns as any)[query.type] as ((q: TQuery) => Promise<TResult>) | undefined;
+  const handler = patterns[query.type as keyof typeof patterns] as ((q: TQuery) => Promise<TResult>) | undefined;
   if (!handler) {
     throw new Error(`No handler for query type: ${String(query.type)}`);
   }

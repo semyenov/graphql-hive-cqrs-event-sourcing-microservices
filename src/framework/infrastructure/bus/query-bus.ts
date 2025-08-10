@@ -11,8 +11,8 @@ import { QueryHandlerNotFoundError } from '../../core/errors';
  * Query bus implementation
  */
 export class QueryBus implements IQueryBus {
-  private handlers = new Map<string, IQueryHandler<any, any>>();
-  private cache = new Map<string, { result: any; timestamp: number }>();
+  private handlers = new Map<string, IQueryHandler<IQuery, unknown>>();
+  private cache = new Map<string, { result: unknown; timestamp: number }>();
   private cacheTimeout = 60000; // 1 minute default
 
   constructor(
@@ -204,7 +204,7 @@ export function registerQueryPattern<TQuery extends IQuery, TResult>(
 ): void {
   for (const type of Object.keys(pattern)) {
     const t = type as TQuery['type'];
-    const handle = (pattern as any)[t] as (q: TQuery) => Promise<TResult>;
+    const handle = pattern[t] as (q: TQuery) => Promise<TResult>;
     const handler = {
       async handle(query: TQuery): Promise<TResult> {
         return handle(query);

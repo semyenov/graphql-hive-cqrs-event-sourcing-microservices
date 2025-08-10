@@ -36,7 +36,7 @@ export class AggregateNotFoundError extends DomainError {
 
 export class EventHandlerError extends DomainError {
   constructor(eventType: string, aggregateId: unknown, cause: unknown) {
-    super(`Event handler error for event ${eventType} (aggregate ${String(aggregateId)}): ${String((cause as any)?.message ?? cause)}`);
+    super(`Event handler error for event ${eventType} (aggregate ${String(aggregateId)}): ${String(cause instanceof Error ? cause.message : cause)}`);
     this.name = 'EventHandlerError';
   }
 }

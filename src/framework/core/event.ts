@@ -294,18 +294,18 @@ export function matchEvent<TEvent extends IEvent, TResult>(
   event: TEvent,
   patterns: EventPattern<TEvent, TResult>
 ): TResult {
-  const handler = (patterns as any)[event.type];
+  const handler = patterns[event.type as keyof typeof patterns];
   if (!handler) {
     throw new Error(`No handler for event type: ${String(event.type)}`);
   }
-  return handler(event);
+  return handler(event as Extract<TEvent, { type: TEvent['type'] }>);
 }
 
 export function matchEventPartial<TEvent extends IEvent, TResult>(
   event: TEvent,
   patterns: PartialEventPattern<TEvent, TResult>
 ): TResult {
-  const handler = (patterns as any)[event.type] as ((e: TEvent) => TResult) | undefined;
+  const handler = patterns[event.type as keyof typeof patterns] as ((e: TEvent) => TResult) | undefined;
   if (handler) {
     return handler(event);
   }
@@ -337,7 +337,7 @@ export function createReducerFromEventPattern<
   ) => TState;
 }): EventReducer<TEvent, TState> {
   return (state, event) => {
-    const handler = (pattern as any)[event.type] as (s: TState | undefined, e: TEvent) => TState;
+    const handler = pattern[event.type as keyof typeof pattern] as (s: TState | undefined, e: TEvent) => TState;
     if (!handler) {
       throw new Error(`No reducer for event type: ${String(event.type)}`);
     }
@@ -354,7 +354,7 @@ export function subscribeEventStorePattern<TEvent extends IEvent>(
   pattern: EventPattern<TEvent, void | Promise<void>>
 ): Array<() => void> {
   const unsubscribe = store.subscribe(async (event) => {
-    const handler = (pattern as any)[event.type] as ((e: TEvent) => void | Promise<void>) | undefined;
+    const handler = pattern[event.type as keyof typeof pattern] as ((e: TEvent) => void | Promise<void>) | undefined;
     if (handler) {
       await handler(event);
     }

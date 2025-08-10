@@ -110,15 +110,15 @@ export type KeysOfType<T, U> = {
  */
 export type OmitMethods<T> = Pick<
   T,
-  KeysOfType<T, (...args: any[]) => any> extends never
+  KeysOfType<T, (...args: unknown[]) => unknown> extends never
     ? keyof T
-    : Exclude<keyof T, KeysOfType<T, (...args: any[]) => any>>
+    : Exclude<keyof T, KeysOfType<T, (...args: unknown[]) => unknown>>
 >;
 
 /**
  * Constructor type
  */
-export type Constructor<T = {}> = new (...args: any[]) => T;
+export type Constructor<T = {}> = new (...args: unknown[]) => T;
 
 /**
  * Mixin type
@@ -152,7 +152,7 @@ export function err<E = Error>(error: E): Result<never, E> {
 
 export function unwrap<T, E = Error>(result: Result<T, E>): T {
   if ('error' in result) {
-    throw (result as any).error;
+    throw result.error;
   }
-  return (result as any).value;
+  return result.value;
 }

@@ -168,7 +168,7 @@ export async function matchCommand<TCommand extends ICommand, TResult>(
   command: TCommand,
   patterns: CommandPattern<TCommand, TResult>
 ): Promise<TResult> {
-  const handler = (patterns as any)[command.type] as ((c: TCommand) => Promise<TResult>) | undefined;
+  const handler = patterns[command.type as keyof typeof patterns] as ((c: TCommand) => Promise<TResult>) | undefined;
   if (!handler) {
     throw new Error(`No handler for command type: ${String(command.type)}`);
   }
@@ -209,7 +209,7 @@ export function unwrapCommandResult<TData, TError = Error>(
 ): TData {
   if (!result.success) {
     // Re-throw Error-like or wrap otherwise
-    const err = (result.error ?? new Error('Unknown command error')) as any;
+    const err = result.error ?? new Error('Unknown command error');
     throw err instanceof Error ? err : new Error(String(err));
   }
   return result.data as TData;

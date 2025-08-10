@@ -16,7 +16,7 @@ import { CommandHandlerNotFoundError } from '../../core/errors';
  * Command bus implementation
  */
 export class CommandBus implements ICommandBus {
-  private handlers = new Map<string, ICommandHandler<any>>();
+  private handlers = new Map<string, ICommandHandler<ICommand>>();
   private middleware: ICommandMiddleware[] = [];
 
   /**
@@ -156,10 +156,10 @@ export function registerCommandPattern<TCommand extends ICommand, TResult>(
 ): void {
   for (const type of Object.keys(pattern)) {
     const t = type as TCommand['type'];
-    const handle = (pattern as any)[t] as (cmd: TCommand) => Promise<TResult>;
+    const handle = pattern[t] as (cmd: TCommand) => Promise<TResult>;
     const handler = {
       async handle(command: TCommand) {
-        return handle(command as any) as unknown as Promise<ICommandResult>;
+        return handle(command) as Promise<ICommandResult>;
       },
       canHandle(command: ICommand) {
         return command.type === t;

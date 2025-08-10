@@ -11,7 +11,7 @@ import { EventHandlerError } from '../../core/errors';
  * Event bus implementation
  */
 export class EventBus<TEvent extends IEvent = IEvent> implements IEventBus<TEvent> {
-  private subscribers = new Map<string, Set<EventHandler<any>>>();
+  private subscribers = new Map<string, Set<EventHandler<TEvent>>>();
   private allSubscribers = new Set<EventHandler<TEvent>>();
 
   /**
@@ -48,13 +48,13 @@ export class EventBus<TEvent extends IEvent = IEvent> implements IEventBus<TEven
       this.subscribers.set(eventType, new Set());
     }
     
-    this.subscribers.get(eventType)!.add(handler as EventHandler<any>);
+    this.subscribers.get(eventType)!.add(handler as EventHandler<TEvent>);
     
     // Return unsubscribe function
     return () => {
       const typeSubscribers = this.subscribers.get(eventType);
       if (typeSubscribers) {
-        typeSubscribers.delete(handler as EventHandler<any>);
+        typeSubscribers.delete(handler as EventHandler<TEvent>);
         if (typeSubscribers.size === 0) {
           this.subscribers.delete(eventType);
         }
@@ -124,7 +124,7 @@ export class EventBus<TEvent extends IEvent = IEvent> implements IEventBus<TEven
   /**
    * Introspection: get all subscribers for a given type
    */
-  getSubscribers(eventType?: string): Array<EventHandler<any>> {
+  getSubscribers(eventType?: string): Array<EventHandler<TEvent>> {
     if (eventType) {
       return Array.from(this.subscribers.get(eventType) ?? []);
     }
@@ -143,7 +143,7 @@ export class EventBus<TEvent extends IEvent = IEvent> implements IEventBus<TEven
   ): Promise<void> {
     const promises = Array.from(subscribers).map(subscriber =>
       Promise.resolve(subscriber(event)).catch(error => {
-        const aggregate = (event as any)?.aggregateId ?? 'n/a';
+        const aggregate = String(event.aggregateId ?? 'n/a');
         console.error(new EventHandlerError(String(event.type), aggregate, error));
       })
     );
@@ -225,7 +225,7 @@ export function subscribeEventPattern<TEvent extends IEvent>(
   const unsubscribes: Array<() => void> = [];
   for (const type of Object.keys(pattern)) {
     const t = type as TEvent['type'];
-    const handler = (pattern as any)[t] as (e: TEvent) => void | Promise<void>;
+    const handler = pattern[t] as (e: TEvent) => void | Promise<void>;
     unsubscribes.push(bus.subscribe(t, handler));
   }
   return unsubscribes;
