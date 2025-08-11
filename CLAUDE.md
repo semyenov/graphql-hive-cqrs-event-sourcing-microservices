@@ -169,7 +169,7 @@ True CQRS implementation with complete separation:
 
 ### Type Safety Architecture
 
-#### Branded Types (`src/framework/core/branded/`)
+#### Branded Types (`packages/framework/src/core/branded/`)
 Prevents primitive obsession and ensures type safety:
 ```typescript
 AggregateId, EventId, UserId    // ID types

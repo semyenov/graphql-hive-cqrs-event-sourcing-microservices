@@ -17,7 +17,7 @@ export abstract class AggregateRepository<
   TState,
   TEvent extends IEvent,
   TAggregateId extends AggregateId,
-  TAggregate extends IAggregateBehavior<TState, TEvent, TAggregateId>
+  TAggregate extends IAggregateBehavior<TState, TEvent, string, TAggregateId>
 > implements IAggregateRepository<TAggregate, TAggregateId> {
   
   private cache = new Map<string, TAggregate>();

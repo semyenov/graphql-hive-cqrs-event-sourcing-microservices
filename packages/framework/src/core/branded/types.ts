@@ -1,6 +1,6 @@
 /**
  * Shared: Branded Types
- * 
+ *
  * Branded types provide compile-time type safety by preventing
  * primitive type mixing and enforcing domain constraints.
  */
@@ -8,12 +8,13 @@
 /**
  * Generic brand type for nominal typing
  */
-export type Brand<T, TBrand extends string> = T & { readonly __brand: TBrand };
+export type Brand<T, TBrand extends string> = T & { readonly __typename: TBrand };
 
 /**
  * Core ID types with branding
  */
 export type AggregateId = Brand<string, 'AggregateId'>;
+export type AggregateType = Brand<string, 'AggregateType'>;
 export type EventId = Brand<string, 'EventId'>;
 export type CommandId = Brand<string, 'CommandId'>;
 export type QueryId = Brand<string, 'QueryId'>;
@@ -66,10 +67,10 @@ export type UnBrand<T> = T extends Brand<infer U, any> ? U : T;
 /**
  * Utility type to rebrand a type
  */
-export type ReBrand<T, TNewBrand extends string> = 
-  T extends Brand<infer U, any> 
-    ? Brand<U, TNewBrand> 
-    : Brand<T, TNewBrand>;
+export type ReBrand<T, TNewBrand extends string> =
+  T extends Brand<infer U, any>
+  ? Brand<U, TNewBrand>
+  : Brand<T, TNewBrand>;
 
 /**
  * Nullable branded types

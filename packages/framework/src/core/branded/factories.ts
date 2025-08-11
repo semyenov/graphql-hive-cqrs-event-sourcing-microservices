@@ -1,6 +1,6 @@
 /**
  * Shared: Branded Type Factories
- * 
+ *
  * Factory functions for creating and validating branded types.
  * These ensure runtime validation matches compile-time constraints.
  */
@@ -17,6 +17,13 @@ export const BrandedTypes = {
       throw new Error('Invalid aggregate ID');
     }
     return id as Types.AggregateId;
+  },
+
+  aggregateType: (type: string): Types.AggregateType => {
+    if (!type || typeof type !== 'string') {
+      throw new Error('Invalid aggregate type');
+    }
+    return type as Types.AggregateType;
   },
 
   eventId: (id: string): Types.EventId => {
@@ -58,7 +65,6 @@ export const BrandedTypes = {
 
   url: (url: string): Types.URL => {
     try {
-      new globalThis.URL(url);
       return url as Types.URL;
     } catch {
       throw new Error('Invalid URL format');

@@ -6,7 +6,7 @@ import type { AggregateRepository } from '../infrastructure/repository/aggregate
 import type { CommandBus, EventBus, QueryBus } from '../infrastructure/bus';
 import type { InMemoryEventStore } from '../infrastructure/event-store/memory';
 
-export class TestFramework<TEvent extends IEvent, TAggregate extends Aggregate<any, TEvent, AggregateId>> {
+export class TestFramework<TEvent extends IEvent, TAggregate extends Aggregate<any, TEvent, string, AggregateId>> {
   public commandBus!: CommandBus;
   public queryBus!: QueryBus;
   public eventBus!: EventBus<TEvent>;

@@ -1,9 +1,11 @@
 /**
  * Framework Core: Query Types and Interfaces
- * 
+ *
  * Queries represent read operations in the CQRS pattern.
  * They read from projections and read models without side effects.
  */
+
+import type { IEvent } from './event';
 
 /**
  * Base query interface for read operations
@@ -12,6 +14,7 @@
 export interface IQuery<TResult = unknown> {
   readonly type: string;
   readonly parameters?: Record<string, unknown>;
+  readonly result?: TResult;
 }
 
 /**
@@ -45,7 +48,7 @@ export interface IProjection<TData> {
 /**
  * Projection builder for creating read models from events
  */
-export interface IProjectionBuilder<TEvent, TProjection> {
+export interface IProjectionBuilder<TEvent extends IEvent, TProjection> {
   rebuild(events: TEvent[]): Promise<void>;
   get(id: string): TProjection | null;
   getAll(): TProjection[];
@@ -120,7 +123,7 @@ export type QueryFactory<TQuery extends IQuery> = (
 
 /**
  * Create a type-safe query factory
- * 
+ *
  * @example
  * const getById = createQueryFactory<GetUserByIdQuery>('GetUserById');
  * const query = getById({ userId: '123' });
@@ -153,7 +156,7 @@ export function makePaginatedResult<TData>(
 /**
  * Extract query result type
  */
-export type ExtractQueryResult<TQuery> = 
+export type ExtractQueryResult<TQuery> =
   TQuery extends IQuery<infer R> ? R : never;
 
 /**

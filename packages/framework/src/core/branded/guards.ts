@@ -1,6 +1,6 @@
 /**
  * Shared: Branded Type Guards
- * 
+ *
  * Type guard functions for runtime type checking of branded types.
  */
 
@@ -15,6 +15,10 @@ export const BrandedTypeGuards = {
     return typeof value === 'string' && value.length > 0;
   },
 
+  isAggregateType: (value: unknown): value is Types.AggregateType => {
+    return typeof value === 'string' && value.length > 0;
+  },
+
   isEventId: (value: unknown): value is Types.EventId => {
     return typeof value === 'string' && value.length > 0;
   },
@@ -25,18 +29,15 @@ export const BrandedTypeGuards = {
 
   // Value object type guards
   isUUID: (value: unknown): value is Types.UUID => {
-    return typeof value === 'string' && 
+    return typeof value === 'string' &&
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
   },
 
   isURL: (value: unknown): value is Types.URL => {
     if (typeof value !== 'string') return false;
-    try {
-      new globalThis.URL(value);
-      return true;
-    } catch {
-      return false;
-    }
+    // URL regex pattern that matches common URL formats
+    const urlPattern = /^https?:\/\/(?:[-\w.])+(?::[0-9]+)?(?:\/(?:[\w/_.])*)?(?:\?(?:[\w&=%.])*)?(?:#(?:[\w.])*)?$/i;
+    return urlPattern.test(value);
   },
 
   // Temporal type guards
@@ -54,15 +55,15 @@ export const BrandedTypeGuards = {
 
   // Version type guards
   isEventVersion: (value: unknown): value is Types.EventVersion => {
-    return typeof value === 'number' && 
-           Number.isInteger(value) && 
-           value >= 1;
+    return typeof value === 'number' &&
+      Number.isInteger(value) &&
+      value >= 1;
   },
 
   isAggregateVersion: (value: unknown): value is Types.AggregateVersion => {
-    return typeof value === 'number' && 
-           Number.isInteger(value) && 
-           value >= 0;
+    return typeof value === 'number' &&
+      Number.isInteger(value) &&
+      value >= 0;
   },
 
   // Numeric constraint type guards

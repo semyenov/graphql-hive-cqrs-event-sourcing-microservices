@@ -5,10 +5,12 @@
  * Provides consistent values for domain operations.
  */
 
+import { BrandedTypes } from "@cqrs/framework";
+
 /**
  * Special aggregate ID used for statistics projection
  */
-export const STATS_AGGREGATE_ID = 'stats';
+export const STATS_AGGREGATE_ID = BrandedTypes.aggregateId('stats');
 
 /**
  * User validation constants

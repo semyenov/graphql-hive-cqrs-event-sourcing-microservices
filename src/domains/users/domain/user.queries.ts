@@ -7,16 +7,17 @@
 
 import type { IQuery } from '@cqrs/framework/core/query';
 import type { AggregateId } from '@cqrs/framework/core/branded/types';
+import { BrandedTypes } from '@cqrs/framework/core/branded';
 
 /**
  * User query types - string literals for better type safety
  */
 export const UserQueryTypes = {
-  GetUserById: 'GET_USER_BY_ID',
-  GetUserByEmail: 'GET_USER_BY_EMAIL',
-  ListUsers: 'LIST_USERS',
-  SearchUsers: 'SEARCH_USERS',
-  GetUserStats: 'GET_USER_STATS',
+  GetUserById: BrandedTypes.aggregateType('GET_USER_BY_ID'),
+  GetUserByEmail: BrandedTypes.aggregateType('GET_USER_BY_EMAIL'),
+  ListUsers: BrandedTypes.aggregateType('LIST_USERS'),
+  SearchUsers: BrandedTypes.aggregateType('SEARCH_USERS'),
+  GetUserStats: BrandedTypes.aggregateType('GET_USER_STATS'),
 } as const;
 
 export type UserQueryType = typeof UserQueryTypes[keyof typeof UserQueryTypes];

@@ -68,7 +68,7 @@ export interface IEnhancedEvent<
  * @template TEvent - The event type being processed
  * @template TState - The state type being built
  */
-export type EventReducer<TEvent extends IEvent, TState> = (
+export type EventReducer<TState, TEvent extends IEvent> = (
   state: TState | undefined,
   event: TEvent
 ) => TState;
@@ -111,14 +111,14 @@ export interface IEventStore<TEvent extends IEvent = IEvent> {
    * @throws {EventStorageError} If storage operation fails
    */
   append(event: TEvent): Promise<void>;
-  
+
   /**
    * Append multiple events atomically
    * @throws {EventValidationError} If any event validation fails
    * @throws {EventStorageError} If batch storage operation fails
    */
   appendBatch(events: readonly TEvent[]): Promise<void>;
-  
+
   /**
    * Retrieve events for a specific aggregate
    * @param fromVersion - Optional version to start from
@@ -328,14 +328,14 @@ export function definePartialEventPattern<TEvent extends IEvent, TResult>(
 }
 
 export function createReducerFromEventPattern<
-  TEvent extends IEvent,
-  TState
+  TState,
+  TEvent extends IEvent
 >(pattern: {
   readonly [K in TEvent['type']]: (
     state: TState | undefined,
     event: Extract<TEvent, { type: K }>
   ) => TState;
-}): EventReducer<TEvent, TState> {
+}): EventReducer<TState, TEvent> {
   return (state, event) => {
     const handler = pattern[event.type as keyof typeof pattern] as (s: TState | undefined, e: TEvent) => TState;
     if (!handler) {

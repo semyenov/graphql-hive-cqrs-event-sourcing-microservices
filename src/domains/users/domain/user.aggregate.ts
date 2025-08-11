@@ -13,9 +13,9 @@ import { createReducerFromEventPattern } from '@cqrs/framework/core/event';
 import { InvalidStateError } from '@cqrs/framework/core/errors';
 
 // Domain imports
-import type { 
-  UserState, 
-  Email, 
+import type {
+  UserState,
+  Email,
   PersonName,
   CreateUserData,
   UpdateUserData,
@@ -26,8 +26,8 @@ import type {
 } from './user.types';
 import type { UserEvent, UserEventData, UserEventType } from './user.events';
 import { UserEventTypes } from './user.events';
-import { 
-  UserAlreadyExistsError, 
+import {
+  UserAlreadyExistsError,
   EmailAlreadyVerifiedError,
   UserDeletedError,
 } from './user.errors';
@@ -35,10 +35,14 @@ import {
 /**
  * User aggregate root - manages user business logic
  */
-export class UserAggregate extends Aggregate<UserState, UserEvent, AggregateId> {
+export class UserAggregate extends Aggregate<UserState, UserEvent, string, AggregateId> {
   constructor(id: AggregateId) {
     super(
       id,
+      BrandedTypes.aggregateType('user'),
+      0,
+      null,
+      [],
       userReducer,
       createInitialState(id)
     );
@@ -61,7 +65,7 @@ export class UserAggregate extends Aggregate<UserState, UserEvent, AggregateId> 
       email: data.email as Email,
       createdAt: new Date().toISOString(),
     });
-    
+
     this.applyEvent(event, true);
     return this;
   }
@@ -82,7 +86,7 @@ export class UserAggregate extends Aggregate<UserState, UserEvent, AggregateId> 
       ...(data.email && { email: data.email as Email }),
       updatedAt: new Date().toISOString(),
     });
-    
+
     this.applyEvent(event, true);
     return this;
   }
@@ -98,7 +102,7 @@ export class UserAggregate extends Aggregate<UserState, UserEvent, AggregateId> 
       deletedAt: new Date().toISOString(),
       ...(data.reason && { reason: data.reason }),
     });
-    
+
     this.applyEvent(event, true);
     return this;
   }
@@ -118,7 +122,7 @@ export class UserAggregate extends Aggregate<UserState, UserEvent, AggregateId> 
       verifiedAt: new Date().toISOString(),
       ...(data.verificationToken && { verificationToken: data.verificationToken }),
     });
-    
+
     this.applyEvent(event, true);
     return this;
   }
@@ -133,7 +137,7 @@ export class UserAggregate extends Aggregate<UserState, UserEvent, AggregateId> 
     const event = this.createEvent(UserEventTypes.UserPasswordChanged, {
       changedAt: new Date().toISOString(),
     });
-    
+
     this.applyEvent(event, true);
     return this;
   }
@@ -149,7 +153,7 @@ export class UserAggregate extends Aggregate<UserState, UserEvent, AggregateId> 
       ...data,
       updatedAt: new Date().toISOString(),
     });
-    
+
     this.applyEvent(event, true);
     return this;
   }
@@ -229,7 +233,7 @@ export class UserAggregate extends Aggregate<UserState, UserEvent, AggregateId> 
 /**
  * Event reducer for user state transitions
  */
-const userReducer: EventReducer<UserEvent, UserState> = createReducerFromEventPattern<UserEvent, UserState>({
+const userReducer: EventReducer<UserState, UserEvent> = createReducerFromEventPattern<UserState, UserEvent>({
   [UserEventTypes.UserCreated]: (_state, event) => ({
     id: event.aggregateId as string,
     name: event.data.name,
@@ -245,8 +249,8 @@ const userReducer: EventReducer<UserEvent, UserState> = createReducerFromEventPa
     return {
       ...state,
       ...(event.data.name && { name: event.data.name }),
-      ...(event.data.email && { 
-        email: event.data.email, 
+      ...(event.data.email && {
+        email: event.data.email,
         emailVerified: false // Reset verification when email changes
       }),
       updatedAt: event.data.updatedAt,

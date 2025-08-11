@@ -147,7 +147,7 @@ export function registerCommandHandler<TCommand extends ICommand>(
     canHandle: (command) => command.type === commandType
   };
   
-  bus.registerWithType(commandType, wrappedHandler);
+  bus.registerWithType(commandType as TCommand['type'], wrappedHandler);
 }
 
 export function registerCommandPattern<TCommand extends ICommand, TResult>(

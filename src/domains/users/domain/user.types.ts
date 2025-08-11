@@ -6,6 +6,7 @@
  */
 
 import type { Brand } from '@cqrs/framework/core/branded/types';
+import { BrandedTypes } from '@cqrs/framework/core/branded';
 
 /**
  * User domain branded types for type safety

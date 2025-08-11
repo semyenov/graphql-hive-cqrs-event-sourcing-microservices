@@ -1,13 +1,11 @@
 /**
  * CQRS/Event Sourcing Framework
- * 
+ *
  * A generic framework for building event-sourced applications
  * with CQRS pattern, designed to be domain-agnostic and extensible.
  */
 
-import type { IEvent, IEventStore, IEventBus } from './core/event';
-import type { ICommandBus } from './core/command';
-import type { IQueryBus } from './core/query';
+import type { IEvent } from './core/event';
 import type { CommandBus, EventBus, QueryBus } from './infrastructure/bus';
 import type { InMemoryEventStore } from './infrastructure/event-store/memory';
 
@@ -19,6 +17,7 @@ export * from './core/errors';
 export { BrandedTypes, BrandedTypeGuards } from './core/branded';
 export type {
   AggregateId,
+  AggregateType,
   EventId,
   CommandId,
   QueryId,
@@ -56,9 +55,9 @@ export type {
 export * from './infrastructure/event-store/memory';
 export * from './infrastructure/repository/aggregate';
 // Avoid naming collision with type ProjectionBuilder from core
-export { 
-  ProjectionBuilder as ProjectionBuilderImpl, 
-  createProjectionBuilder 
+export {
+  ProjectionBuilder as ProjectionBuilderImpl,
+  createProjectionBuilder
 } from './infrastructure/projections/builder';
 // Avoid naming collision with type CommandBus/EventBus/QueryBus from core
 export {
