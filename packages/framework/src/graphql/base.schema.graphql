@@ -1,0 +1,453 @@
+# GraphQL Federation Base Schema
+#
+# Foundation schema for CQRS/Event Sourcing with Federation v2
+# All commands, queries, and events are defined here
+
+extend schema
+  @link(
+    url: "https://specs.apollo.dev/federation/v2.5"
+    import: [
+      "@key"
+      "@shareable"
+      "@extends"
+      "@external"
+      "@provides"
+      "@requires"
+      "@tag"
+      "@inaccessible"
+      "@override"
+    ]
+  )
+
+# ============================================================================
+# Scalar Types
+# ============================================================================
+
+"""
+Unique identifier (ULID format)
+"""
+scalar ID
+
+"""
+ISO 8601 date-time string
+"""
+scalar DateTime
+
+"""
+JSON object
+"""
+scalar JSON
+
+"""
+Email address
+"""
+scalar Email
+
+"""
+Positive integer
+"""
+scalar PositiveInt
+
+"""
+Monetary amount in cents
+"""
+scalar Money
+
+"""
+Percentage value (0-100)
+"""
+scalar Percentage
+
+"""
+Non-empty string
+"""
+scalar NonEmptyString
+
+# ============================================================================
+# Common Types
+# ============================================================================
+
+"""
+Actor who performed an action
+"""
+union Actor = UserActor | SystemActor | AnonymousActor
+
+type UserActor {
+  type: String!
+  id: ID!
+  email: Email!
+}
+
+type SystemActor {
+  type: String!
+  service: NonEmptyString!
+}
+
+type AnonymousActor {
+  type: String!
+}
+
+"""
+Pagination parameters
+"""
+input PaginationInput {
+  offset: Int = 0
+  limit: Int = 20
+}
+
+"""
+Paginated result
+"""
+interface PaginatedResult {
+  total: Int!
+  offset: Int!
+  limit: Int!
+  hasNext: Boolean!
+  hasPrevious: Boolean!
+}
+
+"""
+Sort order
+"""
+enum SortOrder {
+  ASC
+  DESC
+}
+
+# ============================================================================
+# Event Metadata
+# ============================================================================
+
+"""
+Event metadata
+"""
+type EventMetadata {
+  eventId: ID!
+  aggregateId: ID!
+  version: Int!
+  timestamp: DateTime!
+  correlationId: String!
+  causationId: String!
+  actor: JSON! # Would be Actor union in real implementation
+}
+
+"""
+Base interface for all domain events
+"""
+interface DomainEvent {
+  type: String!
+  metadata: EventMetadata!
+}
+
+# ============================================================================
+# Command Metadata
+# ============================================================================
+
+"""
+Command metadata
+"""
+input CommandMetadataInput {
+  correlationId: String!
+  causationId: String
+  expectedVersion: Int
+}
+
+"""
+Command result
+"""
+type CommandResult {
+  success: Boolean!
+  aggregateId: ID
+  version: Int
+  events: [DomainEvent!]
+  error: DomainError
+}
+
+# ============================================================================
+# Query Metadata
+# ============================================================================
+
+"""
+Query metadata
+"""
+input QueryMetadataInput {
+  correlationId: String!
+  pagination: PaginationInput
+  includeDeleted: Boolean
+}
+
+"""
+Query result metadata
+"""
+type QueryResultMetadata {
+  timestamp: DateTime!
+  executionTime: Float!
+  cached: Boolean!
+}
+
+"""
+Query result
+"""
+type QueryResult {
+  data: JSON!
+  metadata: QueryResultMetadata!
+}
+
+# ============================================================================
+# Domain Errors
+# ============================================================================
+
+"""
+Domain error types
+"""
+union DomainError =
+    ValidationError
+  | NotFoundError
+  | ConflictError
+  | UnauthorizedError
+  | BusinessRuleViolation
+
+type ValidationError {
+  _tag: String!
+  field: NonEmptyString!
+  message: NonEmptyString!
+  value: JSON
+}
+
+type NotFoundError {
+  _tag: String!
+  resource: NonEmptyString!
+  id: String!
+}
+
+type ConflictError {
+  _tag: String!
+  resource: NonEmptyString!
+  message: NonEmptyString!
+}
+
+type UnauthorizedError {
+  _tag: String!
+  action: NonEmptyString!
+  resource: NonEmptyString
+}
+
+type BusinessRuleViolation {
+  _tag: String!
+  rule: NonEmptyString!
+  message: NonEmptyString!
+  context: JSON
+}
+
+# ============================================================================
+# User Domain Events
+# ============================================================================
+
+"""
+User created event
+"""
+type UserCreatedEvent implements DomainEvent {
+  type: String!
+  metadata: EventMetadata!
+  data: UserCreatedData!
+}
+
+type UserCreatedData {
+  email: Email!
+  username: NonEmptyString!
+}
+
+"""
+Email verified event
+"""
+type EmailVerifiedEvent implements DomainEvent {
+  type: String!
+  metadata: EventMetadata!
+  data: EmailVerifiedData!
+}
+
+type EmailVerifiedData {
+  verifiedAt: DateTime!
+}
+
+"""
+User suspended event
+"""
+type UserSuspendedEvent implements DomainEvent {
+  type: String!
+  metadata: EventMetadata!
+  data: UserSuspendedData!
+}
+
+type UserSuspendedData {
+  reason: String!
+  suspendedAt: DateTime!
+}
+
+"""
+User deleted event
+"""
+type UserDeletedEvent implements DomainEvent {
+  type: String!
+  metadata: EventMetadata!
+  data: UserDeletedData!
+}
+
+type UserDeletedData {
+  deletedAt: DateTime!
+}
+
+# ============================================================================
+# User Domain Commands
+# ============================================================================
+
+"""
+Create user command
+"""
+input CreateUserInput {
+  aggregateId: ID!
+  email: Email!
+  username: NonEmptyString!
+  metadata: CommandMetadataInput!
+}
+
+"""
+Verify email command
+"""
+input VerifyEmailInput {
+  aggregateId: ID!
+  verificationToken: String!
+  metadata: CommandMetadataInput!
+}
+
+"""
+Suspend user command
+"""
+input SuspendUserInput {
+  aggregateId: ID!
+  reason: String!
+  metadata: CommandMetadataInput!
+}
+
+"""
+Delete user command
+"""
+input DeleteUserInput {
+  aggregateId: ID!
+  confirmation: String!
+  metadata: CommandMetadataInput!
+}
+
+# ============================================================================
+# User Domain Queries
+# ============================================================================
+
+"""
+Get user by ID query
+"""
+input GetUserByIdInput {
+  userId: ID!
+  metadata: QueryMetadataInput!
+}
+
+"""
+Find user by email query
+"""
+input FindUserByEmailInput {
+  email: Email!
+  metadata: QueryMetadataInput!
+}
+
+"""
+List users query
+"""
+input ListUsersInput {
+  status: UserStatus
+  emailVerified: Boolean
+  metadata: QueryMetadataInput!
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+# ============================================================================
+# User Entity (Federation)
+# ============================================================================
+
+"""
+User entity
+"""
+type User @key(fields: "id") {
+  id: ID!
+  email: Email!
+  username: NonEmptyString!
+  emailVerified: Boolean!
+  status: UserStatus!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+
+  # Computed fields
+  fullName: String!
+  isActive: Boolean!
+}
+
+"""
+User list result
+"""
+type UserListResult implements PaginatedResult {
+  items: [User!]!
+  total: Int!
+  offset: Int!
+  limit: Int!
+  hasNext: Boolean!
+  hasPrevious: Boolean!
+}
+
+# ============================================================================
+# Root Types
+# ============================================================================
+
+type Query {
+  # User queries
+  getUserById(input: GetUserByIdInput!): User
+  findUserByEmail(input: FindUserByEmailInput!): User
+  listUsers(input: ListUsersInput!): UserListResult!
+
+  # Event sourcing queries
+  getEvents(streamName: String!, fromVersion: Int): [DomainEvent!]!
+  getAggregateVersion(aggregateId: ID!): Int
+
+  # Federation
+  _entities(representations: [_Any!]!): [_Entity]!
+  _service: _Service!
+}
+
+type Mutation {
+  # User commands
+  createUser(input: CreateUserInput!): CommandResult!
+  verifyEmail(input: VerifyEmailInput!): CommandResult!
+  suspendUser(input: SuspendUserInput!): CommandResult!
+  deleteUser(input: DeleteUserInput!): CommandResult!
+}
+
+type Subscription {
+  # Event subscriptions
+  userEvents(userId: ID!): DomainEvent!
+  allEvents: DomainEvent!
+}
+
+# ============================================================================
+# Federation Support
+# ============================================================================
+
+scalar _Any
+scalar _FieldSet
+
+type _Service {
+  sdl: String
+}
+
+union _Entity = User

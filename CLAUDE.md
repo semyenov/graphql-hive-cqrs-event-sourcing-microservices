@@ -8,6 +8,10 @@ globs: "*.ts, *.tsx, *.html, *.css, *.js, *.jsx, package.json"
 alwaysApply: false
 ---
 
+## 🚨 FRAMEWORK REFACTORING IN PROGRESS
+
+The framework package is undergoing major refactoring to eliminate duplicates and align with Effect patterns. Current state and migration path documented below.
+
 ## Core Commands
 
 ```bash
@@ -42,66 +46,156 @@ The framework is a **Bun workspace package** (`@cqrs/framework`) providing a fun
 ### Package Structure
 - **Location**: `packages/framework/`
 - **Import**: `import { ... } from '@cqrs/framework'`
-- **Effect imports**: `import { ... } from '@cqrs/framework/effect'`
+- **NO separate Effect imports** - Everything is Effect-native
 
 ### Core Technologies
 - **Effect-TS v3**: Functional programming with type-safe error handling and dependency injection
+- **Effect Schema**: Schema-first development (replacing Zod)
 - **Branded Types**: Type-safe domain primitives preventing primitive obsession
 - **Pattern Matching**: Exhaustive event handling with ts-pattern
-- **Zod**: Runtime validation for commands and queries
 
-### Effect-TS Integration (`packages/framework/src/effect/`)
+### Current Refactoring Status
 
-The framework now uses Effect-TS for all core functionality:
+#### ✅ Completed
+- Schema-first message definitions in `src/schema/core/`
+- Pure functional event sourcing in `src/functions/`
+- Effect services foundation in `src/effects/`
+- GraphQL federation support in `src/graphql/`
 
-#### Command Effects (`core/command-effects.ts`)
-- `createCommandHandler`: Effect-based command handlers with validation and execution phases
-- `CommandContext`: Dependency injection for command handling
-- `commandPipeline`: Compose command handling with middleware
-- `withCommandRetry`, `withCommandCircuitBreaker`: Resilience patterns
+#### 🔄 In Progress - Duplicates to Remove
+1. **Message Definitions**
+   - **KEEP**: `src/schema/core/messages.ts` (Schema-first approach)
+   - **REMOVE**: `src/core/messages.ts` (Class-based approach)
+   
+2. **Branded Types**
+   - **KEEP**: `src/schema/core/primitives.ts` (Effect Schema branded types)
+   - **REMOVE**: `src/core/branded-types.ts` (Manual branded types)
 
-#### Event Effects (`core/event-effects.ts`)
-- `createEventHandler`: Process events with effects
-- `createEventStream`: Stream-based event processing
-- `createProjection`: Build projections from event streams
-- `EventSourcing`: Complete event sourcing with snapshots
+3. **Domain Layer**
+   - **REFACTOR**: `src/domain/aggregate.ts` to pure functions
+   - **REMOVE**: All class-based aggregates
 
-#### Repository Effects (`core/repository-effects.ts`)
-- `createRepository`: Effect-based aggregate repository
-- `withOptimisticLocking`: Version control for concurrent updates
-- `createCachedRepository`: Performance optimization with caching
-- `withTransaction`: Transactional aggregate operations
+#### 🎯 Target Architecture
 
-#### Resilience Patterns
-- **Retry** (`patterns/retry.ts`): Exponential/linear backoff strategies
-- **Circuit Breaker** (`patterns/circuit-breaker.ts`): Failure protection
-- **Bulkhead**: Resource isolation and throttling
-- **Timeout**: Operation time limits
+```
+packages/framework/src/
+├── schema/           # Schema-first definitions (Single Source of Truth)
+│   └── core/
+│       ├── primitives.ts   # Branded types with Effect Schema
+│       └── messages.ts     # Event, Command, Query schemas
+├── functions/        # Pure functions only
+│   ├── event-sourcing.ts  # Event applicators, command handlers
+│   ├── projections.ts     # Projection builders
+│   └── sagas.ts          # Saga orchestration
+├── effects/          # Effect services and layers
+│   ├── services.ts        # Core services (EventStore, CommandBus, etc.)
+│   ├── persistence.ts     # Repository patterns with Effect
+│   └── resilience.ts      # Retry, circuit breaker patterns
+├── graphql/          # GraphQL integration
+│   ├── federation.ts      # Federation support
+│   └── resolvers.ts       # Effect-based resolvers
+└── index.ts          # Public API exports
+```
 
-#### Services (`services/index.ts`)
-Pre-built service layers with dependency injection:
-- `EventStoreService`: Event persistence
-- `CommandBusService`: Command routing
-- `LoggerService`: Structured logging
-- `MetricsService`: Performance monitoring
-- `CacheService`: In-memory caching
-- `CoreServicesLive`: Complete service bundle
+### Framework API Design Principles
 
-### Legacy Framework Components (_legacy/)
+#### 1. Schema-First Development
+```typescript
+// Define schema once - derive everything
+const UserCreatedEvent = createEventSchema("UserCreated", Schema.Struct({
+  email: Email,
+  username: Username
+}))
 
-The original framework implementation remains available for migration purposes:
+// Automatically get:
+// - TypeScript types
+// - Validation
+// - Serialization
+// - GraphQL types
+```
 
-#### Core Abstractions (`_legacy/core/`)
-- **Aggregate**: Base class with event application and snapshots
-- **Command/Event/Query**: Type definitions and handlers
-- **Repository**: Aggregate persistence abstraction
-- **Branded Types**: Shared between legacy and Effect implementations
+#### 2. Pure Functions Only
+```typescript
+// ✅ CORRECT: Pure function
+const applyUserEvent = (state: UserState | null, event: UserEvent) => {
+  return match(event)
+    .with({ type: "UserCreated" }, e => ({ ...e.data, version: 1 }))
+    .with({ type: "UserDeleted" }, () => null)
+    .exhaustive()
+}
 
-#### Infrastructure (`_legacy/infrastructure/`)
-- **Event Store**: In-memory event persistence
-- **Command/Event/Query Bus**: Message routing
-- **Projections**: Read model builders
-- **Snapshot Store**: Performance optimization
+// ❌ WRONG: Class with methods
+class UserAggregate {
+  apply(event: UserEvent) { /* ... */ }
+}
+```
+
+#### 3. Effect-Native Operations
+```typescript
+// All operations return Effects
+const handleCommand = (cmd: Command) => Effect.gen(function* () {
+  const store = yield* EventStore
+  const events = yield* store.getEvents(cmd.aggregateId)
+  // ...
+})
+```
+
+### Key Refactoring Guidelines
+
+#### Removing Duplicates
+
+1. **Messages**: Use ONLY `schema/core/messages.ts`
+   - Remove all class-based message definitions
+   - Use `createEventSchema`, `createCommandSchema`, `createQuerySchema`
+
+2. **Branded Types**: Use ONLY `schema/core/primitives.ts`
+   - All branded types via Effect Schema
+   - Remove manual brand implementations
+
+3. **Event Sourcing**: Use ONLY `functions/event-sourcing.ts`
+   - Pure functions for event application
+   - No aggregate classes
+
+#### Effect Pattern Compliance
+
+Follow these patterns from EFFECT_PATTERNS.md:
+
+1. **Generator Syntax**
+```typescript
+// ✅ CORRECT
+Effect.gen(function* () {
+  const value = yield* Effect.succeed(42)
+  return value
+})
+
+// ❌ WRONG
+Effect.gen((function* () { }))  // Extra parenthesis
+Effect.gen(function* (_) { yield* _(effect) })  // Using _ incorrectly
+```
+
+2. **Error Handling**
+```typescript
+// ✅ CORRECT: Use Effect.fail
+return yield* Effect.fail(new ValidationError({ field: "email" }))
+
+// ❌ WRONG: Throwing in Effect.sync
+Effect.sync(() => { throw new Error("Failed") })
+```
+
+3. **Service Pattern**
+```typescript
+// Define service
+class EventStore extends Context.Tag("EventStore")<EventStore, EventStore>() {}
+
+// Create implementation
+const EventStoreLive = Layer.succeed(EventStore, { /* ... */ })
+
+// Use in effect
+const program = Effect.gen(function* () {
+  const store = yield* EventStore
+  // ...
+})
+```
 
 ## Domain Implementation
 
@@ -149,58 +243,162 @@ Each domain follows clean architecture with distinct layers:
 - **DTOs**: Data transfer objects
 - **Resolvers**: GraphQL resolvers
 
-## Effect-TS Usage Patterns
+## Correct Effect-TS Usage Patterns
 
-### Command Handler Example
+### Command Handler (Schema-First + Pure Functions)
 ```typescript
-const handler = createCommandHandler({
-  canHandle: (cmd) => cmd.type === 'CreateUser',
-  validate: (cmd) => validateUserData(cmd.payload),
-  execute: (cmd) => Effect.gen(function* () {
-    const repo = yield* RepositoryContext
-    const aggregate = yield* repo.createAggregate(cmd.aggregateId)
-    aggregate.create(cmd.payload)
-    yield* repo.save(aggregate)
-    return { userId: cmd.aggregateId }
+// 1. Define schema
+const CreateUserCommand = createCommandSchema("CreateUser", Schema.Struct({
+  email: Email,
+  username: Username,
+  password: Schema.String
+}))
+
+// 2. Pure command handler
+const handleCreateUser = (state: UserState | null, cmd: CreateUserCommand) =>
+  Effect.gen(function* () {
+    // Validation via schema is automatic
+    if (state !== null) {
+      return { type: "failure", error: new UserAlreadyExists() }
+    }
+    
+    const event = {
+      type: "UserCreated",
+      data: { email: cmd.payload.email, username: cmd.payload.username },
+      metadata: createEventMetadata(cmd)
+    }
+    
+    return { type: "success", events: [event] }
   })
+
+// 3. Execute with services
+const program = Effect.gen(function* () {
+  const store = yield* EventStore
+  const bus = yield* EventBus
+  
+  const aggregate = yield* store.load(aggregateId)
+  const decision = yield* handleCreateUser(aggregate.state, command)
+  
+  if (decision.type === "success") {
+    yield* store.append(aggregateId, decision.events)
+    yield* bus.publishAll(decision.events)
+  }
+  
+  return decision
 })
 ```
 
-### Service Composition
+### Service Layer Pattern
 ```typescript
-const AppLive = Layer.mergeAll(
-  EventStoreServiceLive,
-  CommandBusServiceLive,
-  CoreServicesLive
-)
+// Define service interface
+interface EventStore {
+  readonly load: (id: AggregateId) => Effect.Effect<EventSourcedAggregate, EventStoreError>
+  readonly append: (id: AggregateId, events: ReadonlyArray<DomainEvent>) => Effect.Effect<void, EventStoreError>
+}
 
-const program = pipe(
-  myEffect,
-  Effect.provide(AppLive),
-  Effect.runPromise
-)
-```
+// Create service tag
+class EventStore extends Context.Tag("EventStore")<EventStore, EventStore>() {}
 
-### Resilience Pattern
-```typescript
-const resilientEffect = pipe(
-  effect,
-  Effect.retry(exponentialBackoff({ maxAttempts: 5 })),
-  withCircuitBreaker({
-    failureThreshold: 3,
-    timeout: Duration.seconds(30)
+// Implementation
+const EventStoreLive = Layer.effect(
+  EventStore,
+  Effect.gen(function* () {
+    const db = yield* Database
+    
+    return {
+      load: (id) => Effect.gen(function* () {
+        const events = yield* db.query("SELECT * FROM events WHERE aggregate_id = ?", [id])
+        return rebuildAggregate(events)
+      }),
+      
+      append: (id, events) => Effect.gen(function* () {
+        yield* db.transaction(tx => 
+          Effect.forEach(events, event =>
+            tx.insert("events", event)
+          )
+        )
+      })
+    }
   })
 )
 ```
 
+### Resilience with Proper Schedule
+```typescript
+import * as Schedule from "effect/Schedule"
+
+const retryPolicy = Schedule.exponential(Duration.millis(100)).pipe(
+  Schedule.jittered,
+  Schedule.compose(Schedule.recurs(4))
+)
+
+const resilientOperation = pipe(
+  loadAggregate(aggregateId),
+  Effect.retry(retryPolicy),
+  Effect.timeout(Duration.seconds(30)),
+  Effect.catchTag("TimeoutException", () => 
+    Effect.fail(new OperationTimedOut())
+  )
+)
+
 ## Migration Path
 
-When migrating from legacy to Effect:
+### From Class-Based to Schema-First
 
-1. **Start with new domains**: Implement new features using Effect
-2. **Gradual migration**: Use `adaptLegacyServices` for interop
-3. **Preserve interfaces**: Keep `ICommand`, `IEvent` for compatibility
-4. **Test thoroughly**: Use framework test suite to verify behavior
+```typescript
+// ❌ OLD: Class-based
+class UserCreatedEvent extends DomainEvent {
+  constructor(public email: string, public username: string) {
+    super()
+  }
+}
+
+// ✅ NEW: Schema-first
+const UserCreatedEvent = createEventSchema("UserCreated", Schema.Struct({
+  email: Email,
+  username: Username
+}))
+```
+
+### From Aggregate Classes to Pure Functions
+
+```typescript
+// ❌ OLD: Class with methods
+class UserAggregate extends Aggregate {
+  handle(command: Command) { /* ... */ }
+  apply(event: Event) { /* ... */ }
+}
+
+// ✅ NEW: Pure functions
+const handleUserCommand = (state: UserState | null, cmd: Command) =>
+  Effect.gen(function* () { /* ... */ })
+
+const applyUserEvent = (state: UserState | null, event: Event) =>
+  match(event).with(/* ... */).exhaustive()
+```
+
+### From Promises to Effects
+
+```typescript
+// ❌ OLD: Promise-based
+async function saveAggregate(aggregate: Aggregate): Promise<void> {
+  try {
+    await eventStore.save(aggregate.getEvents())
+  } catch (error) {
+    logger.error(error)
+    throw error
+  }
+}
+
+// ✅ NEW: Effect-based
+const saveAggregate = (aggregate: EventSourcedAggregate) =>
+  Effect.gen(function* () {
+    const store = yield* EventStore
+    yield* store.append(aggregate.id, aggregate.uncommittedEvents)
+  }).pipe(
+    Effect.tapError(error => Effect.log(`Save failed: ${error}`))
+  )
+```
 
 ## Bun-Specific Patterns
 
@@ -274,24 +472,68 @@ mkdir -p src/domains/<domain>/{domain,application,infrastructure,api}
 # 5. Register in server.ts
 ```
 
-### Implementing Effect Command Handler
+### Creating a New Domain (Schema-First Approach)
 ```typescript
-import { createCommandHandler, Effect } from '@cqrs/framework/effect'
+// 1. Define schemas in src/domains/<domain>/schema.ts
+import * as Schema from "@effect/schema/Schema"
+import { createEventSchema, createCommandSchema } from "@cqrs/framework"
 
-const handler = createCommandHandler({
-  canHandle: (cmd) => cmd.type === 'YourCommand',
-  execute: (cmd) => Effect.succeed({ result: 'success' })
-})
-```
+export const ProductCreatedEvent = createEventSchema("ProductCreated", Schema.Struct({
+  name: Schema.String,
+  price: Schema.Number
+}))
 
-### Creating Projection with Effect
-```typescript
-import { createProjection, Effect } from '@cqrs/framework/effect'
+export const CreateProductCommand = createCommandSchema("CreateProduct", Schema.Struct({
+  name: Schema.String,
+  price: Schema.Number
+}))
 
-const projection = createProjection({
-  name: 'UserList',
-  handlers: {
-    UserCreated: (event) => Effect.log(`User created: ${event.data.name}`)
-  }
-})
+// 2. Pure event applicator in src/domains/<domain>/domain.ts
+export const applyProductEvent = (state: ProductState | null, event: ProductEvent) =>
+  match(event)
+    .with({ type: "ProductCreated" }, e => ({
+      id: e.metadata.aggregateId,
+      ...e.data,
+      version: e.metadata.version
+    }))
+    .with({ type: "ProductDeleted" }, () => null)
+    .exhaustive()
+
+// 3. Command handler in src/domains/<domain>/handlers.ts
+export const handleProductCommand = (state: ProductState | null, cmd: ProductCommand) =>
+  Effect.gen(function* () {
+    return match(cmd)
+      .with({ type: "CreateProduct" }, c => {
+        if (state !== null) {
+          return { type: "failure", error: new ProductAlreadyExists() }
+        }
+        return {
+          type: "success",
+          events: [ProductCreatedEvent.create(c.payload, createMetadata(c))]
+        }
+      })
+      .exhaustive()
+  })
+
+// 4. Wire up with services in src/domains/<domain>/service.ts
+export const ProductServiceLive = Layer.effect(
+  ProductService,
+  Effect.gen(function* () {
+    const store = yield* EventStore
+    
+    return {
+      createProduct: (cmd) => Effect.gen(function* () {
+        const aggregate = yield* store.load(cmd.aggregateId)
+        const decision = yield* handleProductCommand(aggregate.state, cmd)
+        
+        if (decision.type === "success") {
+          const newAggregate = applyEvents(applyProductEvent)(aggregate, decision.events)
+          yield* store.save(newAggregate)
+        }
+        
+        return decision
+      })
+    }
+  })
+)
 ```
