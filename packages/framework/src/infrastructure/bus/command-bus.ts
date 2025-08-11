@@ -11,6 +11,9 @@ import type { CommandPattern, ICommand,
   ICommandMiddleware 
 } from '../../core/command';
 import { CommandHandlerNotFoundError } from '../../core/errors';
+import { loggers, formatDuration, sanitizeForLog } from '../../core/logger';
+
+const logger = loggers.commandBus;
 
 /**
  * Command bus implementation
@@ -38,7 +41,17 @@ export class CommandBus implements ICommandBus {
     commandType: TCommand['type'],
     handler: ICommandHandler<TCommand>
   ): void {
+    logger.debug(`Registering command handler`, {
+      commandType,
+      handlerName: handler.constructor.name,
+    });
+    
     this.handlers.set(commandType, handler);
+    
+    logger.info(`Command handler registered`, {
+      commandType,
+      totalHandlers: this.handlers.size,
+    });
   }
 
   /**
@@ -47,28 +60,72 @@ export class CommandBus implements ICommandBus {
   async send<TCommand extends ICommand, TResult = ICommandResult>(
     command: TCommand
   ): Promise<TResult> {
+    const startTime = Date.now();
     const handler = this.handlers.get(command.type);
     
     if (!handler) {
       const registered = Array.from(this.handlers.keys());
+      logger.error(`No handler found for command`, {
+        commandType: command.type,
+        aggregateId: command.aggregateId,
+        registeredHandlers: registered,
+      });
       throw new CommandHandlerNotFoundError(command.type, registered);
     }
 
     if (!handler.canHandle(command)) {
+      logger.error(`Handler cannot handle command`, {
+        commandType: command.type,
+        handlerName: handler.constructor.name,
+      });
       throw new Error(`Handler cannot handle command type: ${command.type}`);
     }
 
-    // Execute through middleware chain
-    return this.executeWithMiddleware(command, async (cmd) => {
-      return handler.handle(cmd) as Promise<TResult>;
+    logger.debug(`Executing command`, {
+      commandType: command.type,
+      aggregateId: command.aggregateId,
+      payload: sanitizeForLog(command.payload as Record<string, any>),
+      middlewareCount: this.middleware.length,
     });
+
+    try {
+      // Execute through middleware chain
+      const result = await this.executeWithMiddleware(command, async (cmd) => {
+        return handler.handle(cmd) as Promise<TResult>;
+      });
+
+      logger.info(`Command executed successfully`, {
+        commandType: command.type,
+        aggregateId: command.aggregateId,
+        duration: formatDuration(startTime),
+        success: (result as any).success,
+      });
+
+      return result;
+    } catch (error) {
+      logger.error(`Command execution failed`, {
+        commandType: command.type,
+        aggregateId: command.aggregateId,
+        error: error instanceof Error ? error.message : String(error),
+        duration: formatDuration(startTime),
+      });
+      throw error;
+    }
   }
 
   /**
    * Add middleware to the command pipeline
    */
   use(middleware: ICommandMiddleware): void {
+    logger.debug(`Adding command middleware`, {
+      middlewareName: middleware.constructor.name,
+    });
+    
     this.middleware.push(middleware);
+    
+    logger.info(`Middleware added`, {
+      totalMiddleware: this.middleware.length,
+    });
   }
 
   /**
@@ -117,7 +174,13 @@ export class CommandBus implements ICommandBus {
     // Build middleware chain
     const chain = this.middleware.reduceRight(
       (next, middleware) => {
-        return (cmd: TCommand) => middleware.execute(cmd, next);
+        return async (cmd: TCommand) => {
+          logger.debug(`Executing middleware`, {
+            middlewareName: middleware.constructor.name,
+            commandType: cmd.type,
+          });
+          return middleware.execute(cmd, next);
+        };
       },
       handler
     );

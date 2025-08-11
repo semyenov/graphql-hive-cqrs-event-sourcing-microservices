@@ -6,6 +6,9 @@
 
 import type { IEvent, IEventBus, EventHandler, EventPattern } from '../../core/event';
 import { EventHandlerError } from '../../core/errors';
+import { loggers, formatDuration } from '../../core/logger';
+
+const logger = loggers.eventBus;
 
 /**
  * Event bus implementation
@@ -18,23 +21,51 @@ export class EventBus<TEvent extends IEvent = IEvent> implements IEventBus<TEven
    * Publish a single event
    */
   async publish(event: TEvent): Promise<void> {
+    const startTime = Date.now();
+    
+    logger.debug(`Publishing event`, {
+      type: event.type,
+      aggregateId: event.aggregateId,
+      version: event.version,
+    });
+    
     // Notify type-specific subscribers
     const typeSubscribers = this.subscribers.get(event.type);
     if (typeSubscribers) {
+      logger.debug(`Notifying ${typeSubscribers.size} type-specific subscribers`);
       await this.notifySubscribers(typeSubscribers, event);
     }
 
     // Notify all-event subscribers
-    await this.notifySubscribers(this.allSubscribers, event);
+    if (this.allSubscribers.size > 0) {
+      logger.debug(`Notifying ${this.allSubscribers.size} general subscribers`);
+      await this.notifySubscribers(this.allSubscribers, event);
+    }
+    
+    logger.info(`Event published`, {
+      type: event.type,
+      aggregateId: event.aggregateId,
+      duration: formatDuration(startTime),
+      subscriberCount: (typeSubscribers?.size || 0) + this.allSubscribers.size,
+    });
   }
 
   /**
    * Publish multiple events
    */
   async publishBatch(events: readonly TEvent[]): Promise<void> {
+    const startTime = Date.now();
+    
+    logger.debug(`Publishing batch of ${events.length} events`);
+    
     for (const event of events) {
       await this.publish(event);
     }
+    
+    logger.info(`Batch publish completed`, {
+      eventCount: events.length,
+      duration: formatDuration(startTime),
+    });
   }
 
   /**
@@ -50,6 +81,12 @@ export class EventBus<TEvent extends IEvent = IEvent> implements IEventBus<TEven
     
     this.subscribers.get(eventType)!.add(handler as EventHandler<TEvent>);
     
+    logger.debug(`Subscriber added`, {
+      eventType,
+      handlerName: handler.name || 'anonymous',
+      totalSubscribers: this.subscribers.get(eventType)!.size,
+    });
+    
     // Return unsubscribe function
     return () => {
       const typeSubscribers = this.subscribers.get(eventType);
@@ -58,6 +95,11 @@ export class EventBus<TEvent extends IEvent = IEvent> implements IEventBus<TEven
         if (typeSubscribers.size === 0) {
           this.subscribers.delete(eventType);
         }
+        
+        logger.debug(`Subscriber removed`, {
+          eventType,
+          remainingSubscribers: typeSubscribers.size,
+        });
       }
     };
   }
@@ -85,9 +127,18 @@ export class EventBus<TEvent extends IEvent = IEvent> implements IEventBus<TEven
   subscribeAll(handler: EventHandler<TEvent>): () => void {
     this.allSubscribers.add(handler);
     
+    logger.debug(`General subscriber added`, {
+      handlerName: handler.name || 'anonymous',
+      totalGeneralSubscribers: this.allSubscribers.size,
+    });
+    
     // Return unsubscribe function
     return () => {
       this.allSubscribers.delete(handler);
+      
+      logger.debug(`General subscriber removed`, {
+        remainingGeneralSubscribers: this.allSubscribers.size,
+      });
     };
   }
 

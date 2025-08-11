@@ -7,6 +7,9 @@
 import { createYoga } from 'graphql-yoga';
 import { BrandedTypes } from '@cqrs/framework/core/branded/factories';
 import { makeExecutableSchema } from '@graphql-tools/schema';
+import { createConsola } from 'consola';
+
+const logger = createConsola().withTag('server');
 
 // User domain - new structure
 import { 
@@ -259,11 +262,20 @@ const serverConfig = {
 
 // Only start server if this is the main module
 if (import.meta.main) {
-  console.log('🚀 Starting CQRS/Event Sourcing Server...');
+  logger.info('Starting CQRS/Event Sourcing Server...');
   const server = Bun.serve(serverConfig);
-  console.log(`🚀 Server running at http://localhost:${server.port}`);
-  console.log(`📊 GraphQL endpoint: http://localhost:${server.port}/graphql`);
-  console.log(`❤️  Health check: http://localhost:${server.port}/health`);
+  
+  logger.success('Server started successfully!');
+  logger.info(`Server running at http://localhost:${server.port}`);
+  logger.info(`GraphQL endpoint: http://localhost:${server.port}/graphql`);
+  logger.info(`Health check: http://localhost:${server.port}/health`);
+  
+  logger.info('Server configuration', {
+    port: server.port,
+    environment: process.env.NODE_ENV || 'development',
+    graphiqlEnabled: process.env.NODE_ENV !== 'production',
+    domains: ['users'],
+  });
 }
 
 export default serverConfig;

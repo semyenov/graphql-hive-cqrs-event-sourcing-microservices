@@ -9,6 +9,9 @@ import type { IEvent, IEventStore, IEventBus } from '../../core/event';
 import type { IAggregateBehavior } from '../../core/aggregate';
 import type { IAggregateRepository, ISnapshotStore } from '../../core/repository';
 import { AggregateNotFoundError } from '../../core/errors';
+import { loggers, formatDuration } from '../../core/logger';
+
+const logger = loggers.repository;
 
 /**
  * Generic aggregate repository with event sourcing
@@ -42,32 +45,61 @@ export abstract class AggregateRepository<
    * Get aggregate by ID
    */
   async get(id: TAggregateId): Promise<TAggregate | null> {
-    // Check cache first
+    const startTime = Date.now();
     const cacheKey = id as string;
+    
+    // Check cache first
     if (this.cacheEnabled && this.cache.has(cacheKey)) {
+      logger.debug(`Cache hit for aggregate`, { aggregateId: id });
       return this.cache.get(cacheKey)!;
     }
+
+    logger.debug(`Loading aggregate`, { aggregateId: id });
 
     // Try to load from snapshot
     const snapshot = await this.snapshotStore?.get(id);
     const aggregate = this.createAggregate(id);
 
     if (snapshot) {
+      logger.debug(`Loading from snapshot`, {
+        aggregateId: id,
+        snapshotVersion: snapshot.version,
+      });
+      
       aggregate.loadFromSnapshot(snapshot);
       const events = await this.eventStore.getEvents(id, snapshot.version);
       aggregate.loadFromHistory(events);
+      
+      logger.info(`Aggregate loaded from snapshot`, {
+        aggregateId: id,
+        eventsAfterSnapshot: events.length,
+        currentVersion: aggregate.version,
+        duration: formatDuration(startTime),
+      });
     } else {
       // Load all events if no snapshot
       const events = await this.eventStore.getEvents(id);
       if (events.length === 0) {
+        logger.debug(`Aggregate not found`, { aggregateId: id });
         return null;
       }
       aggregate.loadFromHistory(events);
+      
+      logger.info(`Aggregate loaded from events`, {
+        aggregateId: id,
+        eventCount: events.length,
+        currentVersion: aggregate.version,
+        duration: formatDuration(startTime),
+      });
     }
 
     // Cache the aggregate
     if (this.cacheEnabled) {
       this.cache.set(cacheKey, aggregate);
+      logger.debug(`Aggregate cached`, {
+        aggregateId: id,
+        cacheSize: this.cache.size,
+      });
     }
 
     return aggregate;
@@ -89,8 +121,23 @@ export abstract class AggregateRepository<
    * Save aggregate (persist uncommitted events)
    */
   async save(aggregate: TAggregate): Promise<void> {
+    const startTime = Date.now();
     const events = aggregate.uncommittedEvents;
-    if (events.length > 0) {
+    
+    if (events.length === 0) {
+      logger.debug(`No uncommitted events to save`, {
+        aggregateId: aggregate.id,
+      });
+      return;
+    }
+    
+    logger.debug(`Saving aggregate`, {
+      aggregateId: aggregate.id,
+      uncommittedEvents: events.length,
+      currentVersion: aggregate.version,
+    });
+
+    try {
       // Persist events to event store
       await this.eventStore.appendBatch(events);
 
@@ -100,7 +147,13 @@ export abstract class AggregateRepository<
       }
 
       if (this.shouldCreateSnapshot(aggregate)) {
-        await this.snapshotStore?.save(aggregate.createSnapshot());
+        const snapshot = aggregate.createSnapshot();
+        await this.snapshotStore?.save(snapshot);
+        
+        logger.info(`Snapshot created`, {
+          aggregateId: aggregate.id,
+          snapshotVersion: snapshot.version,
+        });
       }
 
       aggregate.markEventsAsCommitted();
@@ -110,6 +163,19 @@ export abstract class AggregateRepository<
         const cacheKey = aggregate.id as string;
         this.cache.set(cacheKey, aggregate);
       }
+      
+      logger.info(`Aggregate saved successfully`, {
+        aggregateId: aggregate.id,
+        savedEvents: events.length,
+        newVersion: aggregate.version,
+        duration: formatDuration(startTime),
+      });
+    } catch (error) {
+      logger.error(`Failed to save aggregate`, {
+        aggregateId: aggregate.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
     }
   }
 

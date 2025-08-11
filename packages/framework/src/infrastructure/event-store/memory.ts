@@ -8,6 +8,9 @@
 import type { IEvent, IEventStore, EventHandler } from '../../core/event';
 import type { AggregateId } from '../../core/branded/types';
 import { InvalidStateError, VersionMismatchError } from '../../core/errors';
+import { loggers, formatDuration } from '../../core/logger';
+
+const logger = loggers.eventStore;
 
 /**
  * In-memory event store implementation
@@ -21,7 +24,14 @@ export class InMemoryEventStore<TEvent extends IEvent = IEvent>
   private subscribers = new Set<EventHandler<TEvent>>();
 
   async append(event: TEvent): Promise<void> {
+    const startTime = Date.now();
     this.validateEvent(event);
+
+    logger.debug(`Appending event`, {
+      type: event.type,
+      aggregateId: event.aggregateId,
+      version: event.version,
+    });
 
     // Store event
     this.events.push(event);
@@ -41,37 +51,78 @@ export class InMemoryEventStore<TEvent extends IEvent = IEvent>
 
     // Notify subscribers
     await this.notifySubscribers(event);
+    
+    logger.info(`Event appended successfully`, {
+      type: event.type,
+      aggregateId: event.aggregateId,
+      version: event.version,
+      duration: formatDuration(startTime),
+      totalEvents: this.events.length,
+    });
   }
 
   async appendBatch(events: readonly TEvent[]): Promise<void> {
+    const startTime = Date.now();
+    logger.debug(`Appending batch of ${events.length} events`);
+    
     for (const event of events) {
       await this.append(event);
     }
+    
+    logger.info(`Batch append completed`, {
+      count: events.length,
+      duration: formatDuration(startTime),
+    });
   }
 
   async getEvents<TAggregateId extends AggregateId>(
     aggregateId: TAggregateId,
     fromVersion?: number
   ): Promise<Array<Extract<TEvent, { aggregateId: TAggregateId }>>> {
+    const startTime = Date.now();
     const aggregateKey = aggregateId as string;
     const events = this.eventsByAggregate.get(aggregateKey) || [];
 
+    let result: TEvent[];
     if (fromVersion !== undefined) {
-      return events.filter(e => e.version > fromVersion) as Array<
-        Extract<TEvent, { aggregateId: TAggregateId }>
-      >;
+      result = events.filter(e => e.version > fromVersion);
+    } else {
+      result = events;
     }
+    
+    logger.debug(`Retrieved events for aggregate`, {
+      aggregateId,
+      fromVersion,
+      eventCount: result.length,
+      duration: formatDuration(startTime),
+    });
 
-    return events as Array<Extract<TEvent, { aggregateId: TAggregateId }>>;
+    return result as Array<Extract<TEvent, { aggregateId: TAggregateId }>>;
   }
 
   async getAllEvents(fromPosition?: number): Promise<TEvent[]> {
+    const startTime = Date.now();
+    
     if (fromPosition !== undefined) {
       if (fromPosition < 0) {
         throw new InvalidStateError(`fromPosition must be >= 0, got ${fromPosition}`);
       }
-      return this.events.slice(fromPosition);
+      const result = this.events.slice(fromPosition);
+      
+      logger.debug(`Retrieved all events from position`, {
+        fromPosition,
+        eventCount: result.length,
+        duration: formatDuration(startTime),
+      });
+      
+      return result;
     }
+    
+    logger.debug(`Retrieved all events`, {
+      eventCount: this.events.length,
+      duration: formatDuration(startTime),
+    });
+    
     return [...this.events];
   }
 
