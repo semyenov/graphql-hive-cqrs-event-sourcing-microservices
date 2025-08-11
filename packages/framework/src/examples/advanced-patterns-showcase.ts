@@ -468,61 +468,65 @@ const createEventStreamProcessor = () =>
  */
 const createOrderChoreography = () =>
   Effect.gen(function* () {
-    const commandBus = yield* CommandBus
+    // Simulate choreography without actual command bus
+    // In production, this would use the command bus with registered handlers
     
     // Event handlers for choreography
     const handleOrderCreated = (event: Schema.Schema.Type<typeof OrderCreated>) =>
       Effect.gen(function* () {
         yield* Effect.log(`🎭 Choreography: Order created, triggering inventory reservation`)
         
-        // Automatically trigger inventory reservation
-        yield* commandBus.send({
-          type: "ReserveInventory" as any,
-          aggregateId: event.metadata.aggregateId,
-          payload: { items: event.data.items },
-          metadata: {
-            commandId: createEventId(),
-            correlationId: event.metadata.correlationId,
-            timestamp: now(),
-            actor: { type: "system", service: "choreography" }
-          }
-        } as any)
+        // Simulate command dispatch (in production, would use commandBus.send)
+        yield* Effect.log(`📤 Would dispatch: ReserveInventory command for ${event.data.items.length} items`)
+        yield* Effect.sleep(Duration.millis(50))
+        
+        // Simulate the next event in the chain
+        return {
+          type: "InventoryReserved" as const,
+          data: {
+            reservationId: `res_${Date.now()}`,
+            items: event.data.items
+          },
+          metadata: event.metadata
+        }
       })
     
     const handleInventoryReserved = (event: Schema.Schema.Type<typeof InventoryReserved>) =>
       Effect.gen(function* () {
         yield* Effect.log(`🎭 Choreography: Inventory reserved, triggering payment`)
         
-        // Automatically trigger payment processing
-        yield* commandBus.send({
-          type: "ProcessPayment" as any,
-          aggregateId: event.metadata.aggregateId,
-          payload: { paymentMethod: "credit_card" },
-          metadata: {
-            commandId: createEventId(),
-            correlationId: event.metadata.correlationId,
-            timestamp: now(),
-            actor: { type: "system", service: "choreography" }
-          }
-        } as any)
+        // Simulate command dispatch
+        yield* Effect.log(`📤 Would dispatch: ProcessPayment command`)
+        yield* Effect.sleep(Duration.millis(50))
+        
+        // Simulate the next event
+        return {
+          type: "PaymentProcessed" as const,
+          data: {
+            paymentId: `pay_${Date.now()}`,
+            amount: 100.00
+          },
+          metadata: event.metadata
+        }
       })
     
     const handlePaymentProcessed = (event: Schema.Schema.Type<typeof PaymentProcessed>) =>
       Effect.gen(function* () {
         yield* Effect.log(`🎭 Choreography: Payment processed, triggering shipping`)
         
-        // Automatically trigger shipping arrangement
-        yield* commandBus.send({
-          type: "ShipOrder" as any,
-          aggregateId: event.metadata.aggregateId,
-          payload: { shippingAddress: "123 Main St" },
-          metadata: {
-            commandId: createEventId(),
-            correlationId: event.metadata.correlationId,
-            timestamp: now(),
-            actor: { type: "system", service: "choreography" }
-          }
-        } as any)
+        // Simulate command dispatch
+        yield* Effect.log(`📤 Would dispatch: ShipOrder command`)
+        yield* Effect.sleep(Duration.millis(50))
+        
+        // Simulate the final event
+        return {
+          type: "OrderShipped" as const,
+          data: {
+            shippingId: `ship_${Date.now()}`,
+            trackingNumber: `TRK${Math.random().toString(36).substr(2, 9).toUpperCase()}`
+          },
+          metadata: event.metadata
+        }
       })
     
     return {
@@ -668,7 +672,7 @@ const runAdvancedPatternsDemo = () =>
           timestamp: now(),
           correlationId: createCorrelationId(),
           causationId: createCausationId(),
-          actor: { type: "system", service: "demo" }
+          actor: { type: "system", service: nonEmptyString("demo") }
         }
       },
       {
@@ -680,11 +684,11 @@ const runAdvancedPatternsDemo = () =>
         metadata: {
           eventId: createEventId(),
           aggregateId: createAggregateId(),
-          version: 1,
+          version: 1 as Version,
           timestamp: now(),
           correlationId: createCorrelationId(),
           causationId: createCausationId(),
-          actor: { type: "system", service: "demo" }
+          actor: { type: "system", service: nonEmptyString("demo") }
         }
       }
     ]
@@ -717,15 +721,32 @@ const runAdvancedPatternsDemo = () =>
       metadata: {
         eventId: createEventId(),
         aggregateId: createAggregateId(),
-        version: 0,
+        version: 0 as Version,
         timestamp: now(),
-        correlationId: createEventId(),
+        correlationId: createCorrelationId(),
         causationId: createCausationId(),
-        actor: { type: "system", service: "demo" }
+        actor: { type: "system", service: nonEmptyString("demo") }
       }
     }
     
-    yield* choreography.handleEvent(choreographyEvent)
+    // Execute the full choreography chain
+    const inventoryEvent = yield* choreography.handleEvent(choreographyEvent)
+    if (inventoryEvent) {
+      yield* Effect.log(`✅ Event produced: ${inventoryEvent.type}`)
+      
+      // Continue the chain
+      const paymentEvent = yield* choreography.handleEvent(inventoryEvent)
+      if (paymentEvent) {
+        yield* Effect.log(`✅ Event produced: ${paymentEvent.type}`)
+        
+        // Final step
+        const shippingEvent = yield* choreography.handleEvent(paymentEvent)
+        if (shippingEvent) {
+          yield* Effect.log(`✅ Event produced: ${shippingEvent.type}`)
+          yield* Effect.log(`🎉 Choreography completed: Order ${choreographyEvent.metadata.aggregateId} shipped!`)
+        }
+      }
+    }
     
     // 5. Cleanup
     yield* streamProcessor.shutdown()

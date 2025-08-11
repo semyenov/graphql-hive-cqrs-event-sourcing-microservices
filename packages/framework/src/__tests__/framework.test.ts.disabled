@@ -26,14 +26,13 @@ import {
   DomainEvent,
   EventMetadata,
   
-  // Aggregate
-  aggregate,
+  // Aggregate functions
   validateRule,
+  createMetadata,
+  updateMetadata,
   
-  // Projection
-  projection,
-  InMemoryCheckpointStore,
-  CheckpointStore,
+  // Projection functions
+  createProjection,
 } from "../index"
 
 // ============================================================================

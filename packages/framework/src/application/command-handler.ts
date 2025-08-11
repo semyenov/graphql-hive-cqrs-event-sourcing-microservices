@@ -149,7 +149,7 @@ export class CommandHandler<C extends Command, A extends Aggregate> {
       const aggregate = yield* pipe(
         repository.load(aggregateId),
         Effect.catchTag(
-          "AggregateNotFoundError",
+          "AggregateNotFound",
           () => Effect.succeed(config.aggregateFactory(aggregateId)),
         ),
       );
