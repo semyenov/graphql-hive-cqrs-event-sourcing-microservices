@@ -3,7 +3,7 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ---
-description: GraphQL Hive CQRS/Event Sourcing Microservices using Bun
+description: GraphQL Hive CQRS/Event Sourcing Microservices using Bun with Effect-TS
 globs: "*.ts, *.tsx, *.html, *.css, *.js, *.jsx, package.json"
 alwaysApply: false
 ---
@@ -29,7 +29,7 @@ bun run typecheck         # TypeScript type checking
 
 # Production Optimizations
 bun run gql:persisted     # Generate persisted GraphQL documents
-bun run generate:manifest # Generate persisted documents manifest
+bun run generate:manifest # Generate persisted documents manifest (deprecated)
 
 # Code Maintenance
 bun run clean:unused      # Remove unused exports (using knip)
@@ -37,214 +37,221 @@ bun run clean:unused      # Remove unused exports (using knip)
 
 ## Framework Architecture (`packages/framework/`)
 
-The framework is now a **Bun workspace package** (`@cqrs/framework`) for better modularity and reusability.
+The framework is a **Bun workspace package** (`@cqrs/framework`) providing a functional, Effect-TS based CQRS/Event Sourcing foundation.
 
 ### Package Structure
 - **Location**: `packages/framework/`
 - **Import**: `import { ... } from '@cqrs/framework'`
-- **Submodules**: 
-  - `@cqrs/framework/core` - Core abstractions
-  - `@cqrs/framework/infrastructure` - Infrastructure implementations
-  - `@cqrs/framework/testing` - Testing utilities
+- **Effect imports**: `import { ... } from '@cqrs/framework/effect'`
 
-### Core Components
-The framework provides a generic, domain-agnostic foundation for CQRS/Event Sourcing:
+### Core Technologies
+- **Effect-TS v3**: Functional programming with type-safe error handling and dependency injection
+- **Branded Types**: Type-safe domain primitives preventing primitive obsession
+- **Pattern Matching**: Exhaustive event handling with ts-pattern
+- **Zod**: Runtime validation for commands and queries
 
-#### Core Abstractions (`packages/framework/src/core/`)
-- **Aggregate** (`aggregate.ts`): Base class with event application, snapshots, and state management
-- **Command** (`command.ts`): Command definitions with handlers and middleware support
-- **Event** (`event.ts`): Event types with reducers and pattern matching
-- **Query** (`query.ts`): Query definitions with projection builders
-- **Repository** (`repository.ts`): Aggregate persistence abstraction
-- **Branded Types** (`branded/`): Type-safe primitives (IDs, emails, versions, timestamps)
-- **Errors** (`errors.ts`): Domain-specific error types
+### Effect-TS Integration (`packages/framework/src/effect/`)
 
-#### Infrastructure (`packages/framework/src/infrastructure/`)
-- **Event Store** (`event-store/memory.ts`): In-memory event persistence with replay
-- **Command Bus** (`bus/command-bus.ts`): Routes commands to handlers with middleware
-- **Event Bus** (`bus/event-bus.ts`): Event publishing with replay capabilities
-- **Query Bus** (`bus/query-bus.ts`): Query routing with caching support
-- **Projection Builder** (`projections/builder.ts`): Builds read models from event streams
-- **Aggregate Repository** (`repository/aggregate.ts`): Generic aggregate persistence
-- **Snapshot Store** (`snapshot-store/memory.ts`): Performance optimization for aggregates
+The framework now uses Effect-TS for all core functionality:
 
-#### Testing (`packages/framework/src/testing/`)
-- **Test Harness** (`harness.ts`): Testing utilities for framework components
+#### Command Effects (`core/command-effects.ts`)
+- `createCommandHandler`: Effect-based command handlers with validation and execution phases
+- `CommandContext`: Dependency injection for command handling
+- `commandPipeline`: Compose command handling with middleware
+- `withCommandRetry`, `withCommandCircuitBreaker`: Resilience patterns
 
-### Framework Patterns
-- **Event Reducers**: Pure functions that apply events to state
-- **Snapshots**: Performance optimization for long event streams
-- **Domain Modules**: Self-contained domain boundaries with own events/commands/aggregates
-- **Middleware Pipeline**: Command preprocessing (validation, auth, logging)
-- **Pattern Matching**: Type-safe event handling with exhaustive checks
+#### Event Effects (`core/event-effects.ts`)
+- `createEventHandler`: Process events with effects
+- `createEventStream`: Stream-based event processing
+- `createProjection`: Build projections from event streams
+- `EventSourcing`: Complete event sourcing with snapshots
 
-## Domain Implementation (`src/domains/`)
+#### Repository Effects (`core/repository-effects.ts`)
+- `createRepository`: Effect-based aggregate repository
+- `withOptimisticLocking`: Version control for concurrent updates
+- `createCachedRepository`: Performance optimization with caching
+- `withTransaction`: Transactional aggregate operations
 
-### Layered Architecture Pattern
-Each domain follows a clean architecture with four distinct layers:
+#### Resilience Patterns
+- **Retry** (`patterns/retry.ts`): Exponential/linear backoff strategies
+- **Circuit Breaker** (`patterns/circuit-breaker.ts`): Failure protection
+- **Bulkhead**: Resource isolation and throttling
+- **Timeout**: Operation time limits
 
-#### 1. Domain Layer (`domain/`)
-Pure business logic with no framework dependencies:
-- **Aggregates**: Core business entities and logic
-- **Events**: Domain event types and factories
+#### Services (`services/index.ts`)
+Pre-built service layers with dependency injection:
+- `EventStoreService`: Event persistence
+- `CommandBusService`: Command routing
+- `LoggerService`: Structured logging
+- `MetricsService`: Performance monitoring
+- `CacheService`: In-memory caching
+- `CoreServicesLive`: Complete service bundle
+
+### Legacy Framework Components (_legacy/)
+
+The original framework implementation remains available for migration purposes:
+
+#### Core Abstractions (`_legacy/core/`)
+- **Aggregate**: Base class with event application and snapshots
+- **Command/Event/Query**: Type definitions and handlers
+- **Repository**: Aggregate persistence abstraction
+- **Branded Types**: Shared between legacy and Effect implementations
+
+#### Infrastructure (`_legacy/infrastructure/`)
+- **Event Store**: In-memory event persistence
+- **Command/Event/Query Bus**: Message routing
+- **Projections**: Read model builders
+- **Snapshot Store**: Performance optimization
+
+## Domain Implementation
+
+### Current Architecture Status
+
+The codebase is transitioning from legacy to Effect-based implementation:
+
+1. **Active Domains** (`src/domains/`)
+   - `orders/`: Basic order types (minimal implementation)
+   - `products/`: Product domain with Effect integration examples
+
+2. **Legacy Domains** (`src/_legacy_domains/`)
+   - `users/`: Complete user domain (being migrated)
+   - Full layered architecture example
+
+3. **Examples** (`src/examples/`)
+   - `effect-demo.ts`: Complete Effect-TS usage patterns
+   - `product-domain-demo.ts`: Domain implementation with Effect
+
+### Domain Layer Structure
+
+Each domain follows clean architecture with distinct layers:
+
+#### Domain Layer (`domain/`)
+- **Aggregates**: Core business entities
+- **Events**: Domain events with factories
 - **Commands**: Command type definitions
 - **Queries**: Query type definitions
-- **Types**: Domain value objects and types
-- **Errors**: Domain-specific error definitions
+- **Types**: Value objects and domain types
+- **Errors**: Domain-specific errors
 
-#### 2. Application Layer (`application/`)
-Orchestrates use cases and workflows:
-- **Command Handlers**: Execute commands, load aggregates, apply changes
+#### Application Layer (`application/`)
+- **Command Handlers**: Execute commands with Effect
 - **Query Handlers**: Process queries against projections
-- **Services**: Cross-cutting concerns (if needed)
+- **Services**: Cross-cutting concerns
 
-#### 3. Infrastructure Layer (`infrastructure/`)
-Technical implementations:
+#### Infrastructure Layer (`infrastructure/`)
 - **Persistence**: Repository implementations
 - **Projections**: Read model builders
-- **Event Handlers**: Side effects and integrations
+- **Event Handlers**: Side effects
 - **Validation**: Command validators
 
-#### 4. API Layer (`api/`)
-External interfaces:
-- **GraphQL Schema**: Domain-specific schema definitions
-- **DTOs**: Data transfer objects for API boundaries
-- **Resolvers**: GraphQL resolver implementations (if separate from handlers)
+#### API Layer (`api/`)
+- **GraphQL Schema**: Domain schemas
+- **DTOs**: Data transfer objects
+- **Resolvers**: GraphQL resolvers
 
-### User Domain Example (`src/domains/users/`)
-Complete implementation demonstrating all patterns:
+## Effect-TS Usage Patterns
 
-#### Domain Layer Files
-- `user.aggregate.ts`: UserAggregate with create, update, delete, verify operations
-- `user.events.ts`: Event types (UserCreated, UserUpdated, etc.) and factories
-- `user.commands.ts`: Command definitions (CreateUser, UpdateUser, etc.)
-- `user.queries.ts`: Query definitions (GetUser, ListUsers, GetStats)
-- `user.types.ts`: UserState, UserProfile, verification status types
-
-#### Application Layer Organization
-- `commands/`: Individual handler files for each command
-- `queries/`: Individual handler files for each query
-- Clean separation of concerns with single responsibility
-
-#### Infrastructure Components
-- `persistence/user.repository.ts`: UserRepository extending AggregateRepository
-- `projections/`: Separate projection files (details, list, stats)
-- `events/event.handlers.ts`: Side effect handlers (notifications, etc.)
-- `validation/command.validators.ts`: Input validation middleware
-
-#### Module Bootstrap (`user.module.ts`)
-- Wires all components together
-- Registers handlers with buses
-- Configures projections and event handlers
-- Exports domain context for application use
-
-### Adding New Domains
-1. Create domain folder: `src/domains/<domain-name>/`
-2. Implement layers following the pattern above
-3. Define aggregate extending `Aggregate<TState, TEvent>`
-4. Create events implementing `IEvent` with factories
-5. Implement command/query handlers with proper typing
-6. Create domain module with initialization logic
-7. Register in application server (`src/app/server.ts`)
-
-## Architecture: CQRS with Event Sourcing
-
-### Core Pattern
-True CQRS implementation with complete separation:
-
-1. **Commands** → Generate **Events** → Stored in **Event Store**
-2. **Events** → Build **Aggregates** (write model) & **Projections** (read model)
-3. **GraphQL** → Routes **Queries** to projections, **Mutations** to commands
-
-### Event Flow
-1. Client sends GraphQL mutation
-2. Resolver creates command with validated input
-3. CommandBus routes to appropriate handler
-4. Handler loads aggregate from repository
-5. Aggregate executes business logic, generates events
-6. Repository saves events to EventStore
-7. EventBus publishes events to projections
-8. Projections update read models
-9. Queries read from optimized projections
-
-### Type Safety Architecture
-
-#### Branded Types (`src/framework/core/branded/`)
-Prevents primitive obsession and ensures type safety:
+### Command Handler Example
 ```typescript
-AggregateId, EventId, UserId    // ID types
-Email, PersonName               // Validated strings
-EventVersion, AggregateVersion  // Versioning
-Timestamp                       // Time tracking
+const handler = createCommandHandler({
+  canHandle: (cmd) => cmd.type === 'CreateUser',
+  validate: (cmd) => validateUserData(cmd.payload),
+  execute: (cmd) => Effect.gen(function* () {
+    const repo = yield* RepositoryContext
+    const aggregate = yield* repo.createAggregate(cmd.aggregateId)
+    aggregate.create(cmd.payload)
+    yield* repo.save(aggregate)
+    return { userId: cmd.aggregateId }
+  })
+})
 ```
 
-#### GraphQL Code Generation (`codegen.yml`)
-- **Strict mode**: Maximum type safety enabled
-- **Domain mappers**: GraphQL types → Domain models
-- **Custom scalars**: ID types map to branded types
-- **Immutable types**: All generated types are readonly
-- **No index signatures**: Prevents any-typed access
-
-### Key Implementation Patterns
-
-#### Aggregate Pattern
+### Service Composition
 ```typescript
-class UserAggregate extends Aggregate<UserState, UserEvent> {
-  create(data): void {
-    const event = UserEventFactories.createUserCreated(...)
-    this.applyEvent(event, true) // true = new event
-  }
-}
+const AppLive = Layer.mergeAll(
+  EventStoreServiceLive,
+  CommandBusServiceLive,
+  CoreServicesLive
+)
+
+const program = pipe(
+  myEffect,
+  Effect.provide(AppLive),
+  Effect.runPromise
+)
 ```
 
-#### Command Handler Pattern
+### Resilience Pattern
 ```typescript
-class CreateUserCommandHandler implements ICommandHandler {
-  async handle(command): Promise<Result> {
-    const aggregate = repository.createAggregate(id)
-    aggregate.create(command.payload)
-    await repository.save(aggregate)
-  }
-}
+const resilientEffect = pipe(
+  effect,
+  Effect.retry(exponentialBackoff({ maxAttempts: 5 })),
+  withCircuitBreaker({
+    failureThreshold: 3,
+    timeout: Duration.seconds(30)
+  })
+)
 ```
 
-#### Event Reducer Pattern
-```typescript
-const userReducer: EventReducer<UserEvent, UserState> = (state, event) => {
-  switch(event.type) {
-    case UserEventTypes.UserCreated:
-      return { ...initialState, ...event.data }
-  }
-}
-```
+## Migration Path
 
-#### Projection Pattern
-```typescript
-class UserDetailsProjection extends ProjectionBuilder {
-  handleUserCreated(event): void {
-    this.state.set(event.aggregateId, event.data)
-  }
-}
-```
+When migrating from legacy to Effect:
+
+1. **Start with new domains**: Implement new features using Effect
+2. **Gradual migration**: Use `adaptLegacyServices` for interop
+3. **Preserve interfaces**: Keep `ICommand`, `IEvent` for compatibility
+4. **Test thoroughly**: Use framework test suite to verify behavior
 
 ## Bun-Specific Patterns
 
 Always use Bun's native APIs:
-- `Bun.serve()` for HTTP server (not Express/Koa)
-- `bun:sqlite` for SQLite (not better-sqlite3)
-- `Bun.file()` for file operations (not fs)
-- `bun:test` for testing (not Jest/Vitest)
-- Built-in `.env` loading (no dotenv needed)
-- `--hot` flag for hot reload in development
+- `Bun.serve()` for HTTP server
+- `bun:sqlite` for SQLite 
+- `Bun.file()` for file operations
+- `bun:test` for testing
+- Built-in `.env` loading
+- `--hot` flag for hot reload
 
-## GraphQL Hive Integration
+## GraphQL Architecture
 
-Configured in application server:
+### Schema Organization
+- **Unified Schema**: Single schema at `src/schema.graphql`
+- **Domain Schemas**: Individual domain GraphQL definitions
+- **Code Generation**: Automatic type generation with strict mode
+
+### Type Safety
+- **gql.tada**: Compile-time GraphQL types
+- **Custom Scalars**: Branded types for IDs
+- **Strict Resolvers**: No implicit any types
+- **Immutable Types**: Readonly generated types
+
+### GraphQL Hive Integration
 - Set `HIVE_API_TOKEN` environment variable
-- Monitors schema changes and operations
-- Tracks client usage via headers
-- Separate metrics for read/write operations
-- Schema registry for versioning
+- Schema version control and monitoring
+- Operation tracking and performance metrics
+- Client usage analytics
+
+## Testing Strategy
+
+### Test Locations
+- **Framework tests**: `packages/framework/src/effect/__tests__/`
+- **Domain tests**: `src/domains/<domain>/__tests__/`
+- **Integration tests**: `src/app/test-framework.ts`
+
+### Test Commands
+- `bun test` - Run all tests
+- `bun test <path>` - Test specific file
+- `bun run test:framework` - Framework integration test
+- `bun run typecheck` - Verify type safety
+
+## Development Workflow
+
+1. **Start server**: `bun run dev`
+2. **Modify code**: Make changes to domains or framework
+3. **Generate types**: `bun run generate:all` (after schema changes)
+4. **Type check**: `bun run typecheck`
+5. **Run tests**: `bun test`
+6. **Clean unused**: `bun run clean:unused`
 
 ## Environment Variables
 
@@ -254,19 +261,37 @@ PORT=3001                     # Server port (default: 3001)
 NODE_ENV=development         # Environment mode
 ```
 
-## Testing Approach
+## Common Tasks
 
-- **Unit tests**: Domain logic in `__tests__/` folders
-- **Integration tests**: `bun run test:framework`
-- **Type checking**: `bun run typecheck` before commits
-- **GraphQL validation**: `bun run gql:check`
-- **Test specific files**: `bun test <path>`
+### Adding a New Domain
+```bash
+# 1. Create domain structure
+mkdir -p src/domains/<domain>/{domain,application,infrastructure,api}
 
-## Development Workflow
+# 2. Define aggregate with Effect
+# 3. Create command/event handlers
+# 4. Add GraphQL schema
+# 5. Register in server.ts
+```
 
-1. **Start development server**: `bun run dev`
-2. **Make changes** to domain or framework code
-3. **Generate types** after schema changes: `bun run generate:all`
-4. **Run type checking**: `bun run typecheck`
-5. **Test changes**: `bun test` or `bun run test:framework`
-6. **Clean unused code**: `bun run clean:unused`
+### Implementing Effect Command Handler
+```typescript
+import { createCommandHandler, Effect } from '@cqrs/framework/effect'
+
+const handler = createCommandHandler({
+  canHandle: (cmd) => cmd.type === 'YourCommand',
+  execute: (cmd) => Effect.succeed({ result: 'success' })
+})
+```
+
+### Creating Projection with Effect
+```typescript
+import { createProjection, Effect } from '@cqrs/framework/effect'
+
+const projection = createProjection({
+  name: 'UserList',
+  handlers: {
+    UserCreated: (event) => Effect.log(`User created: ${event.data.name}`)
+  }
+})
+```

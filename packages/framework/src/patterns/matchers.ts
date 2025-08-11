@@ -1,251 +1,376 @@
 /**
- * Framework Patterns: Type-Safe Matchers
+ * Framework Patterns: Advanced Matchers
  * 
- * Simplified utility functions for pattern matching without complex ts-pattern usage.
+ * Type-safe pattern matching utilities with exhaustive checking.
+ * Built on ts-pattern for compile-time safety.
  */
 
 import { match, P } from 'ts-pattern';
+import * as Effect from 'effect/Effect';
+import * as Option from 'effect/Option';
+import * as Either from 'effect/Either';
+import { pipe } from 'effect/Function';
 
 /**
- * Create a type-safe matcher for a discriminated union
+ * Base discriminated union type
  */
-export function createTypeSafeMatcher<T extends { type: string }>() {
-  return <R>(
-    value: T,
-    handlers: {
-      [K in T['type']]: (value: Extract<T, { type: K }>) => R;
-    }
-  ): R => {
-    const handler = handlers[value.type as T['type']];
-    return handler(value as any);
-  };
-}
+export type Discriminated<T extends string = string> = {
+  readonly type: T;
+};
 
 /**
- * Match with default value - simplified version
+ * Create an exhaustive matcher for discriminated unions
+ * 
+ * @example
+ * ```typescript
+ * const matcher = createExhaustiveMatcher<UserEvent>()
+ *   .when('USER_CREATED', (event) => handleCreated(event))
+ *   .when('USER_UPDATED', (event) => handleUpdated(event))
+ *   .when('USER_DELETED', (event) => handleDeleted(event))
+ *   .exhaustive();
+ * ```
  */
-export function matchWithDefault<T, R>(
-  value: T,
-  predicate: (v: T) => boolean,
-  result: R,
-  defaultValue: R
-): R {
-  return predicate(value) ? result : defaultValue;
-}
-
-/**
- * Create conditional matcher - simplified version
- */
-export function createConditionalMatcher<T, R>(
-  value: T,
-  guards: Array<{
-    guard: (value: T) => boolean;
-    handler: (value: T) => R;
-  }>,
-  defaultHandler?: (value: T) => R
-): R | undefined {
-  for (const { guard, handler } of guards) {
-    if (guard(value)) {
-      return handler(value);
-    }
+export class ExhaustiveMatcher<T extends Discriminated, R = void> {
+  private patterns: Partial<Record<T['type'], (value: T) => R>> = {};
+  
+  when<K extends T['type']>(
+    type: K,
+    handler: (value: Extract<T, { type: K }>) => R
+  ): this {
+    this.patterns[type] = handler as (value: T) => R;
+    return this;
   }
-  return defaultHandler ? defaultHandler(value) : undefined;
-}
-
-/**
- * Match async operations
- */
-export async function matchAsync<T, R>(
-  value: Promise<T>,
-  patterns: {
-    resolved: (value: T) => R | Promise<R>;
-    rejected?: (error: any) => R | Promise<R>;
-  }
-): Promise<R> {
-  try {
-    const resolved = await value;
-    return await patterns.resolved(resolved);
-  } catch (error) {
-    if (patterns.rejected) {
-      return await patterns.rejected(error);
-    }
-    throw error;
-  }
-}
-
-/**
- * Match all items in an array
- */
-export function matchAll<T, R>(
-  items: T[],
-  pattern: (item: T) => R | undefined
-): R[] {
-  return items
-    .map(pattern)
-    .filter((result): result is R => result !== undefined);
-}
-
-/**
- * Match any item in an array
- */
-export function matchAny<T>(
-  items: T[],
-  predicate: (item: T) => boolean
-): T | undefined {
-  return items.find(predicate);
-}
-
-/**
- * Match with multiple patterns - simplified
- */
-export function matchMultiple<T, R>(
-  value: T,
-  patterns: Array<{
-    when: (value: T) => boolean;
-    then: (value: T) => R;
-  }>
-): R | undefined {
-  for (const pattern of patterns) {
-    if (pattern.when(value)) {
-      return pattern.then(value);
-    }
-  }
-  return undefined;
-}
-
-/**
- * Match array patterns - simplified
- */
-export function matchArray<T, R>(
-  array: T[],
-  patterns: {
-    empty?: () => R;
-    single?: (item: T) => R;
-    multiple?: (items: T[]) => R;
-  }
-): R | undefined {
-  if (array.length === 0 && patterns.empty) {
-    return patterns.empty();
-  }
-  if (array.length === 1 && patterns.single) {
-    return patterns.single(array[0]!);
-  }
-  if (array.length > 1 && patterns.multiple) {
-    return patterns.multiple(array);
-  }
-  return undefined;
-}
-
-/**
- * Match number ranges - simplified
- */
-export function matchRange(
-  value: number,
-  ranges: Array<{
-    min?: number;
-    max?: number;
-    handler: (value: number) => any;
-  }>
-): any {
-  for (const range of ranges) {
-    const minOk = range.min === undefined || value >= range.min;
-    const maxOk = range.max === undefined || value <= range.max;
-    if (minOk && maxOk) {
-      return range.handler(value);
-    }
-  }
-  return undefined;
-}
-
-/**
- * Type guard creator
- */
-export function createGuard<T, S extends T>(
-  predicate: (value: T) => value is S
-): (value: T) => value is S {
-  return predicate;
-}
-
-/**
- * Simple type check
- */
-export function isType<T>(
-  value: unknown,
-  check: (value: unknown) => boolean
-): value is T {
-  return check(value);
-}
-
-/**
- * Property existence check
- */
-export function hasProperty<T, K extends PropertyKey>(
-  value: T,
-  property: K
-): value is T & Record<K, unknown> {
-  return property in (value as any);
-}
-
-/**
- * Strict equality matcher
- */
-export function matchStrict<T, R>(
-  value: T,
-  cases: Map<T, R>,
-  defaultValue?: R
-): R | undefined {
-  return cases.get(value) ?? defaultValue;
-}
-
-/**
- * Match with transformation
- */
-export function matchTransform<T, S, R>(
-  value: T,
-  transform: (value: T) => S,
-  handler: (transformed: S) => R
-): R {
-  return handler(transform(value));
-}
-
-/**
- * Match with side effects
- */
-export function matchWithEffect<T, R>(
-  value: T,
-  patterns: Array<{
-    when: (value: T) => boolean;
-    effect?: (value: T) => void | Promise<void>;
-    then: (value: T) => R;
-  }>
-): R | undefined {
-  for (const pattern of patterns) {
-    if (pattern.when(value)) {
-      if (pattern.effect) {
-        Promise.resolve(pattern.effect(value)).catch(console.error);
+  
+  exhaustive(): (value: T) => R {
+    return (value: T) => {
+      const handler = this.patterns[value.type];
+      if (!handler) {
+        throw new Error(`No handler for type: ${value.type}`);
       }
-      return pattern.then(value);
-    }
+      return handler(value);
+    };
   }
-  return undefined;
+  
+  withDefault(defaultHandler: (value: T) => R): (value: T) => R {
+    return (value: T) => {
+      const handler = this.patterns[value.type];
+      return handler ? handler(value) : defaultHandler(value);
+    };
+  }
+}
+
+export function createExhaustiveMatcher<T extends Discriminated, R = void>(): ExhaustiveMatcher<T, R> {
+  return new ExhaustiveMatcher<T, R>();
 }
 
 /**
- * Match nullable values
+ * Event matcher with async support
  */
-export function matchNullable<T, R>(
-  value: T | null | undefined,
+export class EventMatcher<T extends Discriminated> {
+  private patterns: Array<{
+    predicate: (event: T) => boolean;
+    handler: (event: T) => Promise<void> | void;
+  }> = [];
+  
+  on<K extends T['type']>(
+    type: K,
+    handler: (event: Extract<T, { type: K }>) => Promise<void> | void
+  ): this {
+    this.patterns.push({
+      predicate: (event) => event.type === type,
+      handler: handler as (event: T) => Promise<void> | void,
+    });
+    return this;
+  }
+  
+  onPattern(
+    pattern: (event: T) => boolean,
+    handler: (event: T) => Promise<void> | void
+  ): this {
+    this.patterns.push({ predicate: pattern, handler });
+    return this;
+  }
+  
+  async match(event: T): Promise<void> {
+    for (const { predicate, handler } of this.patterns) {
+      if (predicate(event)) {
+        await handler(event);
+        return;
+      }
+    }
+  }
+  
+  async matchAll(event: T): Promise<void> {
+    const promises = this.patterns
+      .filter(({ predicate }) => predicate(event))
+      .map(({ handler }) => handler(event));
+    await Promise.all(promises);
+  }
+}
+
+export function createEventMatcher<T extends Discriminated>(): EventMatcher<T> {
+  return new EventMatcher<T>();
+}
+
+/**
+ * Pattern matching with Effect
+ */
+export class EffectMatcher<T extends Discriminated, E, R> {
+  private patterns: Array<{
+    predicate: (value: T) => boolean;
+    handler: (value: T) => Effect.Effect<R, E, never>;
+  }> = [];
+  
+  when<K extends T['type']>(
+    type: K,
+    handler: (value: Extract<T, { type: K }>) => Effect.Effect<R, E, never>
+  ): this {
+    this.patterns.push({
+      predicate: (value) => value.type === type,
+      handler: handler as (value: T) => Effect.Effect<R, E, never>,
+    });
+    return this;
+  }
+  
+  match(value: T): Effect.Effect<R, E | Error, never> {
+    const pattern = this.patterns.find(({ predicate }) => predicate(value));
+    if (!pattern) {
+      return Effect.fail(new Error(`No pattern matches type: ${value.type}`) as E | Error);
+    }
+    return pattern.handler(value);
+  }
+  
+  matchOption(value: T): Effect.Effect<Option.Option<R>, E, never> {
+    const pattern = this.patterns.find(({ predicate }) => predicate(value));
+    if (!pattern) {
+      return Effect.succeed(Option.none());
+    }
+    return pipe(
+      pattern.handler(value),
+      Effect.map(Option.some)
+    );
+  }
+}
+
+export function createEffectMatcher<T extends Discriminated, E = never, R = void>(): EffectMatcher<T, E, R> {
+  return new EffectMatcher<T, E, R>();
+}
+
+/**
+ * Advanced pattern matching utilities
+ */
+export const PatternUtils = {
+  /**
+   * Match multiple types at once
+   */
+  matchMultiple<T extends Discriminated, R>(
+    types: T['type'][],
+    handler: (value: T) => R
+  ): (value: T) => R | undefined {
+    return (value: T) => {
+      if (types.includes(value.type)) {
+        return handler(value);
+      }
+      return undefined;
+    };
+  },
+  
+  /**
+   * Conditional matching
+   */
+  matchWhen<T extends Discriminated, R>(
+    predicate: (value: T) => boolean,
+    handler: (value: T) => R,
+    fallback?: (value: T) => R
+  ): (value: T) => R | undefined {
+    return (value: T) => {
+      if (predicate(value)) {
+        return handler(value);
+      }
+      return fallback?.(value);
+    };
+  },
+  
+  /**
+   * Sequential matching
+   */
+  matchSequence<T extends Discriminated, R>(
+    ...matchers: Array<(value: T) => R | undefined>
+  ): (value: T) => R | undefined {
+    return (value: T) => {
+      for (const matcher of matchers) {
+        const result = matcher(value);
+        if (result !== undefined) {
+          return result;
+        }
+      }
+      return undefined;
+    };
+  },
+  
+  /**
+   * Parallel matching
+   */
+  async matchParallel<T extends Discriminated, R>(
+    value: T,
+    ...matchers: Array<(value: T) => Promise<R> | R>
+  ): Promise<R[]> {
+    return Promise.all(matchers.map(matcher => matcher(value)));
+  },
+};
+
+/**
+ * Pattern matching for complex scenarios
+ */
+export const AdvancedPatterns = {
+  /**
+   * Match with state accumulation
+   */
+  createStatefulMatcher<T extends Discriminated, S, R>(
+    initialState: S
+  ) {
+    return {
+      patterns: [] as Array<{
+        predicate: (value: T, state: S) => boolean;
+        handler: (value: T, state: S) => [R, S];
+      }>,
+      
+      when(
+        predicate: (value: T, state: S) => boolean,
+        handler: (value: T, state: S) => [R, S]
+      ) {
+        this.patterns.push({ predicate, handler });
+        return this;
+      },
+      
+      match(value: T): [R, S] | undefined {
+        let state = initialState;
+        for (const { predicate, handler } of this.patterns) {
+          if (predicate(value, state)) {
+            const [result, newState] = handler(value, state);
+            state = newState;
+            return [result, state];
+          }
+        }
+        return undefined;
+      },
+    };
+  },
+  
+  /**
+   * Temporal pattern matching
+   */
+  createTemporalMatcher<T extends Discriminated & { timestamp: number }>() {
+    return {
+      within(duration: number, handler: (events: T[]) => void) {
+        return (events: T[]) => {
+          const now = Date.now();
+          const recent = events.filter(e => now - e.timestamp <= duration);
+          if (recent.length > 0) {
+            handler(recent);
+          }
+        };
+      },
+      
+      sequence(
+        ...types: T['type'][]
+      ): (events: T[]) => boolean {
+        return (events: T[]) => {
+          if (events.length < types.length) return false;
+          
+          let typeIndex = 0;
+          for (const event of events) {
+            if (event.type === types[typeIndex]) {
+              typeIndex++;
+              if (typeIndex === types.length) return true;
+            }
+          }
+          return false;
+        };
+      },
+    };
+  },
+  
+  /**
+   * Correlation pattern matching
+   */
+  createCorrelationMatcher<T extends Discriminated & { correlationId?: string }>() {
+    const correlations = new Map<string, T[]>();
+    
+    return {
+      add(event: T) {
+        if (event.correlationId) {
+          const events = correlations.get(event.correlationId) || [];
+          events.push(event);
+          correlations.set(event.correlationId, events);
+        }
+      },
+      
+      matchCorrelated(
+        correlationId: string,
+        pattern: (events: T[]) => boolean
+      ): boolean {
+        const events = correlations.get(correlationId) || [];
+        return pattern(events);
+      },
+      
+      clear(correlationId: string) {
+        correlations.delete(correlationId);
+      },
+    };
+  },
+};
+
+/**
+ * Type-safe pattern matching with ts-pattern integration
+ */
+export function matchEvent<T extends Discriminated, R>(
+  event: T,
   patterns: {
-    null?: () => R;
-    undefined?: () => R;
-    some: (value: T) => R;
+    [K in T['type']]?: (event: Extract<T, { type: K }>) => R;
+  } & {
+    _?: (event: T) => R;
   }
 ): R {
-  if (value === null && patterns.null) {
-    return patterns.null();
+  return match(event)
+    .with(
+      P.select(),
+      (selected) => {
+        const handler = patterns[selected.type as T['type']];
+        if (handler) {
+          return handler(selected as any);
+        }
+        if (patterns._) {
+          return patterns._(selected);
+        }
+        throw new Error(`No handler for event type: ${selected.type}`);
+      }
+    )
+    .exhaustive();
+}
+
+/**
+ * Option pattern matching
+ */
+export function matchOption<T, R>(
+  option: Option.Option<T>,
+  patterns: {
+    some: (value: T) => R;
+    none: () => R;
   }
-  if (value === undefined && patterns.undefined) {
-    return patterns.undefined();
+): R {
+  return Option.match(option, patterns);
+}
+
+/**
+ * Either pattern matching
+ */
+export function matchEither<E, A, R>(
+  either: Either.Either<A, E>,
+  patterns: {
+    right: (value: A) => R;
+    left: (error: E) => R;
   }
-  return patterns.some(value!);
+): R {
+  return Either.match(either, patterns);
 }

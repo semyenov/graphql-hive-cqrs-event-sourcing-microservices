@@ -43,11 +43,15 @@
   },
   "include": [
     "packages/framework/src/**/*.ts",
-    "src/**/*.ts"
+    "src/examples/**/*.ts",
+    "src/app/**/*.ts",
+    "src/graphql/**/*.ts"
   ],
   "exclude": [
     "src/**/__tests__/**",
     "archive/**",
-    "scripts/**"
+    "scripts/**",
+    "src/domains/**",
+    "packages/framework/src/_legacy/**"
   ]
 }

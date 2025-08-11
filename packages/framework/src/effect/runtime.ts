@@ -7,46 +7,61 @@
 import * as Runtime from 'effect/Runtime';
 import * as Layer from 'effect/Layer';
 import * as Effect from 'effect/Effect';
+import * as ManagedRuntime from 'effect/ManagedRuntime';
+import * as Exit from 'effect/Exit';
+import * as Cause from 'effect/Cause';
 import { pipe } from 'effect/Function';
-import * as Scope from 'effect/Scope';  
-
-/**
- * Default runtime for framework effects
- */
-export const defaultRuntime = Runtime.defaultRuntime;
 
 /**
  * Run an effect with the default runtime
  */
-export function runEffect<E, A>(
+export function runEffect<A, E>(
   effect: Effect.Effect<A, E, never>
 ): Promise<A> {
-  return Runtime.runPromise(defaultRuntime)(effect);
+  return Effect.runPromise(effect);
 }
 
 /**
  * Run an effect and handle errors
  */
-export async function runSafe<E, A>(
+export async function runSafe<A, E>(
   effect: Effect.Effect<A, E, never>
 ): Promise<{ success: true; data: A } | { success: false; error: E }> {
-  try {
-    const data = await runEffect(effect);
-    return { success: true, data };
-  } catch (error) {
-    return { success: false, error: error as E };
+  const exit = await Effect.runPromiseExit(effect);
+  if (Exit.isSuccess(exit)) {
+    return { success: true as const, data: exit.value };
+  } else {
+    // Extract the error from the cause
+    const failures = Cause.failures(exit.cause);
+    const error = failures.length > 0 ? failures[0] : (new Error('Unknown error') as unknown as E);
+    return { success: false as const, error };
   }
 }
 
 /**
- * Create a custom runtime with layers
+ * Create a managed runtime with layers
  */
-export function createRuntime<R, E>(
+export function createManagedRuntime<R, E>(
   layer: Layer.Layer<R, E, never>
-): Runtime.Runtime<R> {
-  return pipe<Layer.Layer<R, E, never>, Effect.Effect<Runtime.Runtime<R>, E, Scope.Scope | never>, Runtime.Runtime<R>>(
-    layer,  
-    Layer.toRuntime,
-    Effect.runSync as (effect: Effect.Effect<Runtime.Runtime<R>, E, Scope.Scope | never>) => Runtime.Runtime<R>
-  );
+): ManagedRuntime.ManagedRuntime<R, E> {
+  return ManagedRuntime.make(layer);
+}
+
+/**
+ * Run an effect with a custom runtime
+ */
+export function runWithRuntime<A, E, R>(
+  effect: Effect.Effect<A, E, R>,
+  runtime: ManagedRuntime.ManagedRuntime<R, never>
+): Promise<A> {
+  return runtime.runPromise(effect);
+}
+
+/**
+ * Create a test runtime with common services
+ */
+export function createTestRuntime<R, E>(
+  layer: Layer.Layer<R, E, never>
+): ManagedRuntime.ManagedRuntime<R, E> {
+  return ManagedRuntime.make(layer);
 }

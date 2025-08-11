@@ -19,7 +19,7 @@ export interface ISnapshot<
   TAggregateId extends AggregateId = AggregateId
 > {
   readonly aggregateId: TAggregateId;
-  readonly version: EventVersion;
+  readonly version: AggregateVersion;
   readonly state: TState;
   readonly timestamp: Timestamp;
   readonly checksum?: string;

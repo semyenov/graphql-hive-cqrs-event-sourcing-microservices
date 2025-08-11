@@ -1,19 +1,19 @@
 /**
  * Framework Effect: Circuit Breaker Pattern
- * 
+ *
  * Circuit breaker implementation for fault tolerance and resilience.
  */
 
-import * as Effect from 'effect/Effect';
-import * as Ref from 'effect/Ref';
-import * as Duration from 'effect/Duration';
-import * as Data from 'effect/Data';
-import { pipe } from 'effect/Function';
+import * as Effect from "effect/Effect";
+import * as Ref from "effect/Ref";
+import * as Duration from "effect/Duration";
+import * as Data from "effect/Data";
+import { pipe } from "effect/Function";
 
 /**
  * Circuit breaker states
  */
-export type CircuitState = 'closed' | 'open' | 'half-open';
+export type CircuitState = "closed" | "open" | "half-open";
 
 /**
  * Circuit breaker configuration
@@ -23,13 +23,16 @@ export interface CircuitBreakerConfig {
   readonly successThreshold?: number;
   readonly timeout: Duration.Duration;
   readonly resetTimeout?: Duration.Duration;
-  readonly onStateChange?: (from: CircuitState, to: CircuitState) => Effect.Effect<void, never, never>;
+  readonly onStateChange?: (
+    from: CircuitState,
+    to: CircuitState,
+  ) => Effect.Effect<void, never, never>;
 }
 
 /**
  * Circuit breaker error
  */
-export class CircuitOpenError extends Data.TaggedError('CircuitOpenError')<{
+export class CircuitOpenError extends Data.TaggedError("CircuitOpenError")<{
   readonly remainingTimeout: number;
 }> {}
 
@@ -48,8 +51,10 @@ interface CircuitBreakerState {
  * Create a circuit breaker
  */
 export function createCircuitBreaker<R, E, A>(
-  config: CircuitBreakerConfig
-): (effect: Effect.Effect<A, E, R>) => Effect.Effect<A, E | CircuitOpenError, R> {
+  config: CircuitBreakerConfig,
+): (
+  effect: Effect.Effect<A, E, R>,
+) => Effect.Effect<A, E | CircuitOpenError, R> {
   const {
     failureThreshold,
     successThreshold = 1,
@@ -59,7 +64,7 @@ export function createCircuitBreaker<R, E, A>(
   } = config;
 
   const stateRef = Ref.unsafeMake<CircuitBreakerState>({
-    state: 'closed',
+    state: "closed",
     failures: 0,
     successes: 0,
     lastFailureTime: null,
@@ -68,10 +73,10 @@ export function createCircuitBreaker<R, E, A>(
 
   const changeState = (
     from: CircuitState,
-    to: CircuitState
+    to: CircuitState,
   ): Effect.Effect<void, never, never> => {
     if (from === to) return Effect.succeed(undefined);
-    
+
     return pipe(
       Ref.update(stateRef, (state) => ({
         ...state,
@@ -82,39 +87,42 @@ export function createCircuitBreaker<R, E, A>(
       })),
       Effect.flatMap(() =>
         onStateChange ? onStateChange(from, to) : Effect.succeed(undefined)
-      )
+      ),
     );
   };
 
-  return <R, E, A>(effect: Effect.Effect<A, E, R>): Effect.Effect<A, E | CircuitOpenError, R> =>
+  return <R, E, A>(
+    effect: Effect.Effect<A, E, R>,
+  ): Effect.Effect<A, E | CircuitOpenError, R> =>
     pipe(
       Ref.get(stateRef),
       Effect.flatMap((state) => {
         const now = Date.now();
 
         // Check if circuit should transition from open to half-open
-        if (state.state === 'open') {
+        if (state.state === "open") {
           const timeSinceLastFailure = state.lastFailureTime
             ? now - state.lastFailureTime
             : Infinity;
 
           if (timeSinceLastFailure >= Duration.toMillis(resetTimeout)) {
             return pipe(
-              changeState('open', 'half-open'),
-              Effect.flatMap(() => executeWithCircuitBreaker(effect))
+              changeState("open", "half-open"),
+              Effect.flatMap(() => executeWithCircuitBreaker(effect)),
             );
           } else {
-            const remainingTimeout = Duration.toMillis(resetTimeout) - timeSinceLastFailure;
+            const remainingTimeout = Duration.toMillis(resetTimeout) -
+              timeSinceLastFailure;
             return Effect.fail(new CircuitOpenError({ remainingTimeout }));
           }
         }
 
         return executeWithCircuitBreaker(effect);
-      })
+      }),
     );
 
   function executeWithCircuitBreaker<R, E, A>(
-    effect: Effect.Effect<A, E, R>
+    effect: Effect.Effect<A, E, R>,
   ): Effect.Effect<A, E | CircuitOpenError, R> {
     return pipe(
       effect,
@@ -122,17 +130,17 @@ export function createCircuitBreaker<R, E, A>(
         pipe(
           Ref.get(stateRef),
           Effect.flatMap((state) => {
-            if (state.state === 'half-open') {
+            if (state.state === "half-open") {
               // Success in half-open state
               if (state.successes + 1 >= successThreshold) {
-                return changeState('half-open', 'closed');
+                return changeState("half-open", "closed");
               } else {
                 return Ref.update(stateRef, (s) => ({
                   ...s,
                   successes: s.successes + 1,
                 }));
               }
-            } else if (state.state === 'closed') {
+            } else if (state.state === "closed") {
               // Reset failure count on success
               if (state.failures > 0) {
                 return Ref.update(stateRef, (s) => ({
@@ -142,7 +150,7 @@ export function createCircuitBreaker<R, E, A>(
               }
             }
             return Effect.succeed(undefined);
-          })
+          }),
         )
       ),
       Effect.tapError(() =>
@@ -151,29 +159,29 @@ export function createCircuitBreaker<R, E, A>(
           Effect.flatMap((state) => {
             const now = Date.now();
 
-            if (state.state === 'half-open') {
+            if (state.state === "half-open") {
               // Failure in half-open state - back to open
               return pipe(
                 Ref.update(stateRef, (s) => ({
                   ...s,
-                  state: 'open' as CircuitState,
+                  state: "open" as CircuitState,
                   lastFailureTime: now,
                   failures: 1,
                 })),
-                Effect.flatMap(() => changeState('half-open', 'open'))
+                Effect.flatMap(() => changeState("half-open", "open")),
               );
-            } else if (state.state === 'closed') {
+            } else if (state.state === "closed") {
               // Check if we've reached failure threshold
               const newFailures = state.failures + 1;
               if (newFailures >= failureThreshold) {
                 return pipe(
                   Ref.update(stateRef, (s) => ({
                     ...s,
-                    state: 'open' as CircuitState,
+                    state: "open" as CircuitState,
                     lastFailureTime: now,
                     failures: newFailures,
                   })),
-                  Effect.flatMap(() => changeState('closed', 'open'))
+                  Effect.flatMap(() => changeState("closed", "open")),
                 );
               } else {
                 return Ref.update(stateRef, (s) => ({
@@ -184,9 +192,9 @@ export function createCircuitBreaker<R, E, A>(
               }
             }
             return Effect.succeed(undefined);
-          })
+          }),
         )
-      )
+      ),
     );
   }
 }
@@ -195,8 +203,10 @@ export function createCircuitBreaker<R, E, A>(
  * Circuit breaker with exponential backoff
  */
 export function withCircuitBreaker<R, E, A>(
-  config: CircuitBreakerConfig
-): (effect: Effect.Effect<A, E, R>) => Effect.Effect<A, E | CircuitOpenError, R> {
+  config: CircuitBreakerConfig,
+): (
+  effect: Effect.Effect<A, E, R>,
+) => Effect.Effect<A, E | CircuitOpenError, R> {
   return createCircuitBreaker(config);
 }
 
@@ -204,11 +214,13 @@ export function withCircuitBreaker<R, E, A>(
  * Get circuit breaker status
  */
 export function getCircuitStatus<R, E, A>(
-  circuitBreaker: (effect: Effect.Effect<A, E, R>) => Effect.Effect<A, E | CircuitOpenError, R>
+  circuitBreaker: (
+    effect: Effect.Effect<A, E, R>,
+  ) => Effect.Effect<A, E | CircuitOpenError, R>,
 ): Effect.Effect<CircuitState, never, never> {
   // This would need access to the internal state
   // For now, return a placeholder
-  return Effect.succeed('closed' as CircuitState);
+  return Effect.succeed("closed" as CircuitState);
 }
 
 /**
@@ -229,14 +241,18 @@ export interface CircuitBreakerMetrics {
  */
 export function createMonitoredCircuitBreaker<R, E, A>(
   config: CircuitBreakerConfig & {
-    onMetricsUpdate?: (metrics: CircuitBreakerMetrics) => Effect.Effect<void, never, never>;
-  }
+    onMetricsUpdate?: (
+      metrics: CircuitBreakerMetrics,
+    ) => Effect.Effect<void, never, never>;
+  },
 ): {
-  readonly wrap: <R, E, A>(effect: Effect.Effect<A, E, R>) => Effect.Effect<A, E | CircuitOpenError, R>;
+  readonly wrap: <R, E, A>(
+    effect: Effect.Effect<A, E, R>,
+  ) => Effect.Effect<A, E | CircuitOpenError, R>;
   readonly getMetrics: () => Effect.Effect<CircuitBreakerMetrics, never, never>;
 } {
   const metricsRef = Ref.unsafeMake<CircuitBreakerMetrics>({
-    state: 'closed',
+    state: "closed",
     totalRequests: 0,
     successfulRequests: 0,
     failedRequests: 0,
@@ -252,31 +268,40 @@ export function createMonitoredCircuitBreaker<R, E, A>(
         Ref.update(metricsRef, (metrics) => ({
           ...metrics,
           state: to,
-          openCount: to === 'open' ? metrics.openCount + 1 : metrics.openCount,
-          lastOpenTime: to === 'open' ? new Date() : metrics.lastOpenTime,
-          lastCloseTime: to === 'closed' ? new Date() : metrics.lastCloseTime,
+          openCount: to === "open" ? metrics.openCount + 1 : metrics.openCount,
+          lastOpenTime: to === "open" ? new Date() : metrics.lastOpenTime,
+          lastCloseTime: to === "closed" ? new Date() : metrics.lastCloseTime,
         })),
         Effect.flatMap(() =>
           config.onMetricsUpdate
             ? pipe(Ref.get(metricsRef), Effect.flatMap(config.onMetricsUpdate))
             : Effect.succeed(undefined)
-        )
+        ),
       );
 
       return pipe(
         updateMetrics,
         Effect.flatMap(() =>
-          config.onStateChange ? config.onStateChange(from, to) : Effect.succeed(undefined)
-        )
+          config.onStateChange
+            ? config.onStateChange(from, to)
+            : Effect.succeed(undefined)
+        ),
       );
     },
   });
 
   return {
-    wrap: <R, E, A>(effect: Effect.Effect<A, E, R>): Effect.Effect<A, E | CircuitOpenError, R> =>
+    wrap: <R, E, A>(
+      effect: Effect.Effect<A, E, R>,
+    ): Effect.Effect<A, E | CircuitOpenError, R> =>
       pipe(
-        Ref.update(metricsRef, (m) => ({ ...m, totalRequests: m.totalRequests + 1 })),
-        Effect.flatMap(() => breaker(effect) as Effect.Effect<A, E | CircuitOpenError, R>),
+        Ref.update(
+          metricsRef,
+          (m) => ({ ...m, totalRequests: m.totalRequests + 1 }),
+        ),
+        Effect.flatMap(() =>
+          breaker(effect) as Effect.Effect<A, E | CircuitOpenError, R>
+        ),
         Effect.tap(() =>
           Ref.update(metricsRef, (m) => ({
             ...m,
@@ -288,7 +313,7 @@ export function createMonitoredCircuitBreaker<R, E, A>(
             ...m,
             failedRequests: m.failedRequests + 1,
           }))
-        )
+        ),
       ),
     getMetrics: () => Ref.get(metricsRef),
   };
@@ -300,13 +325,14 @@ export function createMonitoredCircuitBreaker<R, E, A>(
 export function cascadeCircuitBreakers<R, E, A>(
   primary: Effect.Effect<A, E, R>,
   fallbacks: Array<Effect.Effect<A, E, R>>,
-  config: CircuitBreakerConfig
+  config: CircuitBreakerConfig,
 ): Effect.Effect<A, E | CircuitOpenError, R> {
-  const breakers = [primary, ...fallbacks].map((effect) =>
-    withCircuitBreaker(config)(effect)
-  );
+  const breaker = createCircuitBreaker(config);
+  const breakers = [primary, ...fallbacks].map((effect) => breaker(effect));
 
-  const tryNext = (index: number): Effect.Effect<A, E | CircuitOpenError, R> => {
+  const tryNext = (
+    index: number,
+  ): Effect.Effect<A, E | CircuitOpenError, R> => {
     if (index >= breakers.length) {
       return Effect.fail(new CircuitOpenError({ remainingTimeout: 0 }));
     }
@@ -314,10 +340,9 @@ export function cascadeCircuitBreakers<R, E, A>(
     return pipe(
       breakers[index]! as Effect.Effect<A, E | CircuitOpenError, R>,
       Effect.catchIf(
-        (error): error is CircuitOpenError =>
-          error instanceof CircuitOpenError,
-        () => tryNext(index + 1)
-      )
+        (error): error is CircuitOpenError => error instanceof CircuitOpenError,
+        () => tryNext(index + 1),
+      ),
     );
   };
 

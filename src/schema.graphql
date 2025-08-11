@@ -1,0 +1,36 @@
+type Query {
+  # Add your queries here
+  health: String!
+  user(id: ID!): User
+  users: [User!]!
+}
+
+type Mutation {
+  # Add your mutations here
+  createUser(input: CreateUserInput!): User!
+  updateUser(id: ID!, input: UpdateUserInput!): User!
+  deleteUser(id: ID!): Boolean!
+}
+
+type Subscription {
+  # Add your subscriptions here
+  userUpdated(id: ID!): User!
+}
+
+type User {
+  id: ID!
+  name: String!
+  email: String!
+  createdAt: String!
+  updatedAt: String!
+}
+
+type CreateUserInput {
+  name: String!
+  email: String!
+}
+
+type UpdateUserInput {
+  name: String
+  email: String
+}

@@ -45,7 +45,7 @@ export const UserEventFactories = {
    */
   createUserUpdated(
     aggregateId: AggregateId,
-    version: EventVersion,
+    version: AggregateVersion,
     data: { name?: string; email?: string; updatedAt?: string }
   ): Events.UserUpdatedEvent {
     return rawUserUpdated(aggregateId, version, {
@@ -60,7 +60,7 @@ export const UserEventFactories = {
    */
   createUserDeleted(
     aggregateId: AggregateId,
-    version: EventVersion,
+    version: AggregateVersion,
     data?: { reason?: string; deletedAt?: string }
   ): Events.UserDeletedEvent {
     return rawUserDeleted(aggregateId, version, {
@@ -75,7 +75,7 @@ export const UserEventFactories = {
    */
   createEmailVerified(
     aggregateId: AggregateId,
-    version: EventVersion,
+    version: AggregateVersion,
     data?: { verifiedAt?: string }
   ): Events.UserEmailVerifiedEvent {
     return rawEmailVerified(aggregateId, version, {
@@ -88,7 +88,7 @@ export const UserEventFactories = {
    */
   createPasswordChanged(
     aggregateId: AggregateId,
-    version: EventVersion,
+    version: AggregateVersion,
     data?: { changedAt?: string; newPassword?: string }
   ): Events.UserPasswordChangedEvent {
     return rawPasswordChanged(aggregateId, version, {
@@ -102,7 +102,7 @@ export const UserEventFactories = {
    */
   createProfileUpdated(
     aggregateId: AggregateId,
-    version: EventVersion,
+    version: AggregateVersion,
     data: { bio?: string; avatar?: string; location?: string; updatedAt?: string }
   ): Events.UserProfileUpdatedEvent {
     return rawProfileUpdated(aggregateId, version, {

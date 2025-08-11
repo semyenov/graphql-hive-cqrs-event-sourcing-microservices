@@ -33,6 +33,7 @@ import type { ICommand } from '@cqrs/framework';
  */
 interface CreateUserCommand extends ICommand {
   readonly type: 'CreateUser';
+  readonly aggregateId: ReturnType<typeof BrandedTypes.aggregateId>;
   readonly payload: {
     readonly name: string;
     readonly email: string;
@@ -132,6 +133,7 @@ async function runExample() {
   
   const command: CreateUserCommand = {
     type: 'CreateUser',
+    aggregateId: BrandedTypes.aggregateId('user-123'),
     payload: {
       name: 'John Doe',
       email: 'john@example.com',

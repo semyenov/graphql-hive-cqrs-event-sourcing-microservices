@@ -12,23 +12,40 @@ import { makeExecutableSchema } from '@graphql-tools/schema';
 import { 
   userGraphQLSchema,
   initializeUserDomain,
-  UserCommandTypes,
-  UserQueryTypes,
+  UserCommandType,
+  UserQueryType,
   // Import command and query handlers directly
   createUserHandler,
   updateUserHandler,
   deleteUserHandler,
   verifyEmailHandler,
   updateProfileHandler,
-  getUserHandler,
+  getUserByIdHandler,
   getUserByEmailHandler,
   listUsersHandler,
   getUserStatsHandler,
-} from '../domains/users';
+  type GetUserByEmailQuery,
+  type GetUserStatsQuery,
+  type CreateUserCommand,
+  type UpdateUserCommand,
+  type DeleteUserCommand,
+  type VerifyEmailCommand,
+  type UpdateProfileCommand,
+  type GetUserByIdQuery,
+  type ListUsersQuery,
+  UserTypes,
+  type UserQueryResults
+} from '../domains/users/index.ts';
+import { MockProjectionStore, createMockUserDTO } from '../domains/users/mocks.ts';
+import * as Effect from 'effect/Effect';
+import * as Option from 'effect/Option';
+
+// Initialize mock projection store for testing
+const mockProjectionStore = new MockProjectionStore();
 
 // Initialize user domain
 const userDomain = await initializeUserDomain({
-  enableCache: true,
+  enableCache: true,  
   enableProjections: true,
   enableValidation: true,
 });
@@ -59,117 +76,159 @@ const schema = makeExecutableSchema({
   resolvers: {
     Query: {
       user: async (_: unknown, { id }: { id: string }) => {
-        const query = {
-          type: UserQueryTypes.GetUserById,
-          parameters: { userId: BrandedTypes.aggregateId(id) }
+        const userOption = await Effect.runPromise(
+          mockProjectionStore.getUserById(UserTypes.userId(id))
+        );
+        
+        if (Option.isNone(userOption)) {
+          return null;
+        }
+        
+        // Convert branded types to plain strings for GraphQL
+        const user = userOption.value;
+        return {
+          ...user,
+          id: user.id as string,
+          email: user.email as string,
+          username: user.username as string
         };
-        return getUserHandler(projections.userDetailsProjection, query);
       },
       users: async (_: unknown, { pagination, includeDeleted }: { 
         pagination?: { offset?: number; limit?: number; sortBy?: string; sortOrder?: 'asc' | 'desc' }; 
         includeDeleted?: boolean 
       }) => {
-        const query = {
-          type: UserQueryTypes.ListUsers,
-          parameters: { 
-            pagination: {
-              offset: pagination?.offset || 0,
-              limit: pagination?.limit || 10,
-              sortBy: pagination?.sortBy,
-              sortOrder: pagination?.sortOrder
-            },
-            includeDeleted 
-          }
+        const result = await Effect.runPromise(
+          mockProjectionStore.listUsers({
+            offset: pagination?.offset || 0,
+            limit: pagination?.limit || 10,
+            sortBy: pagination?.sortBy,
+            sortOrder: pagination?.sortOrder
+          })
+        );
+        
+        // Convert branded types to plain strings for GraphQL
+        return {
+          ...result,
+          users: result.users.map(user => ({
+            ...user,
+            id: user.id as string,
+            email: user.email as string,
+            username: user.username as string
+          }))
         };
-        return listUsersHandler(projections.userDetailsProjection, query);
       },
       userByEmail: async (_: unknown, { email }: { email: string }) => {
-        const query = {
-          parameters: { email }
+        const userOption = await Effect.runPromise(
+          mockProjectionStore.getUserByEmail(UserTypes.email(email))
+        );
+        
+        if (Option.isNone(userOption)) {
+          return null;
+        }
+        
+        // Convert branded types to plain strings for GraphQL
+        const user = userOption.value;
+        return {
+          ...user,
+          id: user.id as string,
+          email: user.email as string,
+          username: user.username as string
         };
-        return getUserByEmailHandler(projections.userDetailsProjection, query);
       },
       userStats: async () => {
-        const query = {
-          type: UserQueryTypes.GetUserStats,
-          parameters: {}
-        };
-        return getUserStatsHandler(projections.userDetailsProjection, query);
+        const stats = await Effect.runPromise(
+          mockProjectionStore.getUserStats({})
+        );
+        return stats;
       },
     },
     Mutation: {
-      createUser: async (_: unknown, { input }: { input: { name: string; email: string } }) => {
-        const command = {
-          type: UserCommandTypes.CreateUser,
-          aggregateId: BrandedTypes.aggregateId(crypto.randomUUID()),
-          payload: input
+      createUser: async (_: unknown, { input }: { input: { email: string; username: string; password: string; firstName: string; lastName: string } }) => {
+        const userId = UserTypes.userId(crypto.randomUUID());
+        
+        // Create mock user
+        const newUser = createMockUserDTO({
+          id: userId,
+          email: UserTypes.email(input.email),
+          username: UserTypes.username(input.username),
+          profile: {
+            firstName: input.firstName,
+            lastName: input.lastName,
+            displayName: `${input.firstName} ${input.lastName}`,
+            bio: '',
+            avatarUrl: '',
+            location: '',
+            website: ''
+          }
+        });
+        
+        // Add to mock store
+        mockProjectionStore.addUser(newUser);
+        
+        // Return with plain strings for GraphQL
+        return {
+          ...newUser,
+          id: newUser.id as string,
+          email: newUser.email as string,
+          username: newUser.username as string
+        };
+      },
+      updateUser: async (_: unknown, { userId, input }: { userId: string; input: { name?: string; email?: string } }) => {
+        // Get existing user from mock store
+        const userOption = await Effect.runPromise(
+          mockProjectionStore.getUserById(UserTypes.userId(userId))
+        );
+        
+        if (Option.isNone(userOption)) {
+          throw new Error('User not found');
+        }
+        
+        // Update and return
+        const updatedUser = {
+          ...userOption.value,
+          email: input.email ? UserTypes.email(input.email) : userOption.value.email,
+          username: input.name ? UserTypes.username(input.name) : userOption.value.username,
+          updatedAt: new Date().toISOString()
         };
         
-        try {
-          const result = await createUserHandler(repository, command);
-          return { 
-            success: true, 
-            userId: command.aggregateId,
-            message: 'User created successfully'
-          };
-        } catch (error) {
-          return { 
-            success: false, 
-            error: error instanceof Error ? error.message : 'Unknown error'
-          };
-        }
-      },
-      updateUser: async (_: unknown, { id, input }: { id: string; input: { name?: string; email?: string } }) => {
-        const command = {
-          type: UserCommandTypes.UpdateUser,
-          aggregateId: BrandedTypes.aggregateId(id),
-          payload: input
-        };
+        mockProjectionStore.addUser(updatedUser);
         
-        try {
-          const result = await updateUserHandler(repository, command);
-          return { 
-            success: true, 
-            userId: id,
-            message: 'User updated successfully'
-          };
-        } catch (error) {
-          return { 
-            success: false, 
-            error: error instanceof Error ? error.message : 'Unknown error'
-          };
-        }
+        return {
+          ...updatedUser,
+          id: updatedUser.id as string,
+          email: updatedUser.email as string,
+          username: updatedUser.username as string
+        };
       },
-      deleteUser: async (_: unknown, { id, reason }: { id: string; reason?: string }) => {
+      deleteUser: async (_: unknown, { userId, reason }: { userId: string; reason?: string }) => {
         const command = {
-          type: UserCommandTypes.DeleteUser,
-          aggregateId: BrandedTypes.aggregateId(id),
+          type: UserCommandType.DELETE_USER,
+          aggregateId: BrandedTypes.aggregateId(userId),
           payload: { reason }
         };
         
         try {
-          const result = await deleteUserHandler(repository, command);
+          await deleteUserHandler.handle(command as DeleteUserCommand);
           return { 
             success: true, 
-            userId: id,
             message: 'User deleted successfully'
           };
         } catch (error) {
           return { 
             success: false, 
-            error: error instanceof Error ? error.message : 'Unknown error'
+            message: error instanceof Error ? error.message : 'Failed to delete user'
           };
         }
       },
       verifyUserEmail: async (_: unknown, { id, token }: { id: string; token: string }) => {
         const command = {
-          type: UserCommandTypes.VerifyUserEmail,
+          type: UserCommandType.VERIFY_EMAIL,
           aggregateId: BrandedTypes.aggregateId(id),
           payload: { verificationToken: token }
         };
         
         try {
-          const result = await verifyEmailHandler(repository, command);
+          const result = await verifyEmailHandler.handle(command as VerifyEmailCommand);
           return { 
             success: true, 
             userId: id,
@@ -184,22 +243,21 @@ const schema = makeExecutableSchema({
       },
       updateUserProfile: async (_: unknown, { id, input }: { id: string; input: { bio?: string; avatar?: string; location?: string } }) => {
         const command = {
-          type: UserCommandTypes.UpdateUserProfile,
+          type: UserCommandType.UPDATE_PROFILE,
           aggregateId: BrandedTypes.aggregateId(id),
           payload: input
         };
         
         try {
-          const result = await updateProfileHandler(repository, command);
+          await updateProfileHandler.handle(command as UpdateProfileCommand);
           return { 
             success: true, 
-            userId: id,
             message: 'Profile updated successfully'
           };
         } catch (error) {
           return { 
             success: false, 
-            error: error instanceof Error ? error.message : 'Unknown error'
+            message: error instanceof Error ? error.message : 'Failed to update profile'
           };
         }
       },

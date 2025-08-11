@@ -12,11 +12,11 @@ import type * as Types from './types';
  */
 export const BrandedTypes = {
   // ID factories
-  aggregateId: (id: string): Types.AggregateId => {
+  aggregateId: <T extends Types.AggregateId<string>>(id: string): T => {
     if (!id || typeof id !== 'string') {
       throw new Error('Invalid aggregate ID');
     }
-    return id as Types.AggregateId;
+    return id as T;
   },
 
   eventId: (id: string): Types.EventId => {
@@ -47,22 +47,19 @@ export const BrandedTypes = {
     return id as Types.CausationId;
   },
 
-  // Value object factories
-  uuid: (uuid: string): Types.UUID => {
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(uuid)) {
-      throw new Error('Invalid UUID format');
+  // Version factories
+  eventVersion: (version: number): Types.EventVersion => {
+    if (typeof version !== 'number' || version < 0) {
+      throw new Error('Invalid event version');
     }
-    return uuid.toLowerCase() as Types.UUID;
+    return version as Types.EventVersion;
   },
 
-  url: (url: string): Types.URL => {
-    try {
-      new globalThis.URL(url);
-      return url as Types.URL;
-    } catch {
-      throw new Error('Invalid URL format');
+  aggregateVersion: (version: number): Types.AggregateVersion => {
+    if (typeof version !== 'number' || version < 0) {
+      throw new Error('Invalid aggregate version');
     }
+    return version as Types.AggregateVersion;
   },
 
   // Temporal factories
@@ -70,65 +67,16 @@ export const BrandedTypes = {
     if (!(date instanceof Date) || isNaN(date.getTime())) {
       throw new Error('Invalid timestamp');
     }
-    return date as Types.Timestamp;
-  },
+    return date.toISOString() as Types.Timestamp;
+  }
+};
 
-  createdAt: (date: Date = new Date()): Types.CreatedAt => {
-    if (!(date instanceof Date) || isNaN(date.getTime())) {
-      throw new Error('Invalid created date');
-    }
-    return date as Types.CreatedAt;
-  },
-
-  updatedAt: (date: Date = new Date()): Types.UpdatedAt => {
-    if (!(date instanceof Date) || isNaN(date.getTime())) {
-      throw new Error('Invalid updated date');
-    }
-    return date as Types.UpdatedAt;
-  },
-
-  // Version factories
-  eventVersion: (version: number): Types.EventVersion => {
-    if (!Number.isInteger(version) || version < 1) {
-      throw new Error('Event version must be a positive integer');
-    }
-    return version as Types.EventVersion;
-  },
-
-  aggregateVersion: (version: number): Types.AggregateVersion => {
-    if (!Number.isInteger(version) || version < 0) {
-      throw new Error('Aggregate version must be a non-negative integer');
-    }
-    return version as Types.AggregateVersion;
-  },
-
-  // Numeric constraint factories
-  positiveNumber: (num: number): Types.PositiveNumber => {
-    if (typeof num !== 'number' || num <= 0) {
-      throw new Error('Must be a positive number');
-    }
-    return num as Types.PositiveNumber;
-  },
-
-  nonNegativeNumber: (num: number): Types.NonNegativeNumber => {
-    if (typeof num !== 'number' || num < 0) {
-      throw new Error('Must be a non-negative number');
-    }
-    return num as Types.NonNegativeNumber;
-  },
-
-  percentage: (num: number): Types.Percentage => {
-    if (typeof num !== 'number' || num < 0 || num > 100) {
-      throw new Error('Percentage must be between 0 and 100');
-    }
-    return num as Types.Percentage;
-  },
-
-  money: (amount: number): Types.Money => {
-    if (typeof amount !== 'number' || amount < 0) {
-      throw new Error('Money amount must be non-negative');
-    }
-    // Round to 2 decimal places
-    return Math.round(amount * 100) / 100 as Types.Money;
-  },
-} as const;
+// Export individual functions for convenience
+export const aggregateId = BrandedTypes.aggregateId;
+export const eventId = BrandedTypes.eventId;
+export const commandId = BrandedTypes.commandId;
+export const correlationId = BrandedTypes.correlationId;
+export const causationId = BrandedTypes.causationId;
+export const eventVersion = BrandedTypes.eventVersion;
+export const aggregateVersion = BrandedTypes.aggregateVersion;
+export const timestamp = BrandedTypes.timestamp;

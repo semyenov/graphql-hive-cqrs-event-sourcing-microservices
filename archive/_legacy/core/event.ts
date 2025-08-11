@@ -28,7 +28,7 @@ export interface IEvent<
 > {
   readonly aggregateId: TAggregateId;
   readonly type: TType;
-  readonly version: EventVersion;
+  readonly version: AggregateVersion;
   readonly timestamp: Timestamp;
   readonly data: TData;
 }
@@ -260,7 +260,7 @@ export type ExtractAggregateId<TEvent extends IEvent> = TEvent['aggregateId'];
  */
 export type EventFactory<TEvent extends IEvent> = (
   aggregateId: TEvent['aggregateId'],
-  version: EventVersion,
+  version: AggregateVersion,
   data: TEvent['data']
 ) => TEvent;
 

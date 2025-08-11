@@ -7,7 +7,7 @@
 
 import * as Effect from 'effect/Effect';
 import { pipe } from 'effect/Function';
-import type { ICommand, ICommandHandler, ICommandResult } from '../core/command';
+import type { ICommand, ICommandHandler, ICommandResult } from './core/types';
 
 /**
  * Command effect type - represents a command execution with effects

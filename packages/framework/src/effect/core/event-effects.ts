@@ -12,18 +12,15 @@ import * as Layer from 'effect/Layer';
 import * as Queue from 'effect/Queue';
 import * as Fiber from 'effect/Fiber';
 import * as Data from 'effect/Data';
-import * as Chunk from 'effect/Chunk';
-import * as Option from 'effect/Option';
-import * as Duration from 'effect/Duration';
 import { pipe } from 'effect/Function';
-import type { IEvent, IEventStore, EventHandler } from '../../core/event';
-import type { AggregateId, EventVersion } from '../../core/branded/types';
+import type { IEvent, IEventStore, EventHandler } from './types';
+import type { AggregateId, AggregateVersion } from '../../core/branded/types';
 
 /**
  * Event processing context
  */
 export interface EventContext {
-  readonly eventStore: IEventStore<any>;
+  readonly eventStore: IEventStore<any, any>;
   readonly projections: Map<string, any>;
 }
 
@@ -42,8 +39,8 @@ export class EventProcessingError extends Data.TaggedError('EventProcessingError
 
 export class EventVersionConflict extends Data.TaggedError('EventVersionConflict')<{
   readonly aggregateId: AggregateId;
-  readonly expectedVersion: EventVersion;
-  readonly actualVersion: EventVersion;
+  readonly expectedversion: AggregateVersion;
+  readonly actualversion: AggregateVersion;
 }> {}
 
 export class ProjectionError extends Data.TaggedError('ProjectionError')<{
@@ -178,14 +175,14 @@ export const EventSourcing = {
    */
   replay: <TEvent extends IEvent>(
     aggregateId: AggregateId,
-    fromVersion: EventVersion,
+    fromversion: AggregateVersion,
     handler: EffectEventHandler<TEvent>
   ): Effect.Effect<void, EventError, EventContext> =>
     pipe(
       EventContext,
       Effect.flatMap((ctx) =>
         Effect.tryPromise({
-          try: () => ctx.eventStore.getEvents(aggregateId, fromVersion),
+          try: () => ctx.eventStore.getEvents(aggregateId, fromversion),
           catch: (error) =>
             new EventProcessingError({
               event: {} as TEvent,
@@ -370,7 +367,7 @@ export function createEffectEventBus<TEvent extends IEvent>(): EffectEventBus<TE
 export const EventStoreServiceLive = Layer.succeed(
   EventContext,
   EventContext.of({
-    eventStore: {} as IEventStore<any>, // Will be provided by actual implementation
+    eventStore: {} as IEventStore<any, any>, // Will be provided by actual implementation
     projections: new Map(),
   })
 );
@@ -382,10 +379,10 @@ export function fromEventHandler<TEvent extends IEvent>(
   handler: EventHandler<TEvent>
 ): EffectEventHandler<TEvent> {
   return {
-    canHandle: (event) => true,
+    canHandle: (_event) => true,
     handle: (event: TEvent) =>
       Effect.tryPromise({
-        try: () => Promise.resolve(), // handler.handle(event) - assuming handler has a handle method
+        try: () => Promise.resolve(handler(event)),
         catch: (error) =>
           new EventProcessingError({
             event,

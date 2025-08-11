@@ -1,224 +1,405 @@
 /**
  * Framework Patterns: Enhanced Reducers
  * 
- * Advanced reducer patterns using ts-pattern for better type safety and readability.
+ * Pattern-based reducers with exhaustive matching and compile-time safety.
+ * Replaces switch statements with ts-pattern for better type inference.
  */
 
 import { match, P } from 'ts-pattern';
-import type { IEvent, EventReducer } from '../core/event';
+import * as Effect from 'effect/Effect';
+import { pipe } from 'effect/Function';
+import type { IEvent } from '../effect/core/types';
 
 /**
- * Create a reducer with exhaustive pattern matching
+ * Base reducer type
  */
-export function exhaustiveReducer<TEvent extends IEvent, TState>(
-  initialState: TState,
-  patterns: {
-    [K in TEvent['type']]: (
-      state: TState,
-      event: Extract<TEvent, { type: K }>
-    ) => TState;
+export type Reducer<S, E> = (state: S, event: E) => S;
+
+/**
+ * Async reducer type
+ */
+export type AsyncReducer<S, E> = (state: S, event: E) => Promise<S>;
+
+/**
+ * Effect reducer type
+ */
+export type EffectReducer<S, E, Err = never> = (
+  state: S,
+  event: E
+) => Effect.Effect<S, Err, never>;
+
+/**
+ * Pattern-based reducer builder
+ * 
+ * @example
+ * ```typescript
+ * const reducer = createPatternReducer<UserState, UserEvent>(initialState)
+ *   .on('USER_CREATED', (state, event) => ({
+ *     ...state,
+ *     users: [...state.users, event.data.user]
+ *   }))
+ *   .on('USER_UPDATED', (state, event) => ({
+ *     ...state,
+ *     users: state.users.map(u => 
+ *       u.id === event.data.id ? { ...u, ...event.data } : u
+ *     )
+ *   }))
+ *   .on('USER_DELETED', (state, event) => ({
+ *     ...state,
+ *     users: state.users.filter(u => u.id !== event.data.id)
+ *   }))
+ *   .build();
+ * ```
+ */
+export class PatternReducerBuilder<S, E extends { type: string }> {
+  private patterns: Array<{
+    type: E['type'];
+    reducer: (state: S, event: E) => S;
+  }> = [];
+  
+  constructor(private initialState: S) {}
+  
+  on<T extends E['type']>(
+    type: T,
+    reducer: (state: S, event: Extract<E, { type: T }>) => S
+  ): this {
+    this.patterns.push({
+      type,
+      reducer: reducer as (state: S, event: E) => S,
+    });
+    return this;
   }
-): EventReducer<TEvent, TState> {
-  return (state = initialState, event) => {
-    // This ensures all event types are handled at compile time
-    const eventType = event.type as TEvent['type'];
-    const handler = patterns[eventType];
-    
-    if (!handler) {
-      // This should never happen if patterns is exhaustive
-      console.warn(`No handler for event type: ${eventType}`);
-      return state;
-    }
-    
-    return handler(state, event as any);
-  };
-}
-
-/**
- * Create a reducer with partial matching and default fallback
- */
-export function partialReducer<TEvent extends IEvent, TState>(
-  initialState: TState,
-  patterns: Partial<{
-    [K in TEvent['type']]: (
-      state: TState,
-      event: Extract<TEvent, { type: K }>
-    ) => TState;
-  }>,
-  defaultHandler?: (state: TState, event: TEvent) => TState
-): EventReducer<TEvent, TState> {
-  return (state = initialState, event) => {
-    return match(event)
-      .when(
-        (e): e is TEvent => e.type in patterns,
-        (e) => {
-          const handler = patterns[e.type as TEvent['type']]!;
-          return handler(state, e as any);
+  
+  onMultiple<T extends E['type']>(
+    types: T[],
+    reducer: (state: S, event: Extract<E, { type: T }>) => S
+  ): this {
+    types.forEach(type => {
+      this.patterns.push({
+        type,
+        reducer: reducer as (state: S, event: E) => S,
+      });
+    });
+    return this;
+  }
+  
+  onPattern(
+    predicate: (event: E) => boolean,
+    reducer: (state: S, event: E) => S
+  ): this {
+    // Store pattern-based reducers separately
+    const originalBuild = this.build.bind(this);
+    this.build = () => {
+      const baseReducer = originalBuild();
+      return (state: S = this.initialState, event: E): S => {
+        if (predicate(event)) {
+          return reducer(state, event);
         }
-      )
-      .otherwise((e) => 
-        defaultHandler ? defaultHandler(state, e) : state
-      );
-  };
-}
-
-/**
- * Combine multiple reducers into one
- */
-export function combineReducers<TEvent extends IEvent, TState extends Record<string, any>>(
-  reducers: {
-    [K in keyof TState]: EventReducer<TEvent, TState[K]>;
+        return baseReducer(state, event);
+      };
+    };
+    return this;
   }
-): EventReducer<TEvent, TState> {
-  return (state, event) => {
-    const nextState = {} as TState;
-    let hasChanged = false;
-    
-    for (const key in reducers) {
-      const reducer = reducers[key];
-      const previousStateForKey = state ? state[key] : undefined;
-      const nextStateForKey = reducer(previousStateForKey, event);
-      
-      nextState[key] = nextStateForKey;
-      hasChanged = hasChanged || nextStateForKey !== previousStateForKey;
-    }
-    
-    return hasChanged ? nextState : (state || nextState);
-  };
-}
-
-/**
- * Create a reducer that handles event sequences
- */
-export function sequenceReducer<TEvent extends IEvent, TState>(
-  initialState: TState,
-  sequences: Array<{
-    pattern: TEvent['type'][];
-    reducer: (state: TState, events: TEvent[]) => TState;
-  }>
-): (state: TState, events: TEvent[]) => TState {
-  return (state = initialState, events) => {
-    const types = events.map(e => e.type);
-    
-    const sequence = sequences.find(s => 
-      JSON.stringify(s.pattern) === JSON.stringify(types)
-    );
-    
-    if (sequence) {
-      return sequence.reducer(state, events);
-    }
-    
-    // Fall back to returning state unchanged
-    return state;
-  };
-}
-
-/**
- * Time-based reducer that considers event timestamps
- */
-export function timeAwareReducer<TEvent extends IEvent, TState>(
-  initialState: TState,
-  patterns: {
-    [K in TEvent['type']]: (
-      state: TState,
-      event: Extract<TEvent, { type: K }>,
-      timeDelta: number
-    ) => TState;
-  }
-): EventReducer<TEvent, TState> {
-  let lastTimestamp: number | null = null;
   
-  return (state = initialState, event) => {
-    // Convert timestamp to number (it's a branded string)
-    const currentTimestamp = Date.parse(String(event.timestamp));
-    const timeDelta = lastTimestamp 
-      ? currentTimestamp - lastTimestamp
-      : 0;
+  withDefault(defaultReducer: (state: S, event: E) => S): this {
+    const originalBuild = this.build.bind(this);
+    this.build = () => {
+      const baseReducer = originalBuild();
+      return (state: S = this.initialState, event: E): S => {
+        const pattern = this.patterns.find(p => p.type === event.type);
+        if (pattern) {
+          return pattern.reducer(state, event);
+        }
+        return defaultReducer(state, event);
+      };
+    };
+    return this;
+  }
+  
+  build(): Reducer<S, E> {
+    return (state: S = this.initialState, event: E): S => {
+      const pattern = this.patterns.find(p => p.type === event.type);
+      if (pattern) {
+        return pattern.reducer(state, event);
+      }
+      
+      // No pattern matched, return unchanged state
+      console.warn(`No reducer pattern for event type: ${event.type}`);
+      return state;
+    };
+  }
+  
+  buildExhaustive(): Reducer<S, E> {
+    return (state: S = this.initialState, event: E): S => {
+      const pattern = this.patterns.find(p => p.type === event.type);
+      if (!pattern) {
+        throw new Error(
+          `Exhaustive reducer missing handler for event type: ${event.type}`
+        );
+      }
+      return pattern.reducer(state, event);
+    };
+  }
+}
+
+export function createPatternReducer<S, E extends { type: string }>(
+  initialState: S
+): PatternReducerBuilder<S, E> {
+  return new PatternReducerBuilder(initialState);
+}
+
+/**
+ * Async reducer builder
+ */
+export class AsyncReducerBuilder<S, E extends { type: string }> {
+  private patterns: Array<{
+    type: E['type'];
+    reducer: (state: S, event: E) => Promise<S>;
+  }> = [];
+  
+  constructor(private initialState: S) {}
+  
+  on<T extends E['type']>(
+    type: T,
+    reducer: (state: S, event: Extract<E, { type: T }>) => Promise<S>
+  ): this {
+    this.patterns.push({
+      type,
+      reducer: reducer as (state: S, event: E) => Promise<S>,
+    });
+    return this;
+  }
+  
+  build(): AsyncReducer<S, E> {
+    return async (state: S = this.initialState, event: E): Promise<S> => {
+      const pattern = this.patterns.find(p => p.type === event.type);
+      if (pattern) {
+        return pattern.reducer(state, event);
+      }
+      return state;
+    };
+  }
+}
+
+export function createAsyncReducer<S, E extends { type: string }>(
+  initialState: S
+): AsyncReducerBuilder<S, E> {
+  return new AsyncReducerBuilder(initialState);
+}
+
+/**
+ * Effect-based reducer builder
+ */
+export class EffectReducerBuilder<S, E extends { type: string }, Err = never> {
+  private patterns: Array<{
+    type: E['type'];
+    reducer: (state: S, event: E) => Effect.Effect<S, Err, never>;
+  }> = [];
+  
+  constructor(private initialState: S) {}
+  
+  on<T extends E['type']>(
+    type: T,
+    reducer: (state: S, event: Extract<E, { type: T }>) => Effect.Effect<S, Err, never>
+  ): this {
+    this.patterns.push({
+      type,
+      reducer: reducer as (state: S, event: E) => Effect.Effect<S, Err, never>,
+    });
+    return this;
+  }
+  
+  build(): EffectReducer<S, E, Err> {
+    return (state: S = this.initialState, event: E): Effect.Effect<S, Err, never> => {
+      const pattern = this.patterns.find(p => p.type === event.type);
+      if (pattern) {
+        return pattern.reducer(state, event);
+      }
+      return Effect.succeed(state);
+    };
+  }
+}
+
+export function createEffectReducer<S, E extends { type: string }, Err = never>(
+  initialState: S
+): EffectReducerBuilder<S, E, Err> {
+  return new EffectReducerBuilder(initialState);
+}
+
+/**
+ * Advanced reducer patterns
+ */
+export const ReducerPatterns = {
+  /**
+   * Combine multiple reducers
+   */
+  combine<S, E>(...reducers: Reducer<S, E>[]): Reducer<S, E> {
+    return (state: S, event: E): S => {
+      return reducers.reduce((acc, reducer) => reducer(acc, event), state);
+    };
+  },
+  
+  /**
+   * Slice reducer for nested state
+   */
+  slice<S, K extends keyof S, E>(
+    key: K,
+    reducer: Reducer<S[K], E>
+  ): Reducer<S, E> {
+    return (state: S, event: E): S => ({
+      ...state,
+      [key]: reducer(state[key], event),
+    });
+  },
+  
+  /**
+   * Conditional reducer
+   */
+  when<S, E>(
+    predicate: (event: E) => boolean,
+    reducer: Reducer<S, E>
+  ): Reducer<S, E> {
+    return (state: S, event: E): S => {
+      if (predicate(event)) {
+        return reducer(state, event);
+      }
+      return state;
+    };
+  },
+  
+  /**
+   * Reducer with middleware
+   */
+  withMiddleware<S, E>(
+    reducer: Reducer<S, E>,
+    middleware: {
+      before?: (state: S, event: E) => void;
+      after?: (state: S, event: E, newState: S) => void;
+    }
+  ): Reducer<S, E> {
+    return (state: S, event: E): S => {
+      middleware.before?.(state, event);
+      const newState = reducer(state, event);
+      middleware.after?.(state, event, newState);
+      return newState;
+    };
+  },
+  
+  /**
+   * Reducer with validation
+   */
+  withValidation<S, E>(
+    reducer: Reducer<S, E>,
+    validate: (state: S) => boolean | string
+  ): Reducer<S, E> {
+    return (state: S, event: E): S => {
+      const newState = reducer(state, event);
+      const validation = validate(newState);
+      
+      if (validation === true) {
+        return newState;
+      }
+      
+      if (validation === false) {
+        throw new Error('State validation failed');
+      }
+      
+      throw new Error(`State validation failed: ${validation}`);
+    };
+  },
+};
+
+/**
+ * ts-pattern based reducer for maximum type safety
+ */
+export function createTsPatternReducer<S, E extends { type: string }>(
+  initialState: S
+) {
+  return <R extends Record<E['type'], (state: S, event: Extract<E, { type: E['type'] }>) => S>>(
+    patterns: R
+  ): Reducer<S, E> => {
+    return (state: S = initialState, event: E): S => {
+      return match(event)
+        .with(P.select(), (selected) => {
+          const handler = patterns[selected.type as E['type']];
+          if (handler) {
+            return handler(state, selected as any);
+          }
+          return state;
+        })
+        .exhaustive();
+    };
+  };
+}
+
+/**
+ * State machine reducer pattern
+ */
+export interface StateMachine<S extends string, E extends { type: string }> {
+  states: S[];
+  initialState: S;
+  transitions: {
+    [K in S]: {
+      [T in E['type']]?: S;
+    };
+  };
+}
+
+export function createStateMachineReducer<
+  S extends string,
+  E extends { type: string },
+  State extends { status: S }
+>(
+  machine: StateMachine<S, E>,
+  stateReducer?: (state: State, event: E, nextStatus: S) => State
+): Reducer<State, E> {
+  return (state: State, event: E): State => {
+    const currentStatus = state.status;
+    const transitions = machine.transitions[currentStatus];
     
-    lastTimestamp = currentTimestamp;
-    
-    const handler = patterns[event.type as TEvent['type']];
-    if (!handler) {
+    if (!transitions) {
       return state;
     }
     
-    return handler(state, event as any, timeDelta);
-  };
-}
-
-/**
- * Conditional reducer based on state
- */
-export function conditionalReducer<TEvent extends IEvent, TState>(
-  initialState: TState,
-  conditions: Array<{
-    when: (state: TState) => boolean;
-    reducer: EventReducer<TEvent, TState>;
-  }>,
-  fallback: EventReducer<TEvent, TState>
-): EventReducer<TEvent, TState> {
-  return (state = initialState, event) => {
-    const condition = conditions.find(c => c.when(state));
+    const nextStatus = transitions[event.type];
     
-    if (condition) {
-      return condition.reducer(state, event);
+    if (!nextStatus) {
+      return state;
     }
     
-    return fallback(state, event);
-  };
-}
-
-/**
- * Reducer with side effects
- */
-export function effectfulReducer<TEvent extends IEvent, TState>(
-  reducer: EventReducer<TEvent, TState>,
-  effects: Partial<{
-    [K in TEvent['type']]: (
-      state: TState,
-      event: Extract<TEvent, { type: K }>
-    ) => void | Promise<void>;
-  }>
-): EventReducer<TEvent, TState> {
-  return (state, event) => {
-    const newState = reducer(state, event);
-    
-    const effect = effects[event.type as TEvent['type']];
-    if (effect) {
-      // Run effect asynchronously without blocking
-      Promise.resolve(effect(newState, event as any)).catch(console.error);
+    if (stateReducer) {
+      return stateReducer(state, event, nextStatus);
     }
     
-    return newState;
+    return {
+      ...state,
+      status: nextStatus,
+    };
   };
 }
 
 /**
- * Memoized reducer for performance
- * Note: Only works with object states due to WeakMap constraints
+ * Event sourcing reducer with snapshots
  */
-export function memoizedReducer<TEvent extends IEvent, TState extends object>(
-  reducer: EventReducer<TEvent, TState>
-): EventReducer<TEvent, TState> {
-  const cache = new WeakMap<TEvent, Map<TState | undefined, TState>>();
+export class EventSourcingReducer<S, E extends IEvent> {
+  constructor(
+    private reducer: Reducer<S, E>,
+    private initialState: S,
+    private snapshotFrequency: number = 10
+  ) {}
   
-  return (state, event) => {
-    if (!cache.has(event)) {
-      cache.set(event, new Map());
-    }
+  reduce(events: E[], fromSnapshot?: { state: S; version: number }): S {
+    let state = fromSnapshot?.state ?? this.initialState;
+    const startIndex = fromSnapshot?.version ?? 0;
     
-    const eventCache = cache.get(event)!;
+    const eventsToApply = events.slice(startIndex);
     
-    // For undefined state, use a special key
-    const stateKey = state ?? ({} as TState);
-    
-    if (eventCache.has(stateKey)) {
-      return eventCache.get(stateKey)!;
-    }
-    
-    const newState = reducer(state, event);
-    eventCache.set(stateKey, newState);
-    
-    return newState;
-  };
+    return eventsToApply.reduce((acc, event) => {
+      return this.reducer(acc, event);
+    }, state);
+  }
+  
+  shouldSnapshot(version: number): boolean {
+    return version % this.snapshotFrequency === 0;
+  }
 }

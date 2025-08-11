@@ -1,103 +1,135 @@
 /**
  * Framework Effect: Command Effects
- * 
+ *
  * Full Effect-based command handling with dependency injection,
  * error handling, and advanced patterns.
  */
 
-import * as Effect from 'effect/Effect';
-import * as Context from 'effect/Context';
-import * as Layer from 'effect/Layer';
-import * as Data from 'effect/Data';
-import * as Either from 'effect/Either';
-import * as Option from 'effect/Option';
-import * as Duration from 'effect/Duration';
-import * as Schedule from 'effect/Schedule';
-import * as Ref from 'effect/Ref';
-import { pipe } from 'effect/Function';
-import type { ICommand, ICommandHandler, ICommandResult, ICommandBus } from '../../core/command';
-import type { IEventStore } from '../../core/event';
-import type { IAggregate } from '../../core/aggregate';
-import type { AggregateId } from '../../core/branded/types';
+import * as Effect from "effect/Effect";
+import * as Context from "effect/Context";
+import * as Layer from "effect/Layer";
+import * as Data from "effect/Data";
+import * as Either from "effect/Either";
+import * as Duration from "effect/Duration";
+import * as Schedule from "effect/Schedule";
+import * as Ref from "effect/Ref";
+import { pipe } from "effect/Function";
+import type {
+  ICommand,
+  ICommandBus,
+  ICommandHandler,
+  ICommandResult,
+  IEventStore,
+} from "./types";
+import type { AggregateId } from "../../core/branded/types";
 
 /**
  * Command handler context - dependencies for command execution
  */
 export interface CommandContext {
-  readonly eventStore: IEventStore<any>;
+  readonly eventStore: IEventStore<any, any>;
   readonly commandBus: ICommandBus;
 }
 
 /**
  * Command context tag for dependency injection
  */
-export const CommandContext = Context.GenericTag<CommandContext>('CommandContext');
+export const CommandContext = Context.GenericTag<CommandContext>(
+  "CommandContext",
+);
 
 /**
  * Command execution error types
  */
-export class CommandValidationError extends Data.TaggedError('CommandValidationError')<{
-  readonly command: ICommand;
-  readonly errors: ReadonlyArray<string>;
-}> {}
+export class CommandValidationError
+  extends Data.TaggedError("CommandValidationError")<{
+    readonly command: ICommand;
+    readonly errors: ReadonlyArray<string>;
+  }> {}
 
-export class CommandExecutionError extends Data.TaggedError('CommandExecutionError')<{
-  readonly command: ICommand;
-  readonly cause: unknown;
-}> {}
+export class CommandExecutionError
+  extends Data.TaggedError("CommandExecutionError")<{
+    readonly command: ICommand;
+    readonly cause: unknown;
+  }> {}
 
-export class AggregateNotFoundError extends Data.TaggedError('AggregateNotFoundError')<{
-  readonly aggregateId: AggregateId;
-}> {}
+export class AggregateNotFoundError
+  extends Data.TaggedError("AggregateNotFoundError")<{
+    readonly aggregateId: AggregateId;
+  }> {}
 
-export class ConcurrencyError extends Data.TaggedError('ConcurrencyError')<{
+export class ConcurrencyError extends Data.TaggedError("ConcurrencyError")<{
   readonly aggregateId: AggregateId;
   readonly expectedVersion: number;
   readonly actualVersion: number;
 }> {}
 
-export type CommandError = 
-  | CommandValidationError 
-  | CommandExecutionError 
-  | AggregateNotFoundError 
+export type CommandError =
+  | CommandValidationError
+  | CommandExecutionError
+  | AggregateNotFoundError
   | ConcurrencyError;
 
 /**
  * Effect-based command handler
  */
-export interface EffectCommandHandler<TCommand extends ICommand, TResult = unknown> {
+export interface EffectCommandHandler<
+  TCommand extends ICommand,
+  TResult = unknown,
+> {
   readonly canHandle: (command: ICommand) => boolean;
-  readonly handle: (command: TCommand) => Effect.Effect<TResult, CommandError, CommandContext>;
+  readonly handle: (
+    command: TCommand,
+    context: CommandContext,
+  ) => Effect.Effect<TResult, CommandError, CommandContext>;
 }
 
 /**
  * Create an effect-based command handler with full error handling
  */
-export function createCommandHandler<TCommand extends ICommand, TResult = unknown>(
+export function createCommandHandler<
+  TCommand extends ICommand,
+  TResult = unknown,
+>(
   config: {
     canHandle: (command: ICommand) => boolean;
-    validate?: (command: TCommand) => Effect.Effect<void, CommandValidationError, never>;
-    execute: (command: TCommand) => Effect.Effect<TResult, CommandError, CommandContext>;
-    onSuccess?: (result: TResult, command: TCommand) => Effect.Effect<void, never, never>;
-    onError?: (error: CommandError, command: TCommand) => Effect.Effect<void, never, never>;
-  }
+    validate?: (
+      command: TCommand,
+    ) => Effect.Effect<void, CommandValidationError, never>;
+    execute: (
+      command: TCommand,
+      context: CommandContext,
+    ) => Effect.Effect<TResult, CommandError, CommandContext>;
+    onSuccess?: (
+      result: TResult,
+      command: TCommand,
+    ) => Effect.Effect<void, never, never>;
+    onError?: (
+      error: CommandError,
+      command: TCommand,
+    ) => Effect.Effect<void, never, never>;
+  },
 ): EffectCommandHandler<TCommand, TResult> {
   return {
     canHandle: config.canHandle,
-    handle: (command: TCommand) =>
+    handle: (command: TCommand, context: CommandContext) =>
       pipe(
         // Validation phase
         config.validate ? config.validate(command) : Effect.succeed(undefined),
         // Execution phase
-        Effect.flatMap(() => config.execute(command)),
+        Effect.flatMap(() => config.execute(command, context)),
         // Success callback
-        Effect.tap((result) => 
-          config.onSuccess ? config.onSuccess(result, command) : Effect.succeed(undefined)
+        Effect.tap((result) =>
+          config.onSuccess
+            ? config.onSuccess(result, command)
+            : Effect.succeed(undefined)
         ),
         // Error callback
         Effect.tapError((error) =>
-          config.onError ? config.onError(error as CommandError, command) : Effect.succeed(undefined)
-        )
+          config.onError
+            ? config.onError(error as CommandError, command)
+            : Effect.succeed(undefined)
+        ),
       ),
   };
 }
@@ -107,14 +139,16 @@ export function createCommandHandler<TCommand extends ICommand, TResult = unknow
  */
 export function withRetry<TCommand extends ICommand, TResult>(
   handler: EffectCommandHandler<TCommand, TResult>,
-  policy: Schedule.Schedule<unknown, unknown, never> = Schedule.exponential(Duration.millis(100))
+  policy: Schedule.Schedule<unknown, unknown, never> = Schedule.exponential(
+    Duration.millis(100),
+  ),
 ): EffectCommandHandler<TCommand, TResult> {
   return {
     canHandle: handler.canHandle,
-    handle: (command: TCommand) =>
+    handle: (command: TCommand, context: CommandContext) =>
       pipe(
-        handler.handle(command),
-        Effect.retry(policy)
+        handler.handle(command, context),
+        Effect.retry(policy),
       ),
   };
 }
@@ -124,21 +158,23 @@ export function withRetry<TCommand extends ICommand, TResult>(
  */
 export function withTimeout<TCommand extends ICommand, TResult>(
   handler: EffectCommandHandler<TCommand, TResult>,
-  duration: Duration.Duration
+  duration: Duration.Duration,
 ): EffectCommandHandler<TCommand, TResult> {
   return {
     canHandle: handler.canHandle,
-    handle: (command: TCommand) =>
+    handle: (command: TCommand, context: CommandContext) =>
       pipe(
-        handler.handle(command),
+        handler.handle(command, context),
         Effect.timeoutFail({
           duration,
           onTimeout: () =>
             new CommandExecutionError({
               command,
-              cause: new Error(`Command timed out after ${Duration.toMillis(duration)}ms`),
+              cause: new Error(
+                `Command timed out after ${Duration.toMillis(duration)}ms`,
+              ),
             }),
-        })
+        }),
       ),
   };
 }
@@ -151,11 +187,11 @@ export function withCircuitBreaker<TCommand extends ICommand, TResult>(
   config: {
     maxFailures: number;
     resetTimeout: Duration.Duration;
-  }
+  },
 ): EffectCommandHandler<TCommand, TResult> {
   return {
     canHandle: handler.canHandle,
-    handle: (command: TCommand) =>
+    handle: (command: TCommand, context: CommandContext) =>
       pipe(
         Ref.make<{
           failures: number;
@@ -180,7 +216,15 @@ export function withCircuitBreaker<TCommand extends ICommand, TResult>(
                       lastFailureTime: null,
                       isOpen: false,
                     }),
-                    Effect.flatMap(() => executeWithCircuitBreaker(handler, command, stateRef, config))
+                    Effect.flatMap(() =>
+                      executeWithCircuitBreaker(
+                        handler,
+                        command,
+                        context,
+                        stateRef,
+                        config,
+                      )
+                    ),
                   );
                 }
               }
@@ -190,15 +234,21 @@ export function withCircuitBreaker<TCommand extends ICommand, TResult>(
                 return Effect.fail(
                   new CommandExecutionError({
                     command,
-                    cause: new Error('Circuit breaker is open'),
-                  })
+                    cause: new Error("Circuit breaker is open"),
+                  }),
                 );
               }
 
-              return executeWithCircuitBreaker(handler, command, stateRef, config);
-            })
+              return executeWithCircuitBreaker(
+                handler,
+                command,
+                context,
+                stateRef,
+                config,
+              );
+            }),
           )
-        )
+        ),
       ),
   };
 }
@@ -209,6 +259,7 @@ export function withCircuitBreaker<TCommand extends ICommand, TResult>(
 function executeWithCircuitBreaker<TCommand extends ICommand, TResult>(
   handler: EffectCommandHandler<TCommand, TResult>,
   command: TCommand,
+  context: CommandContext,
   stateRef: Ref.Ref<{
     failures: number;
     lastFailureTime: number | null;
@@ -217,10 +268,10 @@ function executeWithCircuitBreaker<TCommand extends ICommand, TResult>(
   config: {
     maxFailures: number;
     resetTimeout: Duration.Duration;
-  }
+  },
 ): Effect.Effect<TResult, CommandError, CommandContext> {
   return pipe(
-    handler.handle(command),
+    handler.handle(command, context),
     Effect.tapError(() =>
       Ref.modify(stateRef, (state) => {
         const newFailures = state.failures + 1;
@@ -238,7 +289,7 @@ function executeWithCircuitBreaker<TCommand extends ICommand, TResult>(
         failures: 0,
         lastFailureTime: null,
       }))
-    )
+    ),
   );
 }
 
@@ -248,15 +299,20 @@ function executeWithCircuitBreaker<TCommand extends ICommand, TResult>(
 export function batchCommands<TCommand extends ICommand, TResult>(
   commands: ReadonlyArray<TCommand>,
   handler: EffectCommandHandler<TCommand, TResult>,
+  context: CommandContext,
   options?: {
     concurrency?: number;
     continueOnError?: boolean;
-  }
-): Effect.Effect<ReadonlyArray<Either.Either<TResult, CommandError>>, never, CommandContext> {
+  },
+): Effect.Effect<
+  ReadonlyArray<Either.Either<TResult, CommandError>>,
+  never,
+  CommandContext
+> {
   const effects = commands.map((cmd) =>
     pipe(
-      handler.handle(cmd),
-      Effect.either
+      handler.handle(cmd, context),
+      Effect.either,
     )
   );
 
@@ -270,10 +326,12 @@ export function batchCommands<TCommand extends ICommand, TResult>(
  */
 export class CommandPipeline<TCommand extends ICommand, TResult> {
   constructor(
-    private readonly handler: EffectCommandHandler<TCommand, TResult>
+    private readonly handler: EffectCommandHandler<TCommand, TResult>,
   ) {}
 
-  retry(policy: Schedule.Schedule<unknown, unknown, never>): CommandPipeline<TCommand, TResult> {
+  retry(
+    policy: Schedule.Schedule<unknown, unknown, never>,
+  ): CommandPipeline<TCommand, TResult> {
     return new CommandPipeline(withRetry(this.handler, policy));
   }
 
@@ -297,7 +355,7 @@ export class CommandPipeline<TCommand extends ICommand, TResult> {
  * Create a command pipeline
  */
 export function commandPipeline<TCommand extends ICommand, TResult>(
-  handler: EffectCommandHandler<TCommand, TResult>
+  handler: EffectCommandHandler<TCommand, TResult>,
 ): CommandPipeline<TCommand, TResult> {
   return new CommandPipeline(handler);
 }
@@ -306,13 +364,16 @@ export function commandPipeline<TCommand extends ICommand, TResult>(
  * Convert traditional command handler to Effect-based
  */
 export function fromCommandHandler<TCommand extends ICommand>(
-  handler: ICommandHandler<TCommand>
+  handler: ICommandHandler<TCommand>,
 ): EffectCommandHandler<TCommand, ICommandResult> {
   return {
     canHandle: handler.canHandle,
-    handle: (command: TCommand) =>
+    handle: (command: TCommand, context: CommandContext) =>
       Effect.tryPromise({
-        try: () => handler.handle(command),
+        try: async () => {
+          const result = await handler.handle(command);
+          return result as ICommandResult;
+        },
         catch: (error) =>
           new CommandExecutionError({
             command,
@@ -328,9 +389,9 @@ export function fromCommandHandler<TCommand extends ICommand>(
 export const CommandHandlerServiceLive = Layer.succeed(
   CommandContext,
   CommandContext.of({
-    eventStore: {} as IEventStore<any>, // Will be provided by actual implementation
+    eventStore: {} as IEventStore<any, any>, // Will be provided by actual implementation
     commandBus: {} as ICommandBus, // Will be provided by actual implementation
-  })
+  }),
 );
 
 /**
@@ -339,12 +400,12 @@ export const CommandHandlerServiceLive = Layer.succeed(
 export function executeCommand<TCommand extends ICommand, TResult>(
   command: TCommand,
   handler: EffectCommandHandler<TCommand, TResult>,
-  context: CommandContext
+  context: CommandContext,
 ): Promise<TResult> {
   return pipe(
-    handler.handle(command),
+    handler.handle(command, context),
     Effect.provideService(CommandContext, context),
-    Effect.runPromise
+    Effect.runPromise,
   );
 }
 
@@ -355,12 +416,15 @@ export function commandSaga<TResult>(
   steps: ReadonlyArray<{
     command: ICommand;
     handler: EffectCommandHandler<any, any>;
-    compensate?: (error: CommandError) => Effect.Effect<void, never, CommandContext>;
-  }>
+    compensate?: (
+      error: CommandError,
+    ) => Effect.Effect<void, never, CommandContext>;
+  }>,
+  context: CommandContext,
 ): Effect.Effect<TResult, CommandError, CommandContext> {
   const executeWithCompensation = (
     index: number,
-    compensations: Array<() => Effect.Effect<void, never, CommandContext>>
+    compensations: Array<() => Effect.Effect<void, never, CommandContext>>,
   ): Effect.Effect<any, CommandError, CommandContext> => {
     if (index >= steps.length) {
       return Effect.succeed(undefined);
@@ -368,16 +432,16 @@ export function commandSaga<TResult>(
 
     const step = steps[index]!;
     return pipe(
-      step.handler.handle(step.command),
+      step.handler.handle(step.command, context),
       Effect.tapError((error) => {
         // Run compensations in reverse order
         const compensationEffects = compensations
           .reverse()
           .map((comp) => comp());
-        
+
         return pipe(
           Effect.all(compensationEffects, { discard: true }),
-          Effect.flatMap(() => Effect.fail(error))
+          Effect.flatMap(() => Effect.fail(error)),
         );
       }),
       Effect.tap(() => {
@@ -385,7 +449,7 @@ export function commandSaga<TResult>(
           compensations.push(() => step.compensate!(undefined as any));
         }
       }),
-      Effect.flatMap(() => executeWithCompensation(index + 1, compensations))
+      Effect.flatMap(() => executeWithCompensation(index + 1, compensations)),
     );
   };
 
@@ -397,16 +461,18 @@ export function commandSaga<TResult>(
  */
 export function withLogging<TCommand extends ICommand, TResult>(
   handler: EffectCommandHandler<TCommand, TResult>,
-  commandType: string
+  commandType: string,
 ): EffectCommandHandler<TCommand, TResult> {
   return {
     canHandle: handler.canHandle,
-    handle: (command: TCommand) =>
+    handle: (command: TCommand, context: CommandContext) =>
       pipe(
         Effect.log(`Executing command: ${commandType}`),
-        Effect.flatMap(() => handler.handle(command)),
+        Effect.flatMap(() => handler.handle(command, context)),
         Effect.tap(() => Effect.log(`Command ${commandType} completed`)),
-        Effect.tapError((error) => Effect.log(`Command ${commandType} failed: ${error}`))
+        Effect.tapError((error) =>
+          Effect.log(`Command ${commandType} failed: ${error}`)
+        ),
       ),
   };
 }

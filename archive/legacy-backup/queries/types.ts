@@ -12,7 +12,7 @@ import type { UserState } from '../aggregates/user';
 /**
  * Query types enum
  */
-export enum UserQueryTypes {
+enum UserQueryTypes {
   GetUserById = 'GetUserById',
   GetUserByEmail = 'GetUserByEmail',
   ListUsers = 'ListUsers',

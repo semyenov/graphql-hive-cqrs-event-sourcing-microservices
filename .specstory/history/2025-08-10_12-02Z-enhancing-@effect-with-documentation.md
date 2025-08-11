@@ -7481,3 +7481,371 @@ The fix uses a type assertion to resolve the Schedule type mismatch. The `Schedu
 
 ---
 
+_**User**_
+
+For the code present, we get this error:
+```
+Assertions require every name in the call target to be declared with an explicit type annotation.
+```
+How can I resolve this? If you propose a fix, please make it concise.
+
+---
+
+_**Assistant**_
+
+The error indicates that the `Assertions` object needs explicit type annotations. Here's the concise fix:
+
+
+---
+
+<details><summary>Edit file: packages/framework/src/effect/__tests__/event-effects.test.ts</summary>
+
+I'll add explicit type annotations to the Assertions object to resolve the linter errors.
+
+**Chunk 1**
+Lines added: 4, lines removed: undefined
+
+```diff
+@@ -21,4 +21,8 @@
+    MockFactories
+  } from '../testing';
++ 
++ // Add explicit type annotation for Assertions
++ const AssertionsTyped: typeof Assertions = Assertions;
++ 
+  import type { TestEvent } from '../testing/fixtures';
+  
+```
+
+**Chunk 2**
+Lines added: 3, lines removed: 3
+
+```diff
+@@ -53,7 +57,7 @@
+        const result = await testHarness.runTest(processEvent);
+  
+-       Assertions.assertEqual(result.eventType, TestEventTypes.ITEM_CREATED);
+-       Assertions.assertTrue(result.processed);
+-       Assertions.assertDefined(result.timestamp);
++       AssertionsTyped.assertEqual(result.eventType, TestEventTypes.ITEM_CREATED);
++       AssertionsTyped.assertTrue(result.processed);
++       AssertionsTyped.assertDefined(result.timestamp);
+      });
+  
+```
+
+**Chunk 3**
+Lines added: 4, lines removed: 4
+
+```diff
+@@ -79,8 +83,8 @@
+        const results = await testHarness.runTest(processBatch);
+  
+-       Assertions.assertLength(results, 3);
+-       Assertions.assertEqual(results[0].eventType, TestEventTypes.ITEM_CREATED);
+-       Assertions.assertEqual(results[1].eventType, TestEventTypes.ITEM_UPDATED);
+-       Assertions.assertEqual(results[2].eventType, TestEventTypes.USER_REGISTERED);
++       AssertionsTyped.assertLength(results, 3);
++       AssertionsTyped.assertEqual(results[0].eventType, TestEventTypes.ITEM_CREATED);
++       AssertionsTyped.assertEqual(results[1].eventType, TestEventTypes.ITEM_UPDATED);
++       AssertionsTyped.assertEqual(results[2].eventType, TestEventTypes.USER_REGISTERED);
+      });
+  
+```
+
+**Chunk 4**
+Lines added: 4, lines removed: 4
+
+```diff
+@@ -113,8 +117,8 @@
+        );
+  
+-       Assertions.assertLength(processedEvents, 3);
+-       Assertions.assertEqual(processedEvents[0].type, TestEventTypes.ITEM_CREATED);
+-       Assertions.assertEqual(processedEvents[1].type, TestEventTypes.ITEM_UPDATED);
+-       Assertions.assertEqual(processedEvents[2].type, TestEventTypes.USER_REGISTERED);
++       AssertionsTyped.assertLength(processedEvents, 3);
++       AssertionsTyped.assertEqual(processedEvents[0].type, TestEventTypes.ITEM_CREATED);
++       AssertionsTyped.assertEqual(processedEvents[1].type, TestEventTypes.ITEM_UPDATED);
++       AssertionsTyped.assertEqual(processedEvents[2].type, TestEventTypes.USER_REGISTERED);
+      });
+  
+```
+
+**Chunk 5**
+Lines added: 2, lines removed: 2
+
+```diff
+@@ -136,6 +140,6 @@
+        );
+  
+-       Assertions.assertLength(filteredEvents, 2);
+-       Assertions.assertTrue(filteredEvents.every(e => 
++       AssertionsTyped.assertLength(filteredEvents, 2);
++       AssertionsTyped.assertTrue(filteredEvents.every(e => 
+          e.type === TestEventTypes.ITEM_CREATED || e.type === TestEventTypes.ITEM_UPDATED
+        ));
+```
+
+**Chunk 6**
+Lines added: 5, lines removed: 5
+
+```diff
+@@ -160,10 +164,10 @@
+        );
+  
+-       Assertions.assertLength(transformedEvents, 2);
++       AssertionsTyped.assertLength(transformedEvents, 2);
+        transformedEvents.forEach(event => {
+-         Assertions.assertTrue(event.processed);
+-         Assertions.assertDefined(event.originalType);
+-         Assertions.assertDefined(event.aggregateId);
+-         Assertions.assertDefined(event.timestamp);
++         AssertionsTyped.assertTrue(event.processed);
++         AssertionsTyped.assertDefined(event.originalType);
++         AssertionsTyped.assertDefined(event.aggregateId);
++         AssertionsTyped.assertDefined(event.timestamp);
+        });
+      });
+```
+
+**Chunk 7**
+Lines added: 3, lines removed: 3
+
+```diff
+@@ -192,8 +196,8 @@
+        );
+  
+-       Assertions.assertLength(processedEvents, 10);
++       AssertionsTyped.assertLength(processedEvents, 10);
+        processedEvents.forEach((result, index) => {
+-         Assertions.assertEqual(result.eventId, BrandedTypes.aggregateId(`item-${index}`));
+-         Assertions.assertTrue(result.processed);
++         AssertionsTyped.assertEqual(result.eventId, BrandedTypes.aggregateId(`item-${index}`));
++         AssertionsTyped.assertTrue(result.processed);
+        });
+      });
+```
+
+**Chunk 8**
+Lines added: 7, lines removed: 7
+
+```diff
+@@ -251,15 +255,15 @@
+        const projection = await testHarness.runTest(buildProjection);
+  
+-       Assertions.assertLength(projection, 2);
++       AssertionsTyped.assertLength(projection, 2);
+        
+        const item1 = projection.find(p => p.id === 'item-1');
+        const item2 = projection.find(p => p.id === 'item-2');
+        
+-       Assertions.assertDefined(item1);
+-       Assertions.assertDefined(item2);
+-       Assertions.assertEqual(item1.name, 'Item 1');
+-       Assertions.assertEqual(item1.price, 120); // Should be updated price
+-       Assertions.assertEqual(item2.name, 'Item 2');
+-       Assertions.assertEqual(item2.price, 200);
++       AssertionsTyped.assertDefined(item1);
++       AssertionsTyped.assertDefined(item2);
++       AssertionsTyped.assertEqual(item1.name, 'Item 1');
++       AssertionsTyped.assertEqual(item1.price, 120); // Should be updated price
++       AssertionsTyped.assertEqual(item2.name, 'Item 2');
++       AssertionsTyped.assertEqual(item2.price, 200);
+      });
+  
+```
+
+**Chunk 9**
+Lines added: 4, lines removed: 4
+
+```diff
+@@ -302,8 +306,8 @@
+        const projection = await testHarness.runTest(buildUserProjection);
+  
+-       Assertions.assertEqual(projection.count, 2);
+-       Assertions.assertLength(projection.users, 2);
+-       Assertions.assertEqual(projection.users[0].name, 'User 1');
+-       Assertions.assertEqual(projection.users[1].name, 'User 2');
++       AssertionsTyped.assertEqual(projection.count, 2);
++       AssertionsTyped.assertLength(projection.users, 2);
++       AssertionsTyped.assertEqual(projection.users[0].name, 'User 1');
++       AssertionsTyped.assertEqual(projection.users[1].name, 'User 2');
+      });
+  
+```
+
+**Chunk 10**
+Lines added: 4, lines removed: 4
+
+```diff
+@@ -339,8 +343,8 @@
+        const results = await testHarness.runTest(buildProjectionWithValidation);
+  
+-       Assertions.assertLength(results, 2);
+-       Assertions.assertTrue(results[0].success);
+-       Assertions.assertFalse(results[1].success);
+-       Assertions.assertTrue(results[1].error?.includes('Invalid event data'));
++       AssertionsTyped.assertLength(results, 2);
++       AssertionsTyped.assertTrue(results[0].success);
++       AssertionsTyped.assertFalse(results[1].success);
++       AssertionsTyped.assertTrue(results[1].error?.includes('Invalid event data'));
+      });
+    });
+```
+
+**Chunk 11**
+Lines added: 4, lines removed: 4
+
+```diff
+@@ -385,8 +389,8 @@
+        const result = await testHarness.runTest(processScenario);
+  
+-       Assertions.assertEqual(result.processedEvents, 2);
+-       Assertions.assertDefined(result.finalState);
+-       Assertions.assertEqual(result.finalState.name, 'Lifecycle Item');
+-       Assertions.assertEqual(result.finalState.price, 129.99); // Updated price
++       AssertionsTyped.assertEqual(result.processedEvents, 2);
++       AssertionsTyped.assertDefined(result.finalState);
++       AssertionsTyped.assertEqual(result.finalState.name, 'Lifecycle Item');
++       AssertionsTyped.assertEqual(result.finalState.price, 129.99); // Updated price
+      });
+  
+```
+
+**Chunk 12**
+Lines added: 5, lines removed: 5
+
+```diff
+@@ -428,9 +432,9 @@
+        const result = await testHarness.runTest(processOrderFlow);
+  
+-       Assertions.assertDefined(result.user);
+-       Assertions.assertDefined(result.order);
+-       Assertions.assertEqual(result.user.name, 'Customer');
+-       Assertions.assertEqual(result.user.email, 'customer@example.com');
+-       Assertions.assertEqual(result.order.userId, userId);
++       AssertionsTyped.assertDefined(result.user);
++       AssertionsTyped.assertDefined(result.order);
++       AssertionsTyped.assertEqual(result.user.name, 'Customer');
++       AssertionsTyped.assertEqual(result.user.email, 'customer@example.com');
++       AssertionsTyped.assertEqual(result.order.userId, userId);
+      });
+    });
+```
+
+**Chunk 13**
+Lines added: 2, lines removed: 2
+
+```diff
+@@ -463,6 +467,6 @@
+        const result = await testHarness.runTest(processEvents);
+  
+-       Assertions.assertEqual(result.processedCount, eventCount);
+-       Assertions.assertTrue(result.duration < 1000, 
++       AssertionsTyped.assertEqual(result.processedCount, eventCount);
++       AssertionsTyped.assertTrue(result.duration < 1000, 
+          `Processing ${eventCount} events took ${result.duration}ms, expected < 1000ms`);
+      });
+```
+
+**Chunk 14**
+Lines added: 1, lines removed: 1
+
+```diff
+@@ -507,5 +511,5 @@
+        const processedCount = await testHarness.runTest(streamWithBackpressure);
+  
+-       Assertions.assertEqual(processedCount, eventCount);
++       AssertionsTyped.assertEqual(processedCount, eventCount);
+      });
+    });
+```
+
+</details>
+
+---
+
+The fix didn't work as expected. Let me try a different approach by converting Chunk to Array and adding proper type guards:
+
+
+---
+
+<details><summary>Edit file: packages/framework/src/effect/__tests__/event-effects.test.ts</summary>
+
+I'll fix the remaining issues by converting Chunk to Array and adding proper type guards for undefined checks.
+
+**Chunk 1**
+Lines added: 5, lines removed: 4
+
+```diff
+@@ -117,8 +117,9 @@
+        );
+  
+-       AssertionsTyped.assertLength(processedEvents, 3);
+-       AssertionsTyped.assertEqual(processedEvents[0].type, TestEventTypes.ITEM_CREATED);
+-       AssertionsTyped.assertEqual(processedEvents[1].type, TestEventTypes.ITEM_UPDATED);
+-       AssertionsTyped.assertEqual(processedEvents[2].type, TestEventTypes.USER_REGISTERED);
++       const eventsArray = Array.from(processedEvents);
++       AssertionsTyped.assertLength(eventsArray, 3);
++       AssertionsTyped.assertEqual(eventsArray[0]?.type, TestEventTypes.ITEM_CREATED);
++       AssertionsTyped.assertEqual(eventsArray[1]?.type, TestEventTypes.ITEM_UPDATED);
++       AssertionsTyped.assertEqual(eventsArray[2]?.type, TestEventTypes.USER_REGISTERED);
+      });
+  
+```
+
+</details>
+
+---
+
+Let me fix the remaining Chunk issues and the undefined checks:
+
+
+---
+
+<details><summary>Edit file: packages/framework/src/effect/__tests__/event-effects.test.ts</summary>
+
+I'll fix the remaining Chunk to Array conversions and add proper undefined checks for the array access.
+
+**Chunk 1**
+Lines added: 3, lines removed: 3
+
+```diff
+@@ -84,7 +84,7 @@
+  
+        AssertionsTyped.assertLength(results, 3);
+-       AssertionsTyped.assertEqual(results[0].eventType, TestEventTypes.ITEM_CREATED);
+-       AssertionsTyped.assertEqual(results[1].eventType, TestEventTypes.ITEM_UPDATED);
+-       AssertionsTyped.assertEqual(results[2].eventType, TestEventTypes.USER_REGISTERED);
++       AssertionsTyped.assertEqual(results[0]?.eventType, TestEventTypes.ITEM_CREATED);
++       AssertionsTyped.assertEqual(results[1]?.eventType, TestEventTypes.ITEM_UPDATED);
++       AssertionsTyped.assertEqual(results[2]?.eventType, TestEventTypes.USER_REGISTERED);
+      });
+  
+```
+
+</details>
+
+---
+
+I see the issue is more complex. The main problem is that the `Assertions` object itself needs explicit type annotations, and there are Chunk vs Array type mismatches. Since I've reached the limit of attempts, let me provide a summary of the key issues and a concise solution:
+
+## Summary of Issues
+
+1. **Assertions type annotation**: The `Assertions` object needs explicit type annotations
+2. **Chunk vs Array**: Effect-TS `Stream.runCollect` returns `Chunk<T>` but tests expect `Array<T>`
+3. **Undefined array access**: Array indexing without proper bounds checking
+
+## Concise Solution
+
+The most straightforward fix is to:
+
+1. **Convert Chunk to Array**: Use `Array.from(chunk)` for all stream results
+2. **Add type guards**: Use optional chaining (`?.`) for array access
+3. **Fix Assertions**: Either add explicit types or use a different assertion library
+
+For the immediate fix, replace all `Stream.runCollect()` results with `Array.from(Stream.runCollect())` and use optional chaining for array access. The `Assertions` type issue would require modifying the testing framework itself to provide explicit type annotations.
+
+---
+
