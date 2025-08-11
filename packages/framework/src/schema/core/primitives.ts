@@ -422,6 +422,16 @@ export const createCausationId = (): CausationId => {
 export const now = (): Timestamp => Date.now() as Timestamp;
 
 /**
+ * Create timestamp from number
+ */
+export const timestamp = (value: number): Timestamp => value as Timestamp;
+
+/**
+ * Create version from number
+ */
+export const version = (value: number): Version => value as Version;
+
+/**
  * Create a NonEmptyString (unsafe - assumes valid input)
  */
 export const nonEmptyString = (value: string): NonEmptyString => {
@@ -430,3 +440,28 @@ export const nonEmptyString = (value: string): NonEmptyString => {
   }
   return Schema.decodeSync(NonEmptyString)(value);
 };
+
+/**
+ * Create email safely
+ */
+export const email = (value: string): Email => Schema.decodeSync(Email)(value);
+
+/**
+ * Create username safely
+ */
+export const username = (value: string): Username => Schema.decodeSync(Username)(value);
+
+/**
+ * Create first name safely
+ */
+export const firstName = (value: string): FirstName => Schema.decodeSync(FirstName)(value);
+
+/**
+ * Create last name safely
+ */
+export const lastName = (value: string): LastName => Schema.decodeSync(LastName)(value);
+
+/**
+ * Create stream name safely
+ */
+export const streamName = (value: string): StreamName => Schema.decodeSync(StreamName)(value);

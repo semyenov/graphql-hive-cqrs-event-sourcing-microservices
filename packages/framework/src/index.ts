@@ -12,6 +12,26 @@
 export * from "./schema/core/primitives"
 export * from "./schema/core/messages"
 
+// Re-export specific helper functions for convenience
+export {
+  // ID generators
+  createAggregateId,
+  createEventId,
+  createCommandId,
+  createCorrelationId,
+  createCausationId,
+  // Branded type constructors
+  now,
+  timestamp,
+  version,
+  nonEmptyString,
+  email,
+  username,
+  firstName,
+  lastName,
+  streamName
+} from "./schema/core/primitives"
+
 // ============================================================================
 // Pure Functions - No Classes, Just Functions
 // ============================================================================

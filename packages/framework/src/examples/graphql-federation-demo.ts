@@ -7,7 +7,6 @@
 
 import * as Effect from "effect/Effect"
 import * as Schema from "@effect/schema/Schema"
-import * as Option from "effect/Option"
 import * as Stream from "effect/Stream"
 import { pipe } from "effect/Function"
 
@@ -23,6 +22,11 @@ import {
   createCorrelationId,
   nonEmptyString,
   now,
+  timestamp,
+  email,
+  username,
+  firstName,
+  lastName,
   createEventSchema,
   createEventApplicator,
   loadFromEvents,
@@ -144,7 +148,7 @@ export const UserEntity: FederationEntity<UserState> = {
 }
 
 const applyUserEvent = createEventApplicator<UserState, UserEvent>({
-  UserRegistered: (_state, _event) => ({
+  UserRegistered: (_state, event) => ({
     id: event.metadata.aggregateId,
     email: event.data.email,
     username: event.data.username,
@@ -154,7 +158,7 @@ const applyUserEvent = createEventApplicator<UserState, UserEvent>({
     joinedAt: event.metadata.timestamp
   }),
   
-  UserActivated: (_state, _event) =>
+  UserActivated: (state, _event) =>
     state ? { ...state, isActive: true } : null
 })
 
@@ -235,7 +239,7 @@ export const OrderEntity: FederationEntity<OrderState> = {
 }
 
 const applyOrderEvent = createEventApplicator<OrderState, OrderEvent>({
-  OrderCreated: (_state, _event) => ({
+  OrderCreated: (_state, event) => ({
     id: event.metadata.aggregateId,
     userId: event.data.userId,
     items: event.data.items,
@@ -244,7 +248,7 @@ const applyOrderEvent = createEventApplicator<OrderState, OrderEvent>({
     createdAt: event.metadata.timestamp
   }),
   
-  OrderConfirmed: (_state, _event) =>
+  OrderConfirmed: (state, _event) =>
     state ? { ...state, status: "confirmed" as const } : null
 })
 
@@ -333,8 +337,8 @@ const createDemoData = () =>
           eventId: createEventId(),
           aggregateId: order1Id,
           version: 1,
-          timestamp: now() - 1800000, // 30 minutes ago
-          correlationId: createEventId(),
+          timestamp: timestamp(now() - 1800000), // 30 minutes ago
+          correlationId: createCorrelationId(),
           causationId: createCausationId(),
           actor: { type: "system", service: nonEmptyString("demo") }
         }
@@ -358,8 +362,8 @@ const createDemoData = () =>
           eventId: createEventId(),
           aggregateId: order2Id,
           version: 0,
-          timestamp: now() - 300000, // 5 minutes ago
-          correlationId: createEventId(),
+          timestamp: timestamp(now() - 300000), // 5 minutes ago
+          correlationId: createCorrelationId(),
           causationId: createCausationId(),
           actor: { type: "system", service: nonEmptyString("demo") }
         }
