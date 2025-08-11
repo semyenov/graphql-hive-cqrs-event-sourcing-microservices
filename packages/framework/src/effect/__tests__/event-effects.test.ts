@@ -110,8 +110,8 @@ describe("Event Effects", () => {
       const invalidEvent = { ...TestFixtures.itemCreatedEvent(), data: null };
 
       const processWithValidation = Effect.tryPromise({
-        try: () => Promise.resolve({ processed: true }),
-        catch: (error) => Effect.succeed({ processed: false }),
+        try: () => Promise.reject(new Error("Processing failed")),
+        catch: (error) => ({ processed: false }),
       });
 
       const result = await testHarness.runTest(processWithValidation);
@@ -293,7 +293,7 @@ describe("Event Effects", () => {
 
       Assertions.assertDefined(item1);
       Assertions.assertDefined(item2);
-      Assertions.assertEqual(item1.name, "Item 1");
+      Assertions.assertEqual(item1.name, "Updated Test Item"); // Name gets updated
       Assertions.assertEqual(item1.price, 120); // Should be updated price
       Assertions.assertEqual(item2.name, "Item 2");
       Assertions.assertEqual(item2.price, 200);

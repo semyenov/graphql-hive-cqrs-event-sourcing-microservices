@@ -107,7 +107,7 @@ export class ProductAggregate {
     categoryId?: CategoryId;
     metadata?: Partial<ProductState['metadata']>;
   }): Effect.Effect<void, ProductNotFoundError | InvalidProductStatusError, never> => {
-    return Effect.gen((function* (_) {
+    return Effect.gen(function* (_) {
       if (!this._state) {
         yield* _(Effect.fail(new ProductNotFoundError(this._id)));
       }
