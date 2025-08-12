@@ -29,6 +29,9 @@
       "types": "./dist/graphql/index.d.ts"
     }
   },
+  "bin": {
+    "pipe-gen": "./src/cli/pipe-generator.ts"
+  },
   "scripts": {
     "build": "tsc",
     "clean": "rm -rf dist",
@@ -37,7 +40,9 @@
     "typecheck": "tsc --noEmit",
     "demo": "bun run src/examples/simple-demo.ts",
     "demo:full": "bun run src/examples/demo.ts",
-    "dev": "bun --watch src/examples/simple-demo.ts"
+    "dev": "bun --watch src/examples/simple-demo.ts",
+    "cli": "bun run src/cli/pipe-generator.ts",
+    "monitor": "bun run src/monitoring/server.ts"
   },
   "dependencies": {
     "effect": "^3.9.2",

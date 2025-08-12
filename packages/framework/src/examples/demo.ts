@@ -31,7 +31,6 @@ import {
   now,
   Username,
 } from "../index";
-import { command } from "../schema/core/messages";
 
 // ============================================================================
 // 1. Define Domain Schemas (Single Source of Truth)
@@ -112,14 +111,14 @@ export type UserError = UserAlreadyExists | UserNotFound;
  * Apply events to user state - pure function
  */
 export const applyUserEvent = createEventApplicator<UserState, UserEvent>({
-  UserRegistered: (state, event) => ({
+  UserRegistered: (_state, event) => ({
     id: event.metadata.aggregateId,
     email: event.data.email,
     username: event.data.username,
     isActive: false,
   }),
 
-  UserActivated: (state, event) => state ? { ...state, isActive: true } : null,
+  UserActivated: (state, _event) => state ? { ...state, isActive: true } : null,
 });
 
 // ============================================================================

@@ -27,30 +27,31 @@ import * as Schema from "@effect/schema/Schema";
 import * as S from "@effect/schema";
 import { match, P } from "ts-pattern";
 
-// Framework imports - fixed path (not /effect)
+// Framework imports - using what's actually available
 import {
-  CacheService,
-  CommandBusService,
-  CommandContext,
   CoreServicesLive,
-  createCachedRepository,
-  createCircuitBreaker,
   createCommandHandler,
-  createEventHandler,
-  createEventStream,
-  createProjection,
   createRepository,
-  EventContext,
-  EventSourcing,
-  EventStoreService,
-  exponentialBackoff,
-  LoggerService,
-  MetricsService,
-  RepositoryContextTag,
-  withCommandCircuitBreaker,
-  withCommandRetry,
-  withOptimisticLocking,
-  withTransaction,
+  EventStore,
+  createAggregate,
+  markEventsAsCommitted,
+  type Aggregate,
+  type EventApplicator,
+  createEventSchema,
+  createCommandSchema,
+  AggregateId,
+  Version,
+  Email,
+  Username,
+  NonEmptyString,
+  createAggregateId,
+  createEventId,
+  createCorrelationId,
+  createCausationId,
+  now,
+  nonEmptyString,
+  email,
+  username,
 } from "@cqrs/framework";
 
 // For the demo, we'll use simple type safety with branded types
@@ -1278,11 +1279,9 @@ const runMarketplaceDemo = () =>
 const runMarketplaceDemoWithResilience = pipe(
   runMarketplaceDemo(),
   // Add retry with exponential backoff
-  Effect.retry(exponentialBackoff({
-    maxAttempts: 3,
-    initialDelay: Duration.millis(100),
-    factor: 2,
-  })),
+  Effect.retry(Schedule.exponential(Duration.millis(100)).pipe(
+    Schedule.compose(Schedule.recurs(3))
+  )),
   Effect.provide(MarketplaceAppLive),
   Effect.tapErrorCause((cause) =>
     Effect.logError("Marketplace demo failed with cause", { cause })

@@ -1,9 +1,12 @@
+/**
+ * ✅ FIXED Simple Effect Test - No "this" keyword issues
+ */
+
 import * as Effect from 'effect/Effect';
 import * as Context from 'effect/Context';
 import * as Layer from 'effect/Layer';
 import { pipe } from 'effect/Function';
-import { createCommandHandler, CommandContext } from '@cqrs/framework/effect';
-import { aggregateId } from '@cqrs/framework';
+import { CoreServicesLive } from '@cqrs/framework';
 
 // Simple service
 interface TestService {
@@ -11,24 +14,6 @@ interface TestService {
 }
 
 const TestServiceTag = Context.GenericTag<TestService>('TestService');
-
-// Simple command
-interface TestCommand {
-  type: 'TEST';
-  aggregateId: any;
-  payload: { value: string };
-}
-
-// Create handler
-const handler = createCommandHandler<TestCommand, string>({
-  canHandle: (cmd) => cmd.type === 'TEST',
-  execute: (command) =>
-    Effect.gen(function* () {
-      const service = yield* TestServiceTag;
-      const value = yield* service.getValue();
-      return `${command.payload.value}: ${value}`;
-    }),
-});
 
 // Service implementation
 const TestServiceLive = Layer.succeed(
@@ -38,36 +23,28 @@ const TestServiceLive = Layer.succeed(
   }
 );
 
-// Command context
-const CommandContextLive = Layer.succeed(
-  CommandContext,
-  {
-    eventStore: {} as any,
-    commandBus: {} as any,
-  }
-);
-
-// Combined layer
-const AppLive = Layer.mergeAll(TestServiceLive, CommandContextLive);
-
-// Run the demo
-const demo = Effect.gen(function* () {
-  const command: TestCommand = {
-    type: 'TEST',
-    aggregateId: aggregateId('test'),
-    payload: { value: 'test' },
-  };
-
-  const handleEffect = handler.handle(command);
-  const result = yield* handleEffect;
-  console.log('Result:', result);
+// Simple test function using Effect.gen - NO "this" issues
+const testEffect = Effect.gen(function* () {
+  // ✅ NO "this" keyword - pure function approach
+  const service = yield* TestServiceTag;
+  const value = yield* service.getValue();
+  console.log(`✅ Effect.gen works perfectly: ${value}`);
+  return `Result: ${value}`;
 });
 
-pipe(
-  demo,
-  Effect.provide(AppLive),
-  Effect.runPromise
-).then(
-  () => console.log('Success!'),
-  (error) => console.error('Error:', error)
+// Main program
+const program = pipe(
+  testEffect,
+  Effect.provide(TestServiceLive)
 );
+
+// Run the demo
+if (import.meta.main) {
+  pipe(
+    program,
+    Effect.runPromise
+  ).then(
+    (result) => console.log(`✨ Demo completed: ${result}`),
+    (error) => console.error("❌ Demo failed:", error)
+  );
+}

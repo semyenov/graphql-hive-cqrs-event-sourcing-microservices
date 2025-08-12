@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎯 Pipe Pattern Monitoring Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            border-radius: 12px;
+            padding: 20px 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 {
+            color: #333;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 16px;
+            background: #10b981;
+            color: white;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .status-indicator.warning {
+            background: #f59e0b;
+        }
+
+        .status-indicator.error {
+            background: #ef4444;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .metric-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+        }
+
+        .metric-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .metric-title {
+            font-size: 14px;
+            color: #64748b;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .metric-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 10px;
+        }
+
+        .metric-change {
+            font-size: 14px;
+            color: #10b981;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .metric-change.negative {
+            color: #ef4444;
+        }
+
+        .chart-container {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            margin-bottom: 30px;
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .chart-title {
+            font-size: 18px;
+            color: #1e293b;
+            font-weight: 600;
+        }
+
+        .chart-controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .chart-btn {
+            padding: 6px 12px;
+            border: 1px solid #e5e7eb;
+            background: white;
+            border-radius: 6px;
+            color: #64748b;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .chart-btn:hover {
+            background: #f3f4f6;
+            color: #1e293b;
+        }
+
+        .chart-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .chart {
+            height: 300px;
+            position: relative;
+        }
+
+        .trace-list {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+
+        .trace-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            border-bottom: 1px solid #f3f4f6;
+            transition: background 0.2s ease;
+        }
+
+        .trace-item:hover {
+            background: #f9fafb;
+        }
+
+        .trace-item:last-child {
+            border-bottom: none;
+        }
+
+        .trace-info {
+            flex: 1;
+        }
+
+        .trace-operation {
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 5px;
+        }
+
+        .trace-details {
+            font-size: 13px;
+            color: #64748b;
+        }
+
+        .trace-duration {
+            font-size: 14px;
+            font-weight: 600;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+
+        .trace-duration.fast {
+            color: #10b981;
+            background: #d1fae5;
+        }
+
+        .trace-duration.normal {
+            color: #f59e0b;
+            background: #fed7aa;
+        }
+
+        .trace-duration.slow {
+            color: #ef4444;
+            background: #fee2e2;
+        }
+
+        .performance-comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .comparison-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+
+        .comparison-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .comparison-bars {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .bar-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .bar-label {
+            font-size: 14px;
+            color: #64748b;
+            width: 100px;
+        }
+
+        .bar-container {
+            flex: 1;
+            height: 24px;
+            background: #f3f4f6;
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            border-radius: 12px;
+            transition: width 0.5s ease;
+            position: relative;
+        }
+
+        .bar-value {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: white;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .alert-banner {
+            background: linear-gradient(90deg, #ef4444, #dc2626);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+
+        .alert-icon {
+            font-size: 24px;
+        }
+
+        .alert-text {
+            flex: 1;
+        }
+
+        .alert-action {
+            padding: 6px 12px;
+            background: white;
+            color: #ef4444;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: transform 0.2s ease;
+        }
+
+        .alert-action:hover {
+            transform: scale(1.05);
+        }
+
+        /* Real-time indicator */
+        .live-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 12px;
+            background: #10b981;
+            color: white;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .live-dot {
+            width: 8px;
+            height: 8px;
+            background: white;
+            border-radius: 50%;
+            animation: blink 1.5s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .performance-comparison {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <h1>
+                🎯 Pipe Pattern Monitoring Dashboard
+                <span class="live-indicator">
+                    <span class="live-dot"></span>
+                    LIVE
+                </span>
+            </h1>
+            <div class="status-indicator">
+                <span>✅</span>
+                System Healthy
+            </div>
+        </header>
+
+        <!-- Alert Banner (shown when issues detected) -->
+        <div class="alert-banner" id="alertBanner" style="display: none;">
+            <span class="alert-icon">⚠️</span>
+            <div class="alert-text">
+                <strong>Performance Degradation Detected</strong><br>
+                <span id="alertMessage">Effect.gen operations running 40% slower than pipe patterns</span>
+            </div>
+            <a href="#" class="alert-action" onclick="optimizeCode()">Optimize Now</a>
+        </div>
+
+        <!-- Key Metrics -->
+        <div class="dashboard-grid">
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span class="metric-title">Avg Response Time</span>
+                    <span>⚡</span>
+                </div>
+                <div class="metric-value" id="avgResponseTime">42ms</div>
+                <div class="metric-change">
+                    <span>↓ 27%</span>
+                    <span>vs last hour</span>
+                </div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span class="metric-title">Throughput</span>
+                    <span>📈</span>
+                </div>
+                <div class="metric-value" id="throughput">8.2k/s</div>
+                <div class="metric-change">
+                    <span>↑ 32%</span>
+                    <span>after optimization</span>
+                </div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span class="metric-title">Memory Usage</span>
+                    <span>💾</span>
+                </div>
+                <div class="metric-value" id="memoryUsage">25.1MB</div>
+                <div class="metric-change">
+                    <span>↓ 40%</span>
+                    <span>reduction</span>
+                </div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span class="metric-title">Error Rate</span>
+                    <span>🛡️</span>
+                </div>
+                <div class="metric-value" id="errorRate">0.02%</div>
+                <div class="metric-change">
+                    <span>↓ 0.01%</span>
+                    <span>stable</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance Comparison -->
+        <div class="performance-comparison">
+            <div class="comparison-card">
+                <div class="comparison-title">
+                    <span>🚀</span>
+                    Pipe Pattern Performance
+                </div>
+                <div class="comparison-bars">
+                    <div class="bar-item">
+                        <span class="bar-label">Commands</span>
+                        <div class="bar-container">
+                            <div class="bar-fill" style="width: 95%;">
+                                <span class="bar-value">651ms</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bar-item">
+                        <span class="bar-label">Queries</span>
+                        <div class="bar-container">
+                            <div class="bar-fill" style="width: 88%;">
+                                <span class="bar-value">210ms</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bar-item">
+                        <span class="bar-label">Projections</span>
+                        <div class="bar-container">
+                            <div class="bar-fill" style="width: 92%;">
+                                <span class="bar-value">385ms</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="comparison-card">
+                <div class="comparison-title">
+                    <span>🔄</span>
+                    Effect.gen Performance
+                </div>
+                <div class="comparison-bars">
+                    <div class="bar-item">
+                        <span class="bar-label">Commands</span>
+                        <div class="bar-container">
+                            <div class="bar-fill" style="width: 70%; background: linear-gradient(90deg, #f59e0b, #d97706);">
+                                <span class="bar-value">892ms</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bar-item">
+                        <span class="bar-label">Queries</span>
+                        <div class="bar-container">
+                            <div class="bar-fill" style="width: 65%; background: linear-gradient(90deg, #f59e0b, #d97706);">
+                                <span class="bar-value">280ms</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bar-item">
+                        <span class="bar-label">Projections</span>
+                        <div class="bar-container">
+                            <div class="bar-fill" style="width: 68%; background: linear-gradient(90deg, #f59e0b, #d97706);">
+                                <span class="bar-value">520ms</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Response Time Chart -->
+        <div class="chart-container">
+            <div class="chart-header">
+                <h2 class="chart-title">Response Time Trends</h2>
+                <div class="chart-controls">
+                    <button class="chart-btn active">1H</button>
+                    <button class="chart-btn">6H</button>
+                    <button class="chart-btn">24H</button>
+                    <button class="chart-btn">7D</button>
+                </div>
+            </div>
+            <div class="chart">
+                <canvas id="responseTimeChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Recent Traces -->
+        <div class="trace-list">
+            <div class="chart-header">
+                <h2 class="chart-title">Recent Pipe Pattern Executions</h2>
+                <button class="chart-btn" onclick="refreshTraces()">↻ Refresh</button>
+            </div>
+            <div id="tracesList">
+                <!-- Traces will be inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Mock data for demonstration
+        const traces = [
+            { operation: 'handleCreateUser', duration: 28, status: 'success', timestamp: Date.now() - 1000 },
+            { operation: 'processPayment', duration: 145, status: 'success', timestamp: Date.now() - 2000 },
+            { operation: 'buildOrderProjection', duration: 42, status: 'success', timestamp: Date.now() - 3000 },
+            { operation: 'executeOrderSaga', duration: 380, status: 'warning', timestamp: Date.now() - 4000 },
+            { operation: 'loadAggregate', duration: 12, status: 'success', timestamp: Date.now() - 5000 },
+        ];
+
+        // Update metrics with animation
+        function updateMetrics() {
+            const metrics = {
+                avgResponseTime: Math.floor(30 + Math.random() * 30) + 'ms',
+                throughput: (7 + Math.random() * 2).toFixed(1) + 'k/s',
+                memoryUsage: (20 + Math.random() * 10).toFixed(1) + 'MB',
+                errorRate: (Math.random() * 0.05).toFixed(2) + '%'
+            };
+
+            Object.keys(metrics).forEach(key => {
+                const element = document.getElementById(key);
+                if (element) {
+                    element.textContent = metrics[key];
+                }
+            });
+        }
+
+        // Render traces
+        function renderTraces() {
+            const tracesList = document.getElementById('tracesList');
+            tracesList.innerHTML = '';
+
+            traces.forEach(trace => {
+                const durationClass = trace.duration < 50 ? 'fast' : 
+                                     trace.duration < 200 ? 'normal' : 'slow';
+                
+                const traceHtml = `
+                    <div class="trace-item">
+                        <div class="trace-info">
+                            <div class="trace-operation">${trace.operation}</div>
+                            <div class="trace-details">
+                                ${new Date(trace.timestamp).toLocaleTimeString()} • 
+                                Status: ${trace.status}
+                            </div>
+                        </div>
+                        <div class="trace-duration ${durationClass}">
+                            ${trace.duration}ms
+                        </div>
+                    </div>
+                `;
+                
+                tracesList.innerHTML += traceHtml;
+            });
+        }
+
+        // Refresh traces
+        function refreshTraces() {
+            // Add new trace
+            traces.unshift({
+                operation: 'handle' + ['CreateProduct', 'UpdateUser', 'DeleteOrder'][Math.floor(Math.random() * 3)],
+                duration: Math.floor(10 + Math.random() * 200),
+                status: Math.random() > 0.9 ? 'warning' : 'success',
+                timestamp: Date.now()
+            });
+            
+            // Keep only last 5
+            traces.splice(5);
+            
+            renderTraces();
+        }
+
+        // Optimize code (mock)
+        function optimizeCode() {
+            alert('Starting pipe pattern optimization...\nRun: bunx @cqrs/framework pipe-gen convert -i src/');
+            document.getElementById('alertBanner').style.display = 'none';
+        }
+
+        // Simple chart rendering
+        function renderChart() {
+            const canvas = document.getElementById('responseTimeChart');
+            if (!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            const width = canvas.parentElement.offsetWidth;
+            const height = 300;
+            
+            canvas.width = width;
+            canvas.height = height;
+            
+            // Draw axes
+            ctx.strokeStyle = '#e5e7eb';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(40, 10);
+            ctx.lineTo(40, height - 30);
+            ctx.lineTo(width - 10, height - 30);
+            ctx.stroke();
+            
+            // Draw grid lines
+            ctx.strokeStyle = '#f3f4f6';
+            for (let i = 1; i <= 5; i++) {
+                const y = (height - 40) * (i / 5) + 10;
+                ctx.beginPath();
+                ctx.moveTo(40, y);
+                ctx.lineTo(width - 10, y);
+                ctx.stroke();
+            }
+            
+            // Draw data lines
+            const pipeData = generateChartData(30, 60, 20);
+            const genData = generateChartData(50, 100, 30);
+            
+            drawLine(ctx, pipeData, '#667eea', width, height);
+            drawLine(ctx, genData, '#f59e0b', width, height);
+            
+            // Legend
+            ctx.fillStyle = '#667eea';
+            ctx.fillRect(width - 200, 20, 20, 3);
+            ctx.fillStyle = '#1e293b';
+            ctx.font = '12px sans-serif';
+            ctx.fillText('Pipe Pattern', width - 170, 24);
+            
+            ctx.fillStyle = '#f59e0b';
+            ctx.fillRect(width - 200, 40, 20, 3);
+            ctx.fillStyle = '#1e293b';
+            ctx.fillText('Effect.gen', width - 170, 44);
+        }
+
+        function generateChartData(base, max, variance) {
+            const points = [];
+            for (let i = 0; i < 20; i++) {
+                points.push(base + Math.random() * variance - variance/2);
+            }
+            return points;
+        }
+
+        function drawLine(ctx, data, color, width, height) {
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            
+            const xStep = (width - 50) / data.length;
+            data.forEach((point, i) => {
+                const x = 40 + i * xStep;
+                const y = height - 30 - (point / 100) * (height - 40);
+                
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+            
+            ctx.stroke();
+        }
+
+        // Initialize dashboard
+        function init() {
+            renderTraces();
+            renderChart();
+            updateMetrics();
+            
+            // Update metrics every 3 seconds
+            setInterval(updateMetrics, 3000);
+            
+            // Refresh traces every 5 seconds
+            setInterval(refreshTraces, 5000);
+            
+            // Randomly show alert
+            setTimeout(() => {
+                if (Math.random() > 0.7) {
+                    document.getElementById('alertBanner').style.display = 'flex';
+                }
+            }, 10000);
+        }
+
+        // Start when page loads
+        window.addEventListener('load', init);
+        window.addEventListener('resize', renderChart);
+    </script>
+</body>
+</html>

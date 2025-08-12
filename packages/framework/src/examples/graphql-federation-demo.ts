@@ -23,16 +23,13 @@ import {
   nonEmptyString,
   now,
   timestamp,
-  email,
-  username,
-  firstName,
-  lastName,
   createEventSchema,
   createEventApplicator,
   loadFromEvents,
   CoreServicesLive,
   EventStore,
-  type FederationEntity
+  type FederationEntity,
+  EntityResolverError
 } from "../index"
 
 // ============================================================================
@@ -110,7 +107,7 @@ type UserEvent =
 export const UserEntity: FederationEntity<UserState> = {
   typename: "User",
   key: "id",
-  schema: UserState,
+  schema: UserState as any,
   
   resolveReference: (reference: { id: AggregateId }) =>
     Effect.gen(function* () {
@@ -128,14 +125,19 @@ export const UserEntity: FederationEntity<UserState> = {
       
       if (events.length === 0) {
         yield* Effect.log(`❌ User not found: ${reference.id}`)
-        return yield* Effect.fail(new Error(`User not found: ${reference.id}`))
+        return yield* Effect.fail(new EntityResolverError("NotFound", `User not found: ${reference.id}`))
       }
       
-      const aggregate = loadFromEvents(applyUserEvent)(events)
+      const aggregate = loadFromEvents(reference.id, events, applyUserEvent)
       yield* Effect.log(`✅ User resolved: ${aggregate.state?.username}`)
       
       return aggregate.state
-    }),
+    }).pipe(
+      Effect.mapError((error: any) => 
+        error instanceof EntityResolverError ? error : 
+        new EntityResolverError("ResolutionFailed", error.message || String(error), error)
+      )
+    ) as Effect.Effect<UserState, EntityResolverError, never>,
   
   // Extended fields available to other services
   fields: {
@@ -206,7 +208,7 @@ type OrderEvent =
 export const OrderEntity: FederationEntity<OrderState> = {
   typename: "Order",
   key: "id",
-  schema: OrderState,
+  schema: OrderState as any,
   
   resolveReference: (reference: { id: AggregateId }) =>
     Effect.gen(function* () {
@@ -223,12 +225,17 @@ export const OrderEntity: FederationEntity<OrderState> = {
       )
       
       if (events.length === 0) {
-        return yield* Effect.fail(new Error(`Order not found: ${reference.id}`))
+        return yield* Effect.fail(new EntityResolverError("NotFound", `Order not found: ${reference.id}`))
       }
       
-      const aggregate = loadFromEvents(applyOrderEvent)(events)
+      const aggregate = loadFromEvents(reference.id, events, applyOrderEvent)
       return aggregate.state
-    }),
+    }).pipe(
+      Effect.mapError((error: any) => 
+        error instanceof EntityResolverError ? error :
+        new EntityResolverError("ResolutionFailed", error.message || String(error), error)
+      )
+    ) as Effect.Effect<OrderState, EntityResolverError, never>,
   
   fields: {
     itemCount: (order: OrderState) => order.items.reduce((sum: number, item: any) => sum + item.quantity, 0),

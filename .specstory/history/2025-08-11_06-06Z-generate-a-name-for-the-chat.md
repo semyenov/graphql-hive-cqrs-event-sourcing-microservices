@@ -374,3 +374,71 @@ The fix resolved the original error by mapping `ConfigError` to `BootstrapError`
 
 ---
 
+_**User**_
+
+For the code present, we get this error:
+```
+Argument of type '<E, R>(self: Effect<never, E, R>) => Effect<{ type: "OrderPlaced"; data: { orderId: string & Brand<"NonEmptyString">; customerId: string & Brand<"NonEmptyString">; ... 5 more ...; updatedAt: number & Brand<...>; }; metadata: { ...; }; }[], E, R>' is not assignable to parameter of type '(a: Effect<void, never, never> | Effect<never, InvalidOrderStateError, never>) => Effect<{ type: "OrderPlaced"; data: { orderId: string & Brand<...>; ... 6 more ...; updatedAt: number & Brand<...>; }; metadata: { ...; }; }[], InvalidOrderStateError, never>'.
+  Types of parameters 'self' and 'a' are incompatible.
+    Type 'Effect<void, never, never> | Effect<never, InvalidOrderStateError, never>' is not assignable to type 'Effect<never, InvalidOrderStateError, never>'.
+      Type 'Effect<void, never, never>' is not assignable to type 'Effect<never, InvalidOrderStateError, never>'.
+        Type 'void' is not assignable to type 'never'.
+```
+How can I resolve this? If you propose a fix, please make it concise.
+
+---
+
+_**Assistant**_
+
+The error occurs because the pipe chain has inconsistent types. The first step returns `Effect<void, never, never>` or `Effect<never, InvalidOrderStateError, never>`, but `Effect.map` expects a consistent type. The fix is to use `Effect.flatMap` instead of `Effect.map` to handle the conditional logic properly.
+
+
+---
+
+<details><summary>Edit file: src/examples/ecommerce-order-system.ts</summary>
+
+undefined
+
+**Chunk 1**
+Lines added: 3, lines removed: 3
+
+```diff
+@@ -362,12 +362,12 @@
+        ? Effect.fail(new InvalidOrderStateError("exists", "place"))
+        : Effect.void,
+-     // Calculate total
+-     Effect.map(() => {
++     // Calculate total and create event
++     Effect.flatMap(() => {
+        const totalAmount = command.payload.items.reduce(
+          (sum, item) => sum + (item.quantity * item.unitPrice),
+          0
+        )
+        
+-       return [{
++       return Effect.succeed([{
+          type: "OrderPlaced" as const,
+          data: {
+```
+
+**Chunk 2**
+Lines added: 1, lines removed: 1
+
+```diff
+@@ -390,5 +390,5 @@
+            actor: command.metadata.actor,
+          },
+-       }]
++       }])
+      })
+    )
+```
+
+</details>
+
+---
+
+The fix resolved the original pipe type issue by using `Effect.flatMap` and `Effect.succeed` to properly handle the conditional logic. The remaining errors are related to brand type conversions and other issues that are separate from the original problem you asked about. The main issue with the pipe chain type mismatch has been resolved.
+
+---
+

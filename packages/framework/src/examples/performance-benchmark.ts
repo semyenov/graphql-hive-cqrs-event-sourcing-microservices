@@ -7,15 +7,16 @@
 
 import * as Effect from "effect/Effect"
 import * as Schema from "@effect/schema/Schema"
-import * as Duration from "effect/Duration"
-import { pipe } from "effect/Function"
 
 import {
   AggregateId,
   createAggregateId,
   createEventId,
+  createCommandId,
+  createCorrelationId,
   createCausationId,
   now,
+  nonEmptyString,
   createEventSchema,
   createCommandSchema,
   createEventApplicator,
@@ -177,13 +178,13 @@ const benchmarkSingleOperation = () =>
     // Execute command
     const command: Schema.Schema.Type<typeof IncrementCounter> = {
       type: "IncrementCounter" as const,
-      aggregateId: aggregate.id,
+      aggregateId: aggregate.state.id,
       payload: { amount: 1 },
       metadata: {
-        commandId: createEventId(),
-        correlationId: createEventId(),
+        commandId: createCommandId(),
+        correlationId: createCorrelationId(),
         timestamp: now(),
-        actor: { type: "system", service: "benchmark" }
+        actor: { type: "system", service: nonEmptyString("benchmark") }
       }
     }
     
@@ -212,13 +213,13 @@ const benchmarkBatchOperations = (batchSize: number) =>
     for (let i = 0; i < batchSize; i++) {
       const command: Schema.Schema.Type<typeof IncrementCounter> = {
         type: "IncrementCounter" as const,
-        aggregateId: aggregate.id,
+        aggregateId: aggregate.state.id,
         payload: { amount: 1 },
         metadata: {
-          commandId: createEventId(),
-          correlationId: createEventId(),
+          commandId: createCommandId(),
+          correlationId: createCorrelationId(),
           timestamp: now(),
-          actor: { type: "system", service: "benchmark" }
+          actor: { type: "system", service: nonEmptyString("benchmark") }
         }
       }
       
@@ -260,9 +261,9 @@ const benchmarkEventReplay = (eventCount: number) =>
         aggregateId: createAggregateId(),
         version: i,
         timestamp: now() + i,
-        correlationId: createEventId(),
+        correlationId: createCorrelationId(),
         causationId: createCausationId(),
-        actor: { type: "system", service: "benchmark" }
+        actor: { type: "system", service: nonEmptyString("benchmark") }
       }
     }))
     
@@ -305,13 +306,13 @@ const benchmarkConcurrentOperations = (concurrency: number, operationsPerFiber: 
         for (let i = 0; i < operationsPerFiber; i++) {
           const command: Schema.Schema.Type<typeof IncrementCounter> = {
             type: "IncrementCounter" as const,
-            aggregateId: aggregate.id,
+            aggregateId: aggregate.state.id,
             payload: { amount: 1 },
             metadata: {
-              commandId: createEventId(),
-              correlationId: createEventId(),
+              commandId: createCommandId(),
+              correlationId: createCorrelationId(),
               timestamp: now(),
-              actor: { type: "system", service: "benchmark" }
+              actor: { type: "system", service: nonEmptyString("benchmark") }
             }
           }
           
@@ -365,12 +366,12 @@ const benchmarkMemoryUsage = (aggregateCount: number) =>
         data: { increment: 1, timestamp: now() + i },
         metadata: {
           eventId: createEventId(),
-          aggregateId: aggregate.id,
+          aggregateId: aggregate.state.id,
           version: i,
           timestamp: now() + i,
-          correlationId: createEventId(),
+          correlationId: createCorrelationId(),
           causationId: createCausationId(),
-          actor: { type: "system", service: "benchmark" }
+          actor: { type: "system", service: nonEmptyString("benchmark") }
         }
       }))
       

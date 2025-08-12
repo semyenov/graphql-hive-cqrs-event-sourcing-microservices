@@ -6,7 +6,6 @@
 
 import * as Effect from "effect/Effect"
 import * as Data from "effect/Data"
-import * as ReadonlyArray from "effect/Array"
 import { match, P } from "ts-pattern"
 import {
   AggregateId,

@@ -40,6 +40,14 @@ export * from "./functions/event-sourcing"
 export * from "./functions/aggregate"
 
 // ============================================================================
+// Functional Domain Layer - Pure, Type-Safe, No 'this'
+// ============================================================================
+
+export * from "./domain/aggregate"
+export * from "./domain/command"
+export * from "./domain/repository"
+
+// ============================================================================
 // Effect Services - Dependency Injection via Layers
 // ============================================================================
 

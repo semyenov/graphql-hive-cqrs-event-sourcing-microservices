@@ -36,8 +36,7 @@ import {
   now,
   createEventSchema,
   createProjection,
-  CoreServicesLive,
-  CommandBus
+  CoreServicesLive
 } from "../index"
 
 import {

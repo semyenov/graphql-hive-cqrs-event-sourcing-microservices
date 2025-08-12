@@ -1,0 +1,293 @@
+{
+  // Pipe Pattern Snippets for Effect-TS
+  
+  "Pipe Linear Flow": {
+    "prefix": "pipe-linear",
+    "body": [
+      "pipe(",
+      "  ${1:Effect.succeed(initialValue)},",
+      "  Effect.map((${2:value}) => ${3:transformation}),",
+      "  Effect.flatMap((${4:result}) => ${5:nextEffect}),",
+      "  Effect.tap((${6:final}) => ${7:sideEffect})",
+      ")"
+    ],
+    "description": "Create a linear pipe flow with transformations"
+  },
+
+  "Pipe Error Handling": {
+    "prefix": "pipe-error",
+    "body": [
+      "pipe(",
+      "  ${1:operation},",
+      "  Effect.catchTag(\"${2:ErrorTag}\", (error) =>",
+      "    ${3:Effect.succeed(fallback)}",
+      "  ),",
+      "  Effect.catchAll((error) =>",
+      "    ${4:Effect.fail(new Error(error))}",
+      "  )",
+      ")"
+    ],
+    "description": "Pipe pattern with error handling"
+  },
+
+  "Pipe Service Usage": {
+    "prefix": "pipe-service",
+    "body": [
+      "pipe(",
+      "  ${1:ServiceTag},",
+      "  Effect.flatMap((${2:service}) =>",
+      "    pipe(",
+      "      ${3:service.method()},",
+      "      Effect.map((${4:result}) => ${5:transformation})",
+      "    )",
+      "  )",
+      ")"
+    ],
+    "description": "Use service with pipe pattern"
+  },
+
+  "Pipe Repository Load": {
+    "prefix": "pipe-repo-load",
+    "body": [
+      "pipe(",
+      "  EventStore,",
+      "  Effect.flatMap((store) =>",
+      "    store.read(getStreamName(${1:aggregateId}))",
+      "  ),",
+      "  Stream.runCollect,",
+      "  Effect.map((events) => Array.from(events)),",
+      "  Effect.map((events) =>",
+      "    loadFromEvents(${1:aggregateId}, events, ${2:applicator}, ${3:initialState})",
+      "  )",
+      ")"
+    ],
+    "description": "Repository load operation with pipe"
+  },
+
+  "Pipe Command Handler": {
+    "prefix": "pipe-command",
+    "body": [
+      "const handle${1:CommandName} = (",
+      "  aggregate: Aggregate<${2:State} | null, ${3:Event}>,",
+      "  command: ${4:CommandType}",
+      "): Effect.Effect<ReadonlyArray<${3:Event}>, ${5:Error}> =>",
+      "  pipe(",
+      "    // Validate",
+      "    aggregate.state === null",
+      "      ? Effect.fail(new ${6:NotFoundError}())",
+      "      : Effect.void,",
+      "    // Process",
+      "    Effect.flatMap(() =>",
+      "      ${7:businessLogic}",
+      "    ),",
+      "    // Create events",
+      "    Effect.map(() => [",
+      "      {",
+      "        type: \"${8:EventType}\",",
+      "        data: ${9:eventData},",
+      "        metadata: createEventMetadata(aggregate, command)",
+      "      }",
+      "    ])",
+      "  )"
+    ],
+    "description": "Command handler with pipe pattern"
+  },
+
+  "Pipe Projection": {
+    "prefix": "pipe-projection",
+    "body": [
+      "const create${1:Name}Projection = () =>",
+      "  createReducerProjection<${2:State}, ${3:Event}>(",
+      "    {",
+      "      name: \"${4:projection-name}\",",
+      "      initialState: ${5:initialState},",
+      "      batchSize: ${6:100},",
+      "    },",
+      "    (state, event) =>",
+      "      match(event)",
+      "        .with({ type: \"${7:EventType}\" }, (e) =>",
+      "          ${8:stateTransformation}",
+      "        )",
+      "        .otherwise(() => state)",
+      "  )"
+    ],
+    "description": "Create projection with pipe pattern"
+  },
+
+  "Pipe Saga Step": {
+    "prefix": "pipe-saga",
+    "body": [
+      "pipe(",
+      "  // Check saga state",
+      "  sagaState.status === \"running\"",
+      "    ? Effect.succeed(sagaState)",
+      "    : Effect.fail(new SagaError(\"InvalidState\")),",
+      "  // Process event",
+      "  Effect.flatMap((state) =>",
+      "    processStep(${1:step}, state, ${2:event})",
+      "  ),",
+      "  // Send commands",
+      "  Effect.tap((result) =>",
+      "    result.commands",
+      "      ? Effect.forEach(",
+      "          result.commands,",
+      "          (cmd) => CommandBus.send(cmd),",
+      "          { discard: true }",
+      "        )",
+      "      : Effect.void",
+      "  )",
+      ")"
+    ],
+    "description": "Saga step processing with pipe"
+  },
+
+  "Pipe Stream Processing": {
+    "prefix": "pipe-stream",
+    "body": [
+      "pipe(",
+      "  Stream.fromIterable(${1:items}),",
+      "  Stream.mapEffect((${2:item}) =>",
+      "    ${3:processItem(item)}",
+      "  ),",
+      "  Stream.filter((${4:result}) =>",
+      "    ${5:predicate}",
+      "  ),",
+      "  Stream.grouped(${6:100}),",
+      "  Stream.mapEffect((batch) =>",
+      "    ${7:processBatch(batch)}",
+      "  ),",
+      "  Stream.runDrain",
+      ")"
+    ],
+    "description": "Stream processing with pipe pattern"
+  },
+
+  "Pipe GraphQL Resolver": {
+    "prefix": "pipe-resolver",
+    "body": [
+      "const ${1:resolverName} = createQueryResolver<${2:Args}, ${3:Result}>(",
+      "  (args) => ({",
+      "    type: \"${4:QueryType}\",",
+      "    payload: args,",
+      "    metadata: createQueryMetadata()",
+      "  }),",
+      "  (query) =>",
+      "    pipe(",
+      "      EventStore,",
+      "      Effect.flatMap((store) =>",
+      "        ${5:loadData(query)}",
+      "      ),",
+      "      Effect.map((data) =>",
+      "        ${6:transformToResult(data)}",
+      "      )",
+      "    )",
+      ")"
+    ],
+    "description": "GraphQL resolver with pipe pattern"
+  },
+
+  "Pipe Effect All": {
+    "prefix": "pipe-all",
+    "body": [
+      "pipe(",
+      "  Effect.all({",
+      "    ${1:service1}: ${2:Service1},",
+      "    ${3:service2}: ${4:Service2},",
+      "  }),",
+      "  Effect.flatMap(({ ${1:service1}, ${3:service2} }) =>",
+      "    pipe(",
+      "      ${5:operation},",
+      "      Effect.map((result) => ${6:transformation})",
+      "    )",
+      "  )",
+      ")"
+    ],
+    "description": "Combine multiple services with pipe"
+  },
+
+  "Pipe Validation Chain": {
+    "prefix": "pipe-validate",
+    "body": [
+      "pipe(",
+      "  // Validate step 1",
+      "  ${1:condition1}",
+      "    ? Effect.fail(new ${2:ValidationError1}())",
+      "    : Effect.void,",
+      "  // Validate step 2",
+      "  Effect.flatMap(() =>",
+      "    ${3:condition2}",
+      "      ? Effect.fail(new ${4:ValidationError2}())",
+      "      : Effect.void",
+      "  ),",
+      "  // All validations passed",
+      "  Effect.map(() => ${5:validResult})",
+      ")"
+    ],
+    "description": "Validation chain with pipe pattern"
+  },
+
+  "Pipe Retry Pattern": {
+    "prefix": "pipe-retry",
+    "body": [
+      "pipe(",
+      "  ${1:operation},",
+      "  Effect.retry(",
+      "    Schedule.exponential(Duration.millis(${2:100})).pipe(",
+      "      Schedule.jittered,",
+      "      Schedule.compose(Schedule.recurs(${3:3}))",
+      "    )",
+      "  ),",
+      "  Effect.timeout(Duration.seconds(${4:30})),",
+      "  Effect.catchTag(\"TimeoutException\", () =>",
+      "    Effect.fail(new ${5:TimeoutError}())",
+      "  )",
+      ")"
+    ],
+    "description": "Retry with timeout using pipe"
+  },
+
+  "Pipe Cache Pattern": {
+    "prefix": "pipe-cache",
+    "body": [
+      "pipe(",
+      "  Ref.get(${1:cacheRef}),",
+      "  Effect.map((cache) => cache.get(${2:key})),",
+      "  Effect.flatMap(",
+      "    Option.match({",
+      "      onNone: () =>",
+      "        pipe(",
+      "          ${3:loadFromSource()},",
+      "          Effect.tap((value) =>",
+      "            Ref.update(${1:cacheRef}, (cache) =>",
+      "              cache.set(${2:key}, value)",
+      "            )",
+      "          )",
+      "        ),",
+      "      onSome: (cached) => Effect.succeed(cached),",
+      "    })",
+      "  )",
+      ")"
+    ],
+    "description": "Cache pattern with pipe"
+  },
+
+  "Convert Effect.gen to Pipe": {
+    "prefix": "convert-gen-to-pipe",
+    "body": [
+      "// Before: Effect.gen",
+      "// Effect.gen(function* () {",
+      "//   const ${1:value} = yield* ${2:effect}",
+      "//   const ${3:result} = yield* ${4:process(value)}",
+      "//   return ${5:result}",
+      "// })",
+      "",
+      "// After: Pipe pattern",
+      "pipe(",
+      "  ${2:effect},",
+      "  Effect.flatMap((${1:value}) => ${4:process(value)}),",
+      "  Effect.map((${3:result}) => ${5:result})",
+      ")"
+    ],
+    "description": "Template for converting Effect.gen to pipe"
+  }
+}

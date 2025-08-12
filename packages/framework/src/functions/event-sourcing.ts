@@ -100,7 +100,7 @@ export type CommandHandler<State, Command, Event, Error> = (
  * })
  * ```
  */
-export const createAggregate = <State, Event>(
+export const createLegacyAggregate = <State, Event>(
   initialState: State
 ): EventSourcedAggregate<State, Event> => ({
   state: initialState,
@@ -185,7 +185,7 @@ export const applyEvents = <State, Event>(
  * // Aggregate state is now at the latest version
  * ```
  */
-export const loadFromEvents = <State, Event>(
+export const loadLegacyFromEvents = <State, Event>(
   applicator: EventApplicator<State, Event>,
   initialState: State | null = null
 ) => (
@@ -264,7 +264,7 @@ export const getUncommittedEvents = <State, Event>(
 /**
  * Mark events as committed
  */
-export const markEventsAsCommitted = <State, Event>(
+export const markLegacyEventsAsCommitted = <State, Event>(
   aggregate: EventSourcedAggregate<State, Event>
 ): EventSourcedAggregate<State, Event> => ({
   ...aggregate,
@@ -296,7 +296,7 @@ export const createEventApplicator = <State, Event extends { type: string }>(
 /**
  * Create a pattern-based command handler
  */
-export const createCommandHandler = <
+export const createLegacyCommandHandler = <
   State,
   Command extends { type: string },
   Event,

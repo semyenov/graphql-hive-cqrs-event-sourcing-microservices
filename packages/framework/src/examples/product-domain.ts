@@ -458,23 +458,23 @@ export const applyProductEvent = createEventApplicator<ProductState, ProductEven
       updatedAt: event.metadata.timestamp
     } : null,
 
-  ProductPublished: (state, event) =>
-    state ? {
-      ...state,
+  ProductPublished: (_state, event) =>
+    _state ? {
+      ..._state,
       published: true,
       publishedAt: event.data.publishedAt,
       updatedAt: event.metadata.timestamp
     } : null,
 
-  ProductUnpublished: (state, event) =>
-    state ? {
-      ...state,
+  ProductUnpublished: (_state, _event) =>
+    _state ? {
+      ..._state,
       published: false,
       publishedAt: undefined,
-      updatedAt: event.metadata.timestamp
+      updatedAt: _event.metadata.timestamp
     } : null,
 
-  ProductFeatured: (state, event) =>
+  ProductFeatured: (_state, _event) =>
     state ? {
       ...state,
       featured: true,
@@ -756,13 +756,13 @@ export const ProductCatalogProjection = createProjection(
     featured: boolean
   }>,
   {
-    ProductCreated: (state, event) => [
+    ProductCreated: (state, event: any) => [
       ...state,
       {
         id: event.metadata.aggregateId,
         name: event.data.name,
         category: event.data.category,
-        price: event.data.basePrice,
+        price: event.data.basePrice.amount,
         inventoryStatus: "in_stock" as const,
         published: false,
         featured: false
@@ -776,8 +776,8 @@ export const ProductCatalogProjection = createProjection(
           : product
       ),
 
-    ProductPublished: (state, event: any) =>
-      state.map(product =>
+    ProductPublished: (_state, event: any) =>
+      _state.map((product: any) =>
         product.id === event.metadata.aggregateId
           ? { ...product, published: true }
           : product

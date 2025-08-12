@@ -132,7 +132,7 @@ export const InMemoryEventStore = Layer.effect(
               onSome: (events) => events.slice(fromVersion as number),
             });
           }),
-        ).pipe(Stream.flatMap(Stream.fromIterable)),
+        ).pipe(Stream.flatMap((events) => Stream.fromIterable(events))),
 
       readAll: (fromPosition = 0n) =>
         Stream.fromEffect(Ref.get(globalStream)).pipe(
@@ -420,7 +420,7 @@ export class RepositoryError {
 /**
  * Create a repository for an aggregate type
  */
-export const createRepository = <State, Event>(
+export const createLegacyRepository = <State, Event>(
   aggregateName: string,
   loadFromEvents: (events: ReadonlyArray<Event>) => State,
   getUncommittedEvents: (aggregate: State) => ReadonlyArray<Event>,
