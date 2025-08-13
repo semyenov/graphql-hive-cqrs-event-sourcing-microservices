@@ -20,10 +20,10 @@ import {
   createEventSchema,
   createCommandSchema,
   createEventApplicator,
-  createCommandHandler,
+  createLegacyCommandHandler,
   createAggregate,
   executeCommand,
-  loadFromEvents,
+  loadLegacyFromEvents,
   CoreServicesLive
 } from "../index"
 
@@ -48,13 +48,13 @@ const CounterIncremented = createEventSchema(
 )
 
 const CounterReset = createEventSchema(
-  "CounterReset", 
+  "CounterReset",
   Schema.Struct({
     resetValue: Schema.Number
   })
 )
 
-type BenchmarkEvent = 
+type BenchmarkEvent =
   | Schema.Schema.Type<typeof CounterIncremented>
   | Schema.Schema.Type<typeof CounterReset>
 
@@ -87,7 +87,7 @@ const applyBenchmarkEvent = createEventApplicator<BenchmarkState, BenchmarkEvent
       counter: state.counter + event.data.increment,
       lastUpdated: event.data.timestamp
     } : null,
-    
+
   CounterReset: (state, event) =>
     state ? {
       ...state,
@@ -96,7 +96,7 @@ const applyBenchmarkEvent = createEventApplicator<BenchmarkState, BenchmarkEvent
     } : null
 })
 
-const handleBenchmarkCommand = createCommandHandler<
+const handleBenchmarkCommand = createLegacyCommandHandler<
   BenchmarkState,
   BenchmarkCommand,
   BenchmarkEvent,
@@ -122,7 +122,7 @@ const handleBenchmarkCommand = createCommandHandler<
         }
       }]
     }),
-    
+
   ResetCounter: (state, command) =>
     Effect.succeed({
       type: "success" as const,
@@ -149,7 +149,7 @@ const handleBenchmarkCommand = createCommandHandler<
 // ============================================================================
 
 const createBenchmarkAggregate = (id: AggregateId = createAggregateId()) =>
-  createAggregate<BenchmarkState, BenchmarkEvent>({
+  createAggregate<BenchmarkState, BenchmarkEvent>(id, {
     id,
     counter: 0,
     name: `benchmark-${id}`,
@@ -169,16 +169,16 @@ const executeBenchmarkCommand = (aggregate: any, command: BenchmarkCommand) =>
 const benchmarkSingleOperation = () =>
   Effect.gen(function* () {
     yield* Effect.log("🏃 Single Operation Benchmark")
-    
+
     const startTime = performance.now()
-    
+
     // Create aggregate
     const aggregate = createBenchmarkAggregate()
-    
+
     // Execute command
     const command: Schema.Schema.Type<typeof IncrementCounter> = {
       type: "IncrementCounter" as const,
-      aggregateId: aggregate.state.id,
+      aggregateId: aggregate.state?.id as AggregateId,
       payload: { amount: 1 },
       metadata: {
         commandId: createCommandId(),
@@ -187,14 +187,14 @@ const benchmarkSingleOperation = () =>
         actor: { type: "system", service: nonEmptyString("benchmark") }
       }
     }
-    
+
     const result = yield* executeBenchmarkCommand(aggregate, command)
-    
+
     const endTime = performance.now()
     const duration = endTime - startTime
-    
+
     yield* Effect.log(`✅ Single operation: ${duration.toFixed(3)}ms`)
-    
+
     return { duration, result }
   })
 
@@ -204,16 +204,16 @@ const benchmarkSingleOperation = () =>
 const benchmarkBatchOperations = (batchSize: number) =>
   Effect.gen(function* () {
     yield* Effect.log(`🏃 Batch Operations Benchmark (${batchSize} operations)`)
-    
+
     const startTime = performance.now()
-    
+
     let aggregate = createBenchmarkAggregate()
-    
+
     // Execute batch of commands
     for (let i = 0; i < batchSize; i++) {
       const command: Schema.Schema.Type<typeof IncrementCounter> = {
         type: "IncrementCounter" as const,
-        aggregateId: aggregate.state.id,
+        aggregateId: aggregate.state?.id || aggregate.id,
         payload: { amount: 1 },
         metadata: {
           commandId: createCommandId(),
@@ -222,21 +222,21 @@ const benchmarkBatchOperations = (batchSize: number) =>
           actor: { type: "system", service: nonEmptyString("benchmark") }
         }
       }
-      
+
       aggregate = yield* executeBenchmarkCommand(aggregate, command)
     }
-    
+
     const endTime = performance.now()
     const duration = endTime - startTime
     const opsPerSecond = (batchSize / duration) * 1000
-    
+
     yield* Effect.log(`✅ Batch ${batchSize} operations: ${duration.toFixed(3)}ms`)
     yield* Effect.log(`📊 Operations per second: ${opsPerSecond.toFixed(0)} ops/sec`)
     yield* Effect.log(`📊 Average per operation: ${(duration / batchSize).toFixed(4)}ms`)
-    
-    return { 
-      duration, 
-      opsPerSecond, 
+
+    return {
+      duration,
+      opsPerSecond,
       averagePerOp: duration / batchSize,
       finalCounter: aggregate.state.counter
     }
@@ -248,7 +248,7 @@ const benchmarkBatchOperations = (batchSize: number) =>
 const benchmarkEventReplay = (eventCount: number) =>
   Effect.gen(function* () {
     yield* Effect.log(`🏃 Event Replay Benchmark (${eventCount} events)`)
-    
+
     // Generate events
     const events: BenchmarkEvent[] = Array.from({ length: eventCount }, (_, i) => ({
       type: "CounterIncremented" as const,
@@ -266,21 +266,21 @@ const benchmarkEventReplay = (eventCount: number) =>
         actor: { type: "system", service: nonEmptyString("benchmark") }
       }
     }))
-    
+
     const startTime = performance.now()
-    
+
     // Replay events to rebuild state
-    const finalAggregate = loadFromEvents(applyBenchmarkEvent)(events)
-    
+    const finalAggregate = loadLegacyFromEvents(applyBenchmarkEvent)(events)
+
     const endTime = performance.now()
     const duration = endTime - startTime
     const eventsPerSecond = (eventCount / duration) * 1000
-    
+
     yield* Effect.log(`✅ Event replay ${eventCount} events: ${duration.toFixed(3)}ms`)
     yield* Effect.log(`📊 Events per second: ${eventsPerSecond.toFixed(0)} events/sec`)
     yield* Effect.log(`📊 Average per event: ${(duration / eventCount).toFixed(4)}ms`)
     yield* Effect.log(`📊 Final counter value: ${finalAggregate.state?.counter || 0}`)
-    
+
     return {
       duration,
       eventsPerSecond,
@@ -295,14 +295,14 @@ const benchmarkEventReplay = (eventCount: number) =>
 const benchmarkConcurrentOperations = (concurrency: number, operationsPerFiber: number) =>
   Effect.gen(function* () {
     yield* Effect.log(`🏃 Concurrent Operations Benchmark (${concurrency} fibers × ${operationsPerFiber} ops)`)
-    
+
     const startTime = performance.now()
-    
+
     // Create concurrent fibers
     const fibers = Array.from({ length: concurrency }, () =>
       Effect.gen(function* () {
         let aggregate = createBenchmarkAggregate()
-        
+
         for (let i = 0; i < operationsPerFiber; i++) {
           const command: Schema.Schema.Type<typeof IncrementCounter> = {
             type: "IncrementCounter" as const,
@@ -315,27 +315,27 @@ const benchmarkConcurrentOperations = (concurrency: number, operationsPerFiber: 
               actor: { type: "system", service: nonEmptyString("benchmark") }
             }
           }
-          
+
           aggregate = yield* executeBenchmarkCommand(aggregate, command)
         }
-        
+
         return aggregate.state.counter
       })
     )
-    
+
     // Run all fibers concurrently
     const results = yield* Effect.all(fibers, { concurrency: "unbounded" })
-    
+
     const endTime = performance.now()
     const duration = endTime - startTime
     const totalOperations = concurrency * operationsPerFiber
     const opsPerSecond = (totalOperations / duration) * 1000
-    
+
     yield* Effect.log(`✅ Concurrent ${totalOperations} operations: ${duration.toFixed(3)}ms`)
     yield* Effect.log(`📊 Operations per second: ${opsPerSecond.toFixed(0)} ops/sec`)
     yield* Effect.log(`📊 Concurrent fibers: ${concurrency}`)
     yield* Effect.log(`📊 Operations per fiber: ${operationsPerFiber}`)
-    
+
     return {
       duration,
       opsPerSecond,
@@ -352,14 +352,14 @@ const benchmarkConcurrentOperations = (concurrency: number, operationsPerFiber: 
 const benchmarkMemoryUsage = (aggregateCount: number) =>
   Effect.gen(function* () {
     yield* Effect.log(`🏃 Memory Usage Benchmark (${aggregateCount} aggregates)`)
-    
+
     const startMemory = process.memoryUsage()
     const startTime = performance.now()
-    
+
     // Create many aggregates
     const aggregates = Array.from({ length: aggregateCount }, () => {
       const aggregate = createBenchmarkAggregate()
-      
+
       // Add some events to each
       const events: BenchmarkEvent[] = Array.from({ length: 10 }, (_, i) => ({
         type: "CounterIncremented" as const,
@@ -374,21 +374,21 @@ const benchmarkMemoryUsage = (aggregateCount: number) =>
           actor: { type: "system", service: nonEmptyString("benchmark") }
         }
       }))
-      
-      return loadFromEvents(applyBenchmarkEvent)(events)
+
+      return loadLegacyFromEvents(applyBenchmarkEvent)(events)
     })
-    
+
     const endTime = performance.now()
     const endMemory = process.memoryUsage()
-    
+
     const memoryUsed = endMemory.heapUsed - startMemory.heapUsed
     const memoryPerAggregate = memoryUsed / aggregateCount
-    
+
     yield* Effect.log(`✅ Created ${aggregateCount} aggregates: ${(endTime - startTime).toFixed(3)}ms`)
     yield* Effect.log(`📊 Memory used: ${(memoryUsed / 1024 / 1024).toFixed(2)} MB`)
     yield* Effect.log(`📊 Memory per aggregate: ${(memoryPerAggregate / 1024).toFixed(2)} KB`)
     yield* Effect.log(`📊 Total counter sum: ${aggregates.reduce((sum, agg) => sum + (agg.state?.counter || 0), 0)}`)
-    
+
     return {
       aggregateCount,
       memoryUsed,
@@ -405,38 +405,38 @@ const benchmarkMemoryUsage = (aggregateCount: number) =>
 const runPerformanceBenchmarks = () =>
   Effect.gen(function* () {
     yield* Effect.log("🏁 Starting Ultra-Clean Framework Performance Benchmarks")
-    yield* Effect.log("=" .repeat(60))
-    
+    yield* Effect.log("=".repeat(60))
+
     // Single operation
     yield* benchmarkSingleOperation()
     yield* Effect.log("")
-    
+
     // Batch operations - various sizes
     yield* benchmarkBatchOperations(100)
     yield* benchmarkBatchOperations(1000)
     yield* benchmarkBatchOperations(10000)
     yield* Effect.log("")
-    
+
     // Event replay - various sizes
     yield* benchmarkEventReplay(100)
     yield* benchmarkEventReplay(1000)
     yield* benchmarkEventReplay(10000)
     yield* Effect.log("")
-    
+
     // Concurrent operations
     yield* benchmarkConcurrentOperations(10, 100)
     yield* benchmarkConcurrentOperations(50, 100)
     yield* benchmarkConcurrentOperations(100, 100)
     yield* Effect.log("")
-    
+
     // Memory usage
     yield* benchmarkMemoryUsage(1000)
     yield* benchmarkMemoryUsage(10000)
     yield* Effect.log("")
-    
+
     yield* Effect.log("🏆 Benchmark Suite Completed!")
-    yield* Effect.log("=" .repeat(60))
-    
+    yield* Effect.log("=".repeat(60))
+
     return { message: "Performance benchmarks completed successfully!" }
   }).pipe(
     Effect.provide(CoreServicesLive),

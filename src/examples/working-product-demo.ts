@@ -18,18 +18,18 @@ import {
   // Types and interfaces
   type Aggregate,
   type EventApplicator,
-  
+
   // Core functions
   createAggregate,
   applyEvent,
   markEventsAsCommitted,
   createCommandHandler,
   createRepository,
-  
+
   // Schema builders
   createEventSchema,
   createCommandSchema,
-  
+
   // Primitives
   AggregateId,
   Version,
@@ -40,11 +40,13 @@ import {
   createCausationId,
   now,
   nonEmptyString,
-  
+
   // Services
   CoreServicesLive,
   EventStore,
+  createCommandId,
 } from "@cqrs/framework"
+import type { UserId } from "../domains/users/core/types"
 
 // ============================================================================
 // Domain Model - Product Inventory System
@@ -86,7 +88,7 @@ const ProductCreated = createEventSchema(
 )
 
 const StockAdded = createEventSchema(
-  "StockAdded", 
+  "StockAdded",
   Schema.Struct({
     quantity: Schema.Number,
     reason: Schema.String,
@@ -147,7 +149,7 @@ const AddStock = createCommandSchema(
 )
 
 const RemoveStock = createCommandSchema(
-  "RemoveStock", 
+  "RemoveStock",
   Schema.Struct({
     quantity: Schema.Number,
     reason: Schema.String,
@@ -181,27 +183,27 @@ type ProductCommand =
 
 class ProductAlreadyExistsError {
   readonly _tag = "ProductAlreadyExistsError"
-  constructor(readonly sku: NonEmptyString) {}
+  constructor(readonly sku: NonEmptyString) { }
 }
 
 class ProductNotFoundError {
   readonly _tag = "ProductNotFoundError"
-  constructor(readonly id: AggregateId) {}
+  constructor(readonly id: AggregateId) { }
 }
 
 class InsufficientStockError {
   readonly _tag = "InsufficientStockError"
-  constructor(readonly requested: number, readonly available: number) {}
+  constructor(readonly requested: number, readonly available: number) { }
 }
 
 class InvalidPriceError {
   readonly _tag = "InvalidPriceError"
-  constructor(readonly price: number) {}
+  constructor(readonly price: number) { }
 }
 
 class ProductInactiveError {
-  readonly _tag = "ProductInactiveError" 
-  constructor(readonly id: AggregateId) {}
+  readonly _tag = "ProductInactiveError"
+  constructor(readonly id: AggregateId) { }
 }
 
 type ProductError =
@@ -261,7 +263,7 @@ const createProductHandler = createCommandHandler<
 >({
   name: "CreateProduct",
   commandType: "CreateProduct",
-  
+
   validate: (command) =>
     Effect.gen(function* () {
       // ✅ NO "this" keyword here - pure validation
@@ -269,16 +271,16 @@ const createProductHandler = createCommandHandler<
         return yield* Effect.fail(new InvalidPriceError(command.payload.price))
       }
     }),
-  
+
   execute: (aggregate, command) =>
     Effect.gen(function* () {
       // ✅ NO "this" keyword - just pure function parameters
-      
+
       // Check if product already exists
       if (aggregate.state !== null) {
         return yield* Effect.fail(new ProductAlreadyExistsError(command.payload.sku))
       }
-      
+
       // Create the event
       const event: Schema.Schema.Type<typeof ProductCreated> = {
         type: "ProductCreated",
@@ -299,10 +301,10 @@ const createProductHandler = createCommandHandler<
           actor: command.metadata.actor,
         },
       }
-      
+
       return [event]
     }),
-  
+
   applicator: applyProductEvent,
 })
 
@@ -317,19 +319,19 @@ const addStockHandler = createCommandHandler<
 >({
   name: "AddStock",
   commandType: "AddStock",
-  
+
   execute: (aggregate, command) =>
     Effect.gen(function* () {
       // ✅ NO "this" keyword issues here
-      
+
       if (aggregate.state === null) {
         return yield* Effect.fail(new ProductNotFoundError(aggregate.id))
       }
-      
+
       if (!aggregate.state.isActive) {
         return yield* Effect.fail(new ProductInactiveError(aggregate.id))
       }
-      
+
       const event: Schema.Schema.Type<typeof StockAdded> = {
         type: "StockAdded",
         data: {
@@ -346,10 +348,10 @@ const addStockHandler = createCommandHandler<
           actor: command.metadata.actor,
         },
       }
-      
+
       return [event]
     }),
-  
+
   applicator: applyProductEvent,
 })
 
@@ -364,25 +366,25 @@ const removeStockHandler = createCommandHandler<
 >({
   name: "RemoveStock",
   commandType: "RemoveStock",
-  
+
   execute: (aggregate, command) =>
     Effect.gen(function* () {
       // ✅ NO "this" keyword - pure function approach
-      
+
       if (aggregate.state === null) {
         return yield* Effect.fail(new ProductNotFoundError(aggregate.id))
       }
-      
+
       if (!aggregate.state.isActive) {
         return yield* Effect.fail(new ProductInactiveError(aggregate.id))
       }
-      
+
       if (aggregate.state.quantity < command.payload.quantity) {
         return yield* Effect.fail(
           new InsufficientStockError(command.payload.quantity, aggregate.state.quantity)
         )
       }
-      
+
       const event: Schema.Schema.Type<typeof StockRemoved> = {
         type: "StockRemoved",
         data: {
@@ -399,10 +401,10 @@ const removeStockHandler = createCommandHandler<
           actor: command.metadata.actor,
         },
       }
-      
+
       return [event]
     }),
-  
+
   applicator: applyProductEvent,
 })
 
@@ -426,17 +428,17 @@ const createProductRepository = () =>
 const runProductDemo = Effect.gen(function* () {
   console.log("🚀 Working Product Domain Demo\\n")
   console.log("✅ Using pure functions - NO 'this' keyword issues!\\n")
-  
+
   // Create repository
   const repository = createProductRepository()
-  
+
   // Create new product
   const productId = createAggregateId()
   console.log(`📦 Creating product with ID: ${productId}`)
-  
+
   // Start with empty aggregate
   let productAggregate = createAggregate<ProductState, ProductEvent>(productId)
-  
+
   // Create product command
   const createCommand: Schema.Schema.Type<typeof CreateProduct> = {
     type: "CreateProduct",
@@ -448,24 +450,24 @@ const runProductDemo = Effect.gen(function* () {
       category: nonEmptyString("Electronics"),
     },
     metadata: {
-      commandId: createEventId(),
+      commandId: createCommandId(),
       aggregateId: productId,
       correlationId: createCorrelationId(),
       causationId: createCausationId(),
       timestamp: now(),
-      actor: { type: "user", userId: "admin" as AggregateId },
+      actor: { type: "user", id: "admin" as UserId },
     },
   }
-  
+
   // ✅ Handle command - NO "this" issues
   productAggregate = yield* createProductHandler(productAggregate, createCommand)
   console.log("✅ Product created:", productAggregate.state)
-  
+
   // Save and commit
   yield* repository.save(productAggregate)
   productAggregate = markEventsAsCommitted(productAggregate)
   console.log("💾 Product saved to repository")
-  
+
   // Add stock
   const addStockCommand: Schema.Schema.Type<typeof AddStock> = {
     type: "AddStock",
@@ -482,10 +484,10 @@ const runProductDemo = Effect.gen(function* () {
       actor: { type: "user", userId: "warehouse" as AggregateId },
     },
   }
-  
+
   productAggregate = yield* addStockHandler(productAggregate, addStockCommand)
   console.log("✅ Stock added:", productAggregate.state)
-  
+
   // Remove some stock
   const removeStockCommand: Schema.Schema.Type<typeof RemoveStock> = {
     type: "RemoveStock",
@@ -502,22 +504,22 @@ const runProductDemo = Effect.gen(function* () {
       actor: { type: "user", userId: "sales" as AggregateId },
     },
   }
-  
+
   productAggregate = yield* removeStockHandler(productAggregate, removeStockCommand)
   console.log("✅ Stock removed:", productAggregate.state)
-  
+
   // Save final state
   yield* repository.save(productAggregate)
   productAggregate = markEventsAsCommitted(productAggregate)
   console.log("💾 Final state saved")
-  
+
   // Load from repository to verify
   const loadedAggregate = yield* repository.load(productId)
   console.log("\\n📖 Loaded from repository:")
   console.log("   State:", loadedAggregate.state)
   console.log("   Version:", loadedAggregate.version)
   console.log("   Uncommitted events:", loadedAggregate.uncommittedEvents.length)
-  
+
   console.log("\\n🎉 Pure functional approach benefits:")
   console.log("   ✅ NO 'this' context issues in Effect.gen")
   console.log("   ✅ Pure functions are easy to test and reason about")
@@ -548,28 +550,28 @@ export {
   type ProductEvent,
   type ProductCommand,
   type ProductError,
-  
+
   // Event schemas
   ProductCreated,
   StockAdded,
   StockRemoved,
   PriceChanged,
   ProductDeactivated,
-  
+
   // Command schemas
   CreateProduct,
   AddStock,
   RemoveStock,
   ChangePrice,
   DeactivateProduct,
-  
+
   // Pure functions
   applyProductEvent,
   createProductHandler,
   addStockHandler,
   removeStockHandler,
   createProductRepository,
-  
+
   // Demo
   runProductDemo,
 }

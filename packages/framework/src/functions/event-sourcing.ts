@@ -12,6 +12,7 @@ import * as ReadonlyArray from "effect/Array"
 import { pipe } from "effect/Function"
 import { match, P } from "ts-pattern"
 import type { Version } from "../schema/core/primitives"
+import { createAggregate } from "../domain/aggregate"
 
 // ============================================================================
 // Core Types
@@ -129,15 +130,15 @@ export const applyEvent = <State, Event>(
   aggregate: EventSourcedAggregate<State, Event>,
   event: Event
 ): EventSourcedAggregate<State, Event> => {
-  const newState = applicator(aggregate.state, event)
-  
-  return {
-    state: newState ?? aggregate.state,
-    version: ((aggregate.version as number) + 1) as Version,
-    uncommittedEvents: [...aggregate.uncommittedEvents, event],
-    isDeleted: newState === null
+    const newState = applicator(aggregate.state, event)
+
+    return {
+      state: newState ?? aggregate.state,
+      version: ((aggregate.version as number) + 1) as Version,
+      uncommittedEvents: [...aggregate.uncommittedEvents, event],
+      isDeleted: newState === null
+    }
   }
-}
 
 /**
  * Apply multiple events to state
@@ -159,12 +160,12 @@ export const applyEvents = <State, Event>(
   aggregate: EventSourcedAggregate<State, Event>,
   events: ReadonlyArray<Event>
 ): EventSourcedAggregate<State, Event> =>
-  pipe(
-    events,
-    ReadonlyArray.reduce(aggregate, (agg, event) =>
-      applyEvent(applicator)(agg, event)
+    pipe(
+      events,
+      ReadonlyArray.reduce(aggregate, (agg, event) =>
+        applyEvent(applicator)(agg, event)
+      )
     )
-  )
 
 /**
  * Load aggregate from event history
@@ -191,21 +192,21 @@ export const loadLegacyFromEvents = <State, Event>(
 ) => (
   events: ReadonlyArray<Event>
 ): EventSourcedAggregate<State, Event> => {
-  const initial = createAggregate(initialState as State)
-  
-  return pipe(
-    events,
-    ReadonlyArray.reduce(initial, (agg, event) => {
-      const newState = applicator(agg.state, event)
-      return {
-        ...agg,
-        state: newState ?? agg.state,
-        version: ((agg.version as number) + 1) as Version,
-        isDeleted: newState === null
-      }
-    })
-  )
-}
+    const initial = createAggregate(initialState as State)
+
+    return pipe(
+      events,
+      ReadonlyArray.reduce(initial, (agg, event) => {
+        const newState = applicator(agg.state, event)
+        return {
+          ...agg,
+          state: newState ?? agg.state,
+          version: ((agg.version as number) + 1) as Version,
+          isDeleted: newState === null
+        }
+      })
+    )
+  }
 
 /**
  * Execute a command against an aggregate
@@ -237,22 +238,22 @@ export const executeCommand = <State, Command, Event, Error>(
   aggregate: EventSourcedAggregate<State, Event>,
   command: Command
 ): Effect.Effect<EventSourcedAggregate<State, Event>, Error, never> =>
-  pipe(
-    handler(aggregate.state, command),
-    Effect.flatMap(decision =>
-      match(decision)
-        .with({ type: "success" }, ({ events }) =>
-          Effect.succeed(applyEvents(applicator)(aggregate, events))
-        )
-        .with({ type: "failure" }, ({ error }) =>
-          Effect.fail(error)
-        )
-        .with({ type: "noOp" }, () =>
-          Effect.succeed(aggregate)
-        )
-        .exhaustive()
+    pipe(
+      handler(aggregate.state, command),
+      Effect.flatMap(decision =>
+        match(decision)
+          .with({ type: "success" }, ({ events }) =>
+            Effect.succeed(applyEvents(applicator)(aggregate, events))
+          )
+          .with({ type: "failure" }, ({ error }) =>
+            Effect.fail(error)
+          )
+          .with({ type: "noOp" }, () =>
+            Effect.succeed(aggregate)
+          )
+          .exhaustive()
+      )
     )
-  )
 
 /**
  * Get uncommitted events from aggregate
@@ -286,12 +287,12 @@ export const createEventApplicator = <State, Event extends { type: string }>(
     ) => State | null
   }
 ): EventApplicator<State, Event> => (state, event) =>
-  match(event)
-    .when(
-      (e): e is Event => e.type in patterns,
-      (e) => patterns[e.type as Event["type"]](state, e as any)
-    )
-    .otherwise(() => state)
+    match(event)
+      .when(
+        (e): e is Event => e.type in patterns,
+        (e) => patterns[e.type as Event["type"]](state, e as any)
+      )
+      .otherwise(() => state)
 
 /**
  * Create a pattern-based command handler
@@ -309,17 +310,17 @@ export const createLegacyCommandHandler = <
     ) => Effect.Effect<CommandDecision<Event, Error>, never, never>
   }
 ): CommandHandler<State, Command, Event, Error> => (state, command) =>
-  match(command)
-    .when(
-      (c): c is Command => c.type in patterns,
-      (c) => patterns[c.type as Command["type"]](state, c as any)
-    )
-    .otherwise(() =>
-      Effect.succeed({
-        type: "noOp" as const,
-        reason: `Unknown command type: ${command.type}`
-      })
-    )
+    match(command)
+      .when(
+        (c): c is Command => c.type in patterns,
+        (c) => patterns[c.type as Command["type"]](state, c as any)
+      )
+      .otherwise(() =>
+        Effect.succeed({
+          type: "noOp" as const,
+          reason: `Unknown command type: ${command.type}`
+        })
+      )
 
 // ============================================================================
 // Validation Helpers
@@ -333,7 +334,7 @@ export const validateCommand = <Command>(
 ) => (
   command: unknown
 ): Effect.Effect<Command, Schema.ParseError> =>
-  Schema.decodeUnknown(schema)(command)
+    Schema.decodeUnknown(schema)(command)
 
 /**
  * Ensure aggregate exists (not deleted)
@@ -385,7 +386,7 @@ export const loadFromSnapshot = <State, Event>(
     uncommittedEvents: [],
     isDeleted: false
   }
-  
+
   return applyEvents(applicator)(initial, events)
 }
 
@@ -444,12 +445,12 @@ export const runProjection = <State, Event>(
 export const createProjectionSet = <Event>(
   projections: ReadonlyArray<Projection<any, Event>>
 ) => (events: ReadonlyArray<Event>): Map<string, any> =>
-  new Map(
-    projections.map(projection => [
-      projection.name,
-      runProjection(projection, events)
-    ])
-  )
+    new Map(
+      projections.map(projection => [
+        projection.name,
+        runProjection(projection, events)
+      ])
+    )
 
 // ============================================================================
 // Saga/Process Manager Support
@@ -470,11 +471,11 @@ export const createSaga = <Event extends { type: string }, Command>(
   name: string,
   steps: ReadonlyArray<SagaStep<Event, Command>>
 ) => (event: Event): Effect.Effect<ReadonlyArray<Command>, never, never> =>
-  pipe(
-    steps,
-    ReadonlyArray.findFirst(step => step.on === event.type),
-    Option.match({
-      onNone: () => Effect.succeed([]),
-      onSome: (step) => step.execute(event)
-    })
-  )
+    pipe(
+      steps,
+      ReadonlyArray.findFirst(step => step.on === event.type),
+      Option.match({
+        onNone: () => Effect.succeed([]),
+        onSome: (step) => step.execute(event)
+      })
+    )

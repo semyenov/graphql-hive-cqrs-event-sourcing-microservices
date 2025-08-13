@@ -16,7 +16,7 @@ import {
   createAggregate,
   createAggregateId,
   createCausationId,
-  createCommandHandler,
+  createLegacyCommandHandler,
   createCommandId,
   createCommandSchema,
   createCorrelationId,
@@ -26,7 +26,7 @@ import {
   Email,
   EventStore,
   executeCommand,
-  loadFromEvents,
+  loadLegacyFromEvents,
   NonEmptyString,
   now,
   Username,
@@ -93,12 +93,12 @@ export type UserCommand =
 
 export class UserAlreadyExists {
   readonly _tag = "UserAlreadyExists";
-  constructor(readonly email: Email) {}
+  constructor(readonly email: Email) { }
 }
 
 export class UserNotFound {
   readonly _tag = "UserNotFound";
-  constructor(readonly id: AggregateId) {}
+  constructor(readonly id: AggregateId) { }
 }
 
 export type UserError = UserAlreadyExists | UserNotFound;
@@ -128,7 +128,7 @@ export const applyUserEvent = createEventApplicator<UserState, UserEvent>({
 /**
  * Handle user commands - pure function with Effect
  */
-export const handleUserCommand = createCommandHandler<
+export const handleUserCommand = createLegacyCommandHandler<
   UserState,
   UserCommand,
   UserEvent,
@@ -228,7 +228,7 @@ export const createUserAggregate = (id: AggregateId = createAggregateId()) =>
  * Load user aggregate from events
  */
 export const loadUserFromEvents = (events: ReadonlyArray<UserEvent>) =>
-  loadFromEvents(applyUserEvent)(events);
+  loadLegacyFromEvents(applyUserEvent)(events);
 
 /**
  * Execute command against user aggregate

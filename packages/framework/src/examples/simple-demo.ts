@@ -20,10 +20,10 @@ import {
   createEventSchema,
   createCommandSchema,
   createEventApplicator,
-  createCommandHandler,
+  createLegacyCommandHandler,
   createAggregate,
   executeCommand,
-  loadFromEvents
+  loadLegacyFromEvents
 } from "../index"
 
 // ============================================================================
@@ -52,11 +52,11 @@ const TaskCreated = createEventSchema(
 )
 
 const TaskCompleted = createEventSchema(
-  "TaskCompleted", 
+  "TaskCompleted",
   Schema.Struct({})
 )
 
-type TaskEvent = 
+type TaskEvent =
   | Schema.Schema.Type<typeof TaskCreated>
   | Schema.Schema.Type<typeof TaskCompleted>
 
@@ -85,12 +85,12 @@ type TaskCommand =
 
 class TaskAlreadyExists {
   readonly _tag = "TaskAlreadyExists"
-  constructor(readonly id: AggregateId) {}
+  constructor(readonly id: AggregateId) { }
 }
 
 class TaskNotFound {
-  readonly _tag = "TaskNotFound" 
-  constructor(readonly id: AggregateId) {}
+  readonly _tag = "TaskNotFound"
+  constructor(readonly id: AggregateId) { }
 }
 
 type TaskError = TaskAlreadyExists | TaskNotFound
@@ -105,7 +105,7 @@ const applyTaskEvent = createEventApplicator<TaskState, TaskEvent>({
     completed: false,
     createdAt: event.metadata.timestamp
   }),
-  
+
   TaskCompleted: (state, event) =>
     state ? { ...state, completed: true } : null
 })
@@ -113,9 +113,9 @@ const applyTaskEvent = createEventApplicator<TaskState, TaskEvent>({
 /**
  * Pure command handling
  */
-const handleTaskCommand = createCommandHandler<
+const handleTaskCommand = createLegacyCommandHandler<
   TaskState,
-  TaskCommand, 
+  TaskCommand,
   TaskEvent,
   TaskError
 >({
@@ -128,7 +128,7 @@ const handleTaskCommand = createCommandHandler<
           error: new TaskAlreadyExists(command.aggregateId)
         }
       }
-      
+
       const event: Schema.Schema.Type<typeof TaskCreated> = {
         type: "TaskCreated" as const,
         data: { title: command.payload.title },
@@ -142,13 +142,13 @@ const handleTaskCommand = createCommandHandler<
           actor: command.metadata.actor
         }
       }
-      
+
       return {
         type: "success" as const,
         events: [event]
       }
     }),
-    
+
   CompleteTask: (state, command) =>
     Effect.gen(function* () {
       // Check if task exists
@@ -158,7 +158,7 @@ const handleTaskCommand = createCommandHandler<
           error: new TaskNotFound(command.aggregateId)
         }
       }
-      
+
       // Check if already completed
       if (state.completed) {
         return {
@@ -166,7 +166,7 @@ const handleTaskCommand = createCommandHandler<
           events: [] // Already completed - idempotent
         }
       }
-      
+
       const event: Schema.Schema.Type<typeof TaskCompleted> = {
         type: "TaskCompleted" as const,
         data: {},
@@ -180,7 +180,7 @@ const handleTaskCommand = createCommandHandler<
           actor: command.metadata.actor
         }
       }
-      
+
       return {
         type: "success" as const,
         events: [event]
@@ -213,7 +213,7 @@ const executeTaskCommand = (aggregate: any, command: TaskCommand) =>
  * Load task from events
  */
 const loadTaskFromEvents = (events: ReadonlyArray<TaskEvent>) =>
-  loadFromEvents(applyTaskEvent)(events)
+  loadLegacyFromEvents(applyTaskEvent)(events)
 
 // ============================================================================
 // Demo Program
@@ -222,10 +222,10 @@ const loadTaskFromEvents = (events: ReadonlyArray<TaskEvent>) =>
 const runSimpleDemo = () =>
   Effect.gen(function* () {
     yield* Effect.log("🚀 Simple CQRS Framework Demo")
-    
+
     // 1. Create new task
     yield* Effect.log("📝 Creating new task...")
-    
+
     const taskId = createAggregateId()
     const createCommand: Schema.Schema.Type<typeof CreateTask> = {
       type: "CreateTask" as const,
@@ -233,21 +233,21 @@ const runSimpleDemo = () =>
       payload: { title: "Learn CQRS with Effect" },
       metadata: {
         commandId: createEventId(),
-        correlationId: createEventId(), 
+        correlationId: createEventId(),
         timestamp: now(),
         actor: { type: "system", service: "demo" }
       }
     }
-    
+
     const aggregate = createTaskAggregate(taskId)
     const result1 = yield* executeTaskCommand(aggregate, createCommand)
-    
+
     yield* Effect.log(`✅ Task created with ${result1.uncommittedEvents.length} events`)
     yield* Effect.log(`📊 Current state: ${JSON.stringify(result1.state)}`)
-    
+
     // 2. Complete the task
     yield* Effect.log("⚡ Completing task...")
-    
+
     const completeCommand: Schema.Schema.Type<typeof CompleteTask> = {
       type: "CompleteTask" as const,
       aggregateId: taskId,
@@ -259,30 +259,31 @@ const runSimpleDemo = () =>
         actor: { type: "system", service: "demo" }
       }
     }
-    
+
     const result2 = yield* executeTaskCommand(result1, completeCommand)
-    
+
     yield* Effect.log(`✅ Task completed with ${result2.uncommittedEvents.length} new events`)
     yield* Effect.log(`📊 Final state: ${JSON.stringify(result2.state)}`)
-    
+
     // 3. Demonstrate event sourcing - rebuild from events
     yield* Effect.log("🔄 Demonstrating event sourcing...")
-    
+
     const allEvents = [...result1.uncommittedEvents, ...result2.uncommittedEvents]
     const rebuiltAggregate = loadTaskFromEvents(allEvents)
-    
+
     yield* Effect.log(`📈 Rebuilt from ${allEvents.length} events`)
     yield* Effect.log(`📊 Rebuilt state: ${JSON.stringify(rebuiltAggregate.state)}`)
     yield* Effect.log(`🔍 States match: ${JSON.stringify(rebuiltAggregate.state) === JSON.stringify(result2.state)}`)
-    
+
     // 4. Try completing again (should be idempotent)
     yield* Effect.log("🔄 Testing idempotence...")
-    
+
     const result3 = yield* executeTaskCommand(result2, completeCommand)
-    yield* Effect.log(`✅ Idempotent completion: ${result3.uncommittedEvents.length} new events (should be 0)`)
-    
+    const newEvents = result3.uncommittedEvents.length - result2.uncommittedEvents.length
+    yield* Effect.log(`✅ Idempotent completion: ${newEvents} new events (should be 0)`)
+
     yield* Effect.log("🎉 Simple demo completed successfully!")
-    
+
     return {
       taskId,
       finalState: result3.state,
