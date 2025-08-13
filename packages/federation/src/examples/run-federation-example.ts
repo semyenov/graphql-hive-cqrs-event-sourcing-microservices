@@ -6,7 +6,6 @@
  */
 
 import * as Effect from "effect/Effect"
-import * as Console from "effect/Console"
 import { pipe } from "effect/Function"
 import {
   runFederationExample,
@@ -15,7 +14,6 @@ import {
   testEntityResolutionExample,
   createEntityResolversExample
 } from "./federation-example"
-import { SchemaConversionError } from "../graphql/federation"
 
 // ============================================================================
 // Utility Functions

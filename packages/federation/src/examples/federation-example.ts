@@ -7,16 +7,14 @@
 
 import * as Effect from "effect/Effect"
 import * as Schema from "@effect/schema/Schema"
-import * as Option from "effect/Option"
 import { pipe } from "effect/Function"
 import {
   generateFederatedSchema,
   buildFederatedSchema,
   createEntityResolver,
-  EntityResolverError,
   type FederationEntity,
   type DomainSchemaConfig,
-} from "../graphql/federation"
+} from "../core"
 import * as fs from "fs"
 
 // ============================================================================
@@ -297,17 +295,7 @@ const userEntity: FederationEntity<UserState> = {
   typename: "User",
   key: "id",
   schema: UserState,
-  resolveReference: (reference) =>
-    pipe(
-      Option.fromNullable(mockUsers.get(reference.id as string)),
-      Option.match({
-        onSome: (user) => Effect.succeed(user),
-        onNone: () => Effect.fail(new EntityResolverError(
-          "NotFound",
-          `User with id ${reference.id} not found`
-        ))
-      })
-    ),
+  resolveReference: (reference) => Effect.succeed(mockUsers.get(reference.id as string) as UserState),
   fields: {
     id: (user) => Effect.succeed(user.id),
     email: (user) => Effect.succeed(user.email),
@@ -327,17 +315,7 @@ const productEntity: FederationEntity<ProductState> = {
   typename: "Product",
   key: "id",
   schema: ProductState,
-  resolveReference: (reference) =>
-    pipe(
-      Option.fromNullable(mockProducts.get(reference.id as string)),
-      Option.match({
-        onSome: (product) => Effect.succeed(product),
-        onNone: () => Effect.fail(new EntityResolverError(
-          "NotFound",
-          `Product with id ${reference.id} not found`
-        ))
-      })
-    ),
+  resolveReference: (reference) => Effect.succeed(mockProducts.get(reference.id as string) as ProductState),
   fields: {
     id: (product) => Effect.succeed(product.id),
     name: (product) => Effect.succeed(product.name),
@@ -355,17 +333,7 @@ const orderEntity: FederationEntity<OrderState> = {
   typename: "Order",
   key: "id",
   schema: OrderState,
-  resolveReference: (reference) =>
-    pipe(
-      Option.fromNullable(mockOrders.get(reference.id as string)),
-      Option.match({
-        onSome: (order) => Effect.succeed(order),
-        onNone: () => Effect.fail(new EntityResolverError(
-          "NotFound",
-          `Order with id ${reference.id} not found`
-        ))
-      })
-    ),
+  resolveReference: (reference) => Effect.succeed(mockOrders.get(reference.id as string) as OrderState),
   fields: {}
 }
 
@@ -384,6 +352,9 @@ const RequestContext = Schema.Struct({
 // ============================================================================
 
 const federationConfig: DomainSchemaConfig = {
+  name: "ExampleService",
+  version: "1.0.0",
+  scalars: {},
   commands: {
     CreateUser: CreateUserCommand,
     CreateProduct: CreateProductCommand,
@@ -420,7 +391,7 @@ export const generateExampleSchema = () =>
     Effect.tapBoth({
       onFailure: (error) =>
         Effect.logError(`Failed to generate schema: ${error.message}`),
-      onSuccess: (sdl) =>
+      onSuccess: (_sdl) =>
         Effect.logInfo("Successfully generated federated schema")
     })
   )
@@ -434,7 +405,7 @@ export const buildExampleSchema = () =>
     Effect.tapBoth({
       onFailure: (error) =>
         Effect.logError(`Failed to build schema: ${error.message}`),
-      onSuccess: (schema) =>
+      onSuccess: (_schema) =>
         Effect.logInfo("Successfully built GraphQL schema")
     })
   )
@@ -536,6 +507,9 @@ export const runFederationExample = () =>
  * User Service Schema
  */
 export const userServiceConfig: DomainSchemaConfig = {
+  name: "UserService",
+  version: "1.0.0",
+  scalars: {},
   commands: { CreateUser: CreateUserCommand },
   queries: { GetUser: GetUserQuery },
   events: { UserCreated: UserCreatedEvent },
@@ -547,6 +521,9 @@ export const userServiceConfig: DomainSchemaConfig = {
  * Product Service Schema
  */
 export const productServiceConfig: DomainSchemaConfig = {
+  name: "ProductService",
+  version: "1.0.0",
+  scalars: {},
   commands: { CreateProduct: CreateProductCommand },
   queries: { GetProduct: GetProductQuery },
   events: { ProductCreated: ProductCreatedEvent },
@@ -558,6 +535,9 @@ export const productServiceConfig: DomainSchemaConfig = {
  * Order Service Schema
  */
 export const orderServiceConfig: DomainSchemaConfig = {
+  name: "OrderService",
+  version: "1.0.0",
+  scalars: {},
   commands: { CreateOrder: CreateOrderCommand },
   queries: { GetOrder: GetOrderQuery },
   events: { OrderCreated: OrderCreatedEvent },
@@ -583,7 +563,7 @@ export const generateServiceSchemas = () =>
     Effect.tapBoth({
       onFailure: (error) =>
         Effect.logError(`Failed to generate service schemas: ${error.message}`),
-      onSuccess: (schemas) =>
+      onSuccess: (_schemas) =>
         Effect.logInfo("Successfully generated service schemas")
     }),
     Effect.tap((schemas) =>

@@ -1,6 +1,6 @@
 /**
  * GraphQL Federation Integration
- * 
+ *
  * Native GraphQL Federation support with Effect-TS
  * Automatic schema generation from Effect Schemas
  */
@@ -21,7 +21,6 @@ import {
   GraphQLScalarType,
   GraphQLEnumType,
   GraphQLUnionType,
-  GraphQLInterfaceType,
   GraphQLList,
   GraphQLNonNull,
   GraphQLString,
@@ -29,9 +28,7 @@ import {
   GraphQLFloat,
   GraphQLBoolean,
   GraphQLID,
-  Kind,
   GraphQLInputObjectType,
-  GraphQLInputFieldConfig,
   GraphQLFieldConfigMap,
   GraphQLInputFieldConfigMap,
   buildSchema,
@@ -120,7 +117,12 @@ export interface DomainSchemaConfig<
   readonly commands: Record<string, Schema.Schema.Any>
   readonly queries: Record<string, Schema.Schema.Any>
   readonly events: Record<string, Schema.Schema.Any>
-  readonly entities: ReadonlyArray<FederationEntity<SourceType, ArgsType, ContextType, ResultType>>,
+  readonly entities: ReadonlyArray<FederationEntity<
+    SourceType,
+    ArgsType,
+    ContextType,
+    ResultType
+  >>,
   readonly context?: Schema.Schema.Any
   readonly scalars?: Record<string, GraphQLScalarType>
 }
@@ -340,16 +342,16 @@ export const FEDERATION_DIRECTIVES = `
 export const FEDERATION_SCALARS = `
   scalar _Any
   scalar _FieldSet
-  
+
   type _Service {
     sdl: String
   }
-  
+
   extend type Query {
     _entities(representations: [_Any!]!): [_Entity]!
     _service: _Service!
   }
-  
+
   union _Entity
 `
 

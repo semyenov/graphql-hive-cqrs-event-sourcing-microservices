@@ -1,0 +1,50 @@
+{
+  "name": "@cqrs/federation",
+  "version": "1.0.0",
+  "description": "GraphQL Federation support for CQRS/Event Sourcing with Effect-TS",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./types": {
+      "types": "./dist/types.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "!dist/examples",
+    "!dist/**/*.test.*"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "test": "bun test",
+    "test:watch": "bun test --watch",
+    "typecheck": "tsc --noEmit",
+    "demo": "bun run src/examples/run-federation-example.ts",
+    "demo:quick": "bun run src/examples/run-federation-example.ts quick",
+    "demo:server": "bun run src/examples/yoga-federation-server.ts",
+    "dev": "bun --watch src/examples/yoga-federation-server.ts"
+  },
+  "dependencies": {
+    "effect": "^3.17.8",
+    "@effect/schema": "^0.75.5",
+    "graphql": "^16.11.0",
+    "@graphql-tools/schema": "^10.0.25",
+    "graphql-yoga": "^5.15.1",
+    "@apollo/federation": "^0.38.1",
+    "@apollo/subgraph": "^2.11.2"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/node": "^20.19.11",
+    "typescript": "^5.9.2"
+  },
+  "peerDependencies": {
+    "graphql": "^16.8.1",
+    "@cqrs/framework": "workspace:*"
+  }
+}

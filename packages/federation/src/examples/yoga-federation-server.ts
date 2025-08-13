@@ -1,6 +1,6 @@
 /**
  * Yoga GraphQL Federation Server
- * 
+ *
  * Demonstrates the federation framework with a real GraphQL server
  */
 
@@ -8,16 +8,12 @@ import { createYoga } from 'graphql-yoga'
 import { createServer } from 'node:http'
 import { addResolversToSchema } from '@graphql-tools/schema'
 import * as Effect from "effect/Effect"
-import { pipe } from "effect/Function"
 import {
-  generateFederatedSchema,
   buildFederatedSchema,
-  createFederationResolvers,
-  createEntityResolver,
+  createEntityResolvers,
   type DomainSchemaConfig,
-  type FederationEntity,
-  EntityResolverError
-} from "../graphql/federation"
+  type FederationEntity
+} from "../core"
 import {
   federationConfig,
   userEntity,
@@ -27,8 +23,7 @@ import {
   mockProducts,
   mockOrders,
 } from "./federation-example"
-import { UserState, ProductState, OrderState, UserId } from "./federation-example"
-import { printSchema } from 'graphql'
+import { UserState, ProductState, OrderState } from "./federation-example"
 // ============================================================================
 // Server Configuration
 // ============================================================================
@@ -71,14 +66,12 @@ const enhancedOrderEntity: FederationEntity<OrderState> = {
 // Enhanced Federation Config
 // ============================================================================
 
-const enhancedFederationConfig: DomainSchemaConfig<
-  UserState | ProductState | OrderState
-> = {
+const enhancedFederationConfig: DomainSchemaConfig<any> = {
   ...federationConfig,
   entities: [
-    enhancedUserEntity,
-    enhancedProductEntity,
-    enhancedOrderEntity
+    enhancedUserEntity as FederationEntity<any>,
+    enhancedProductEntity as FederationEntity<any>,
+    enhancedOrderEntity as FederationEntity<any>
   ]
 }
 
@@ -91,10 +84,16 @@ const enhancedFederationConfig: DomainSchemaConfig<
  */
 const createQueryResolvers = () => ({
   // User queries
-  GetUser: async (_parent: unknown, { input }: { input: { id: string } }) => {
-    const user = mockUsers.get(input.id)
+  GetUser: async (_parent: unknown, args: any) => {
+    console.log('GetUser args:', args)
+    
+    if (!args.input || !args.input.id) {
+      throw new Error(`User ID is required. Received args: ${JSON.stringify(args)}`)
+    }
+    
+    const user = mockUsers.get(args.input.id)
     if (!user) {
-      throw new Error(`User ${input.id} not found`)
+      throw new Error(`User ${args.input.id} not found`)
     }
     return {
       data: JSON.stringify(user),
@@ -107,10 +106,16 @@ const createQueryResolvers = () => ({
   },
 
   // Product queries
-  GetProduct: async (_parent: unknown, { input }: { input: { id: string } }) => {
-    const product = mockProducts.get(input.id)
+  GetProduct: async (_parent: unknown, args: any) => {
+    console.log('GetProduct args:', args)
+    
+    if (!args.input || !args.input.id) {
+      throw new Error(`Product ID is required. Received args: ${JSON.stringify(args)}`)
+    }
+    
+    const product = mockProducts.get(args.input.id)
     if (!product) {
-      throw new Error(`Product ${input.id} not found`)
+      throw new Error(`Product ${args.input.id} not found`)
     }
     return {
       data: JSON.stringify(product),
@@ -123,10 +128,16 @@ const createQueryResolvers = () => ({
   },
 
   // Order queries
-  GetOrder: async (_parent: unknown, { input }: { input: { id: string } }) => {
-    const order = mockOrders.get(input.id)
+  GetOrder: async (_parent: unknown, args: any) => {
+    console.log('GetOrder args:', args)
+    
+    if (!args.input || !args.input.id) {
+      throw new Error(`Order ID is required. Received args: ${JSON.stringify(args)}`)
+    }
+    
+    const order = mockOrders.get(args.input.id)
     if (!order) {
-      throw new Error(`Order ${input.id} not found`)
+      throw new Error(`Order ${args.input.id} not found`)
     }
     return {
       data: JSON.stringify(order),
@@ -253,9 +264,9 @@ const createYogaServer = async () => {
     resolvers: {
       Query: createQueryResolvers(),
       Mutation: createMutationResolvers(),
-      User: createEntityResolver(enhancedUserEntity),
-      Product: createEntityResolver(enhancedProductEntity),
-      Order: createEntityResolver(enhancedOrderEntity)
+      User: createEntityResolvers(enhancedUserEntity),
+      Product: createEntityResolvers(enhancedProductEntity),
+      Order: createEntityResolvers(enhancedOrderEntity)
     }
   })
 
@@ -394,4 +405,9 @@ const startServer = async () => {
 export { createYogaServer, startServer }
 
 // Export for programmatic execution
-export { startServer as main } 
+export { startServer as main }
+
+// Start server if run directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+  startServer()
+}

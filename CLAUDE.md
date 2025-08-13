@@ -37,6 +37,29 @@ bun run generate:manifest # Generate persisted documents manifest (deprecated)
 
 # Code Maintenance
 bun run clean:unused      # Remove unused exports (using knip)
+
+# Framework-specific Commands (in packages/framework/)
+cd packages/framework
+bun run demo              # Run simple demo (src/examples/simple-demo.ts)
+bun run demo:full         # Run full demo (src/examples/demo.ts)
+bun run monitor           # Start monitoring server
+bun run cli              # Run pipe generator CLI
+```
+
+## Federation Package Commands (`packages/federation/`)
+
+```bash
+# Run Federation Examples
+cd packages/federation
+bun run demo                                        # Full federation demo
+bun run demo:quick                                  # Quick demo
+bun src/examples/run-federation-example.ts schema   # Schema generation demo
+bun src/examples/run-federation-example.ts entities # Entity resolution demo
+
+# Start Yoga GraphQL Federation Server
+bun run demo:server                                 # Start server on port 4000
+bun run dev                                         # Development mode with hot reload
+PORT=5000 bun src/examples/yoga-federation-server.ts # Custom port
 ```
 
 ## Framework Architecture (`packages/framework/`)
@@ -44,15 +67,23 @@ bun run clean:unused      # Remove unused exports (using knip)
 The framework is a **Bun workspace package** (`@cqrs/framework`) providing a functional, Effect-TS based CQRS/Event Sourcing foundation.
 
 ### Package Structure
+
+#### Framework Package
 - **Location**: `packages/framework/`
 - **Import**: `import { ... } from '@cqrs/framework'`
-- **NO separate Effect imports** - Everything is Effect-native
+- **Purpose**: Core CQRS/Event Sourcing patterns with Effect-TS
+
+#### Federation Package
+- **Location**: `packages/federation/`
+- **Import**: `import { ... } from '@cqrs/federation'`
+- **Purpose**: GraphQL Federation support with automatic schema generation
 
 ### Core Technologies
 - **Effect-TS v3**: Functional programming with type-safe error handling and dependency injection
 - **Effect Schema**: Schema-first development (replacing Zod)
 - **Branded Types**: Type-safe domain primitives preventing primitive obsession
 - **Pattern Matching**: Exhaustive event handling with ts-pattern
+- **GraphQL Federation**: Native federation support with automatic schema generation
 
 ### Current Refactoring Status
 
@@ -97,9 +128,46 @@ packages/framework/src/
 └── index.ts          # Public API exports
 ```
 
-### Framework API Design Principles
+## GraphQL Federation Features
 
-#### 1. Schema-First Development
+### Key Components
+- **FederationEntity**: Type-safe entity configuration with resolvers
+- **DomainSchemaConfig**: Complete domain configuration for federation
+- **Schema to GraphQL Type Conversion**: Automatic GraphQL type generation from Effect Schemas
+- **Federation Directives**: Full Apollo Federation v2 support
+
+### Federation Pattern
+```typescript
+// 1. Define domain schema with Effect Schema
+const UserState = Schema.Struct({
+  id: UserId,
+  email: Email,
+  username: Username
+})
+
+// 2. Create federation entity
+const userEntity: FederationEntity<UserState> = {
+  typename: "User",
+  key: "id",
+  schema: UserState,
+  resolveReference: (ref) => Effect.succeed(getUserById(ref.id)),
+  fields: {}
+}
+
+// 3. Generate federated schema
+const schema = await Effect.runPromise(
+  buildFederatedSchema({
+    entities: [userEntity],
+    commands: { CreateUser: CreateUserCommand },
+    queries: { GetUser: GetUserQuery },
+    events: { UserCreated: UserCreatedEvent }
+  })
+)
+```
+
+## Framework API Design Principles
+
+### 1. Schema-First Development
 ```typescript
 // Define schema once - derive everything
 const UserCreatedEvent = createEventSchema("UserCreated", Schema.Struct({
@@ -114,7 +182,7 @@ const UserCreatedEvent = createEventSchema("UserCreated", Schema.Struct({
 // - GraphQL types
 ```
 
-#### 2. Pure Functions Only
+### 2. Pure Functions Only
 ```typescript
 // ✅ CORRECT: Pure function
 const applyUserEvent = (state: UserState | null, event: UserEvent) => {
@@ -130,7 +198,7 @@ class UserAggregate {
 }
 ```
 
-#### 3. Effect-Native Operations
+### 3. Effect-Native Operations
 ```typescript
 // All operations return Effects
 const handleCommand = (cmd: Command) => Effect.gen(function* () {
@@ -140,27 +208,11 @@ const handleCommand = (cmd: Command) => Effect.gen(function* () {
 })
 ```
 
-### Key Refactoring Guidelines
-
-#### Removing Duplicates
-
-1. **Messages**: Use ONLY `schema/core/messages.ts`
-   - Remove all class-based message definitions
-   - Use `createEventSchema`, `createCommandSchema`, `createQuerySchema`
-
-2. **Branded Types**: Use ONLY `schema/core/primitives.ts`
-   - All branded types via Effect Schema
-   - Remove manual brand implementations
-
-3. **Event Sourcing**: Use ONLY `functions/event-sourcing.ts`
-   - Pure functions for event application
-   - No aggregate classes
-
-#### Effect Pattern Compliance
+## Effect Pattern Compliance
 
 Follow these patterns from EFFECT_PATTERNS.md:
 
-1. **Generator Syntax**
+### 1. Generator Syntax
 ```typescript
 // ✅ CORRECT
 Effect.gen(function* () {
@@ -173,7 +225,7 @@ Effect.gen((function* () { }))  // Extra parenthesis
 Effect.gen(function* (_) { yield* _(effect) })  // Using _ incorrectly
 ```
 
-2. **Error Handling**
+### 2. Error Handling
 ```typescript
 // ✅ CORRECT: Use Effect.fail
 return yield* Effect.fail(new ValidationError({ field: "email" }))
@@ -182,7 +234,7 @@ return yield* Effect.fail(new ValidationError({ field: "email" }))
 Effect.sync(() => { throw new Error("Failed") })
 ```
 
-3. **Service Pattern**
+### 3. Service Pattern
 ```typescript
 // Define service
 class EventStore extends Context.Tag("EventStore")<EventStore, EventStore>() {}
@@ -206,14 +258,20 @@ The codebase is transitioning from legacy to Effect-based implementation:
 1. **Active Domains** (`src/domains/`)
    - `orders/`: Basic order types (minimal implementation)
    - `products/`: Product domain with Effect integration examples
+   - `users/`: User domain with complete CQRS implementation
 
 2. **Legacy Domains** (`src/_legacy_domains/`)
-   - `users/`: Complete user domain (being migrated)
-   - Full layered architecture example
+   - Old class-based implementations being migrated
 
-3. **Examples** (`src/examples/`)
-   - `effect-demo.ts`: Complete Effect-TS usage patterns
-   - `product-domain-demo.ts`: Domain implementation with Effect
+3. **Framework Examples** (`packages/framework/src/examples/`)
+   - `simple-demo.ts`: Basic CQRS/ES patterns
+   - `product-domain.ts`: Domain implementation with Effect
+   - Other framework-specific examples
+
+4. **Federation Examples** (`packages/federation/src/examples/`)
+   - `federation-example.ts`: Complete federation patterns
+   - `yoga-federation-server.ts`: Working GraphQL server with federation
+   - `run-federation-example.ts`: CLI runner for demonstrations
 
 ### Domain Layer Structure
 
@@ -243,103 +301,107 @@ Each domain follows clean architecture with distinct layers:
 - **DTOs**: Data transfer objects
 - **Resolvers**: GraphQL resolvers
 
-## Correct Effect-TS Usage Patterns
+## Testing Strategy
 
-### Command Handler (Schema-First + Pure Functions)
+### Test Locations
+- **Framework tests**: `packages/framework/src/__tests__/`
+- **Domain tests**: `src/domains/<domain>/__tests__/`
+- **Integration tests**: `src/app/test-framework.ts`
+
+### Test Commands
+- `bun test` - Run all tests
+- `bun test <path>` - Test specific file
+- `bun run test:framework` - Framework integration test
+- `bun run typecheck` - Verify type safety
+
+### Test Pattern
 ```typescript
-// 1. Define schema
-const CreateUserCommand = createCommandSchema("CreateUser", Schema.Struct({
-  email: Email,
-  username: Username,
-  password: Schema.String
-}))
+import { test, expect } from "bun:test"
+import * as Effect from "effect/Effect"
 
-// 2. Pure command handler
-const handleCreateUser = (state: UserState | null, cmd: CreateUserCommand) =>
-  Effect.gen(function* () {
-    // Validation via schema is automatic
-    if (state !== null) {
-      return { type: "failure", error: new UserAlreadyExists() }
-    }
-    
-    const event = {
-      type: "UserCreated",
-      data: { email: cmd.payload.email, username: cmd.payload.username },
-      metadata: createEventMetadata(cmd)
-    }
-    
-    return { type: "success", events: [event] }
-  })
-
-// 3. Execute with services
-const program = Effect.gen(function* () {
-  const store = yield* EventStore
-  const bus = yield* EventBus
-  
-  const aggregate = yield* store.load(aggregateId)
-  const decision = yield* handleCreateUser(aggregate.state, command)
-  
-  if (decision.type === "success") {
-    yield* store.append(aggregateId, decision.events)
-    yield* bus.publishAll(decision.events)
-  }
-  
-  return decision
+test("should handle command", async () => {
+  const result = await Effect.runPromise(
+    handleCommand(command)
+  )
+  expect(result.type).toBe("success")
 })
 ```
 
-### Service Layer Pattern
+## Development Workflow
+
+1. **Start server**: `bun run dev`
+2. **Modify code**: Make changes to domains or framework
+3. **Generate types**: `bun run generate:all` (after schema changes)
+4. **Type check**: `bun run typecheck`
+5. **Run tests**: `bun test`
+6. **Clean unused**: `bun run clean:unused`
+
+## Environment Variables
+
+```env
+HIVE_API_TOKEN=<your_token>  # GraphQL Hive monitoring
+PORT=3001                     # Server port (default: 3001)
+NODE_ENV=development         # Environment mode
+```
+
+## Common Tasks
+
+### Adding a New Domain
+```bash
+# 1. Create domain structure
+mkdir -p src/domains/<domain>/{domain,application,infrastructure,api}
+
+# 2. Define schemas with Effect Schema
+# 3. Create pure function handlers
+# 4. Add GraphQL federation entity
+# 5. Register in server.ts
+```
+
+### Creating a Federation Entity
 ```typescript
-// Define service interface
-interface EventStore {
-  readonly load: (id: AggregateId) => Effect.Effect<EventSourcedAggregate, EventStoreError>
-  readonly append: (id: AggregateId, events: ReadonlyArray<DomainEvent>) => Effect.Effect<void, EventStoreError>
+// 1. Define schemas
+import * as Schema from "@effect/schema/Schema"
+import { FederationEntity } from "@cqrs/federation"
+
+// 2. Create entity with resolver
+export const productEntity: FederationEntity<ProductState> = {
+  typename: "Product",
+  key: "id",
+  schema: ProductState,
+  resolveReference: (reference) => 
+    Effect.succeed(getProductById(reference.id)),
+  fields: {
+    // Add custom field resolvers if needed
+  }
 }
 
-// Create service tag
-class EventStore extends Context.Tag("EventStore")<EventStore, EventStore>() {}
-
-// Implementation
-const EventStoreLive = Layer.effect(
-  EventStore,
-  Effect.gen(function* () {
-    const db = yield* Database
-    
-    return {
-      load: (id) => Effect.gen(function* () {
-        const events = yield* db.query("SELECT * FROM events WHERE aggregate_id = ?", [id])
-        return rebuildAggregate(events)
-      }),
-      
-      append: (id, events) => Effect.gen(function* () {
-        yield* db.transaction(tx => 
-          Effect.forEach(events, event =>
-            tx.insert("events", event)
-          )
-        )
-      })
-    }
+// 3. Build federated schema
+const schema = await Effect.runPromise(
+  buildFederatedSchema({
+    entities: [productEntity],
+    commands: { CreateProduct },
+    queries: { GetProduct },
+    events: { ProductCreated }
   })
 )
 ```
 
-### Resilience with Proper Schedule
+### Running Federation Server
 ```typescript
-import * as Schedule from "effect/Schedule"
+// Start the Yoga GraphQL server with federation
+import { createYogaServer } from "@cqrs/federation/examples"
 
-const retryPolicy = Schedule.exponential(Duration.millis(100)).pipe(
-  Schedule.jittered,
-  Schedule.compose(Schedule.recurs(4))
-)
+const yoga = await createYogaServer()
+// Server will be available at http://localhost:4000
+// GraphiQL at http://localhost:4000/graphiql
+```
 
-const resilientOperation = pipe(
-  loadAggregate(aggregateId),
-  Effect.retry(retryPolicy),
-  Effect.timeout(Duration.seconds(30)),
-  Effect.catchTag("TimeoutException", () => 
-    Effect.fail(new OperationTimedOut())
-  )
-)
+Or use the provided scripts:
+```bash
+cd packages/federation
+bun run demo:server  # Start the federation server
+bun run dev         # Start with hot reload
+```
 
 ## Migration Path
 
@@ -415,6 +477,7 @@ Always use Bun's native APIs:
 ### Schema Organization
 - **Unified Schema**: Single schema at `src/schema.graphql`
 - **Domain Schemas**: Individual domain GraphQL definitions
+- **Federation Support**: Apollo Federation v2 with automatic schema generation
 - **Code Generation**: Automatic type generation with strict mode
 
 ### Type Safety
@@ -428,112 +491,3 @@ Always use Bun's native APIs:
 - Schema version control and monitoring
 - Operation tracking and performance metrics
 - Client usage analytics
-
-## Testing Strategy
-
-### Test Locations
-- **Framework tests**: `packages/framework/src/effect/__tests__/`
-- **Domain tests**: `src/domains/<domain>/__tests__/`
-- **Integration tests**: `src/app/test-framework.ts`
-
-### Test Commands
-- `bun test` - Run all tests
-- `bun test <path>` - Test specific file
-- `bun run test:framework` - Framework integration test
-- `bun run typecheck` - Verify type safety
-
-## Development Workflow
-
-1. **Start server**: `bun run dev`
-2. **Modify code**: Make changes to domains or framework
-3. **Generate types**: `bun run generate:all` (after schema changes)
-4. **Type check**: `bun run typecheck`
-5. **Run tests**: `bun test`
-6. **Clean unused**: `bun run clean:unused`
-
-## Environment Variables
-
-```env
-HIVE_API_TOKEN=<your_token>  # GraphQL Hive monitoring
-PORT=3001                     # Server port (default: 3001)
-NODE_ENV=development         # Environment mode
-```
-
-## Common Tasks
-
-### Adding a New Domain
-```bash
-# 1. Create domain structure
-mkdir -p src/domains/<domain>/{domain,application,infrastructure,api}
-
-# 2. Define aggregate with Effect
-# 3. Create command/event handlers
-# 4. Add GraphQL schema
-# 5. Register in server.ts
-```
-
-### Creating a New Domain (Schema-First Approach)
-```typescript
-// 1. Define schemas in src/domains/<domain>/schema.ts
-import * as Schema from "@effect/schema/Schema"
-import { createEventSchema, createCommandSchema } from "@cqrs/framework"
-
-export const ProductCreatedEvent = createEventSchema("ProductCreated", Schema.Struct({
-  name: Schema.String,
-  price: Schema.Number
-}))
-
-export const CreateProductCommand = createCommandSchema("CreateProduct", Schema.Struct({
-  name: Schema.String,
-  price: Schema.Number
-}))
-
-// 2. Pure event applicator in src/domains/<domain>/domain.ts
-export const applyProductEvent = (state: ProductState | null, event: ProductEvent) =>
-  match(event)
-    .with({ type: "ProductCreated" }, e => ({
-      id: e.metadata.aggregateId,
-      ...e.data,
-      version: e.metadata.version
-    }))
-    .with({ type: "ProductDeleted" }, () => null)
-    .exhaustive()
-
-// 3. Command handler in src/domains/<domain>/handlers.ts
-export const handleProductCommand = (state: ProductState | null, cmd: ProductCommand) =>
-  Effect.gen(function* () {
-    return match(cmd)
-      .with({ type: "CreateProduct" }, c => {
-        if (state !== null) {
-          return { type: "failure", error: new ProductAlreadyExists() }
-        }
-        return {
-          type: "success",
-          events: [ProductCreatedEvent.create(c.payload, createMetadata(c))]
-        }
-      })
-      .exhaustive()
-  })
-
-// 4. Wire up with services in src/domains/<domain>/service.ts
-export const ProductServiceLive = Layer.effect(
-  ProductService,
-  Effect.gen(function* () {
-    const store = yield* EventStore
-    
-    return {
-      createProduct: (cmd) => Effect.gen(function* () {
-        const aggregate = yield* store.load(cmd.aggregateId)
-        const decision = yield* handleProductCommand(aggregate.state, cmd)
-        
-        if (decision.type === "success") {
-          const newAggregate = applyEvents(applyProductEvent)(aggregate, decision.events)
-          yield* store.save(newAggregate)
-        }
-        
-        return decision
-      })
-    }
-  })
-)
-```
