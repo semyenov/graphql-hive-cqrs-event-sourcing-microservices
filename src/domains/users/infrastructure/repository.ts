@@ -14,17 +14,11 @@ import * as Context from 'effect/Context';
 import * as Data from 'effect/Data';
 import { pipe } from 'effect/Function';
 import { 
-  createRepository,
-  withOptimisticLocking,
-  createCachedRepository,
-  type EffectRepository,
-  type RepositoryContext,
-  RepositoryContextTag,
-  AggregateNotFoundError,
-  VersionConflictError,
-  PersistenceError,
-  SnapshotError
-} from '@cqrs/framework/effect';
+  type Repository,
+  type RepositoryError,
+  type SnapshotStore,
+  type SnapshotError
+} from '@cqrs/framework';
 import type { AggregateVersion, EventHandler, IEventStore } from '@cqrs/framework';
 import { UserAggregate } from '../core/aggregate';
 import type { UserId, Email, Username, UserState } from '../core/types';

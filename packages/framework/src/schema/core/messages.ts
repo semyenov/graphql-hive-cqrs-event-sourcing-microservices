@@ -86,6 +86,7 @@ export const createEventSchema = <
 ) =>
   Schema.Struct({
     type: Schema.Literal(type),
+    aggregateId: AggregateId,
     data: dataSchema,
     metadata: EventMetadata,
   }).pipe(
@@ -458,30 +459,4 @@ export const UserQueries = createCommandUnion(
 // Backward Compatibility Interfaces
 // ============================================================================
 
-/**
- * Legacy Command interface for backward compatibility
- */
-export interface Command {
-  readonly type: string;
-  readonly aggregateId: AggregateId;
-  readonly payload: unknown;
-  readonly metadata: CommandMetadata;
-}
-
-/**
- * Legacy Query interface for backward compatibility
- */
-export interface Query<Type extends string = string, Payload = unknown> {
-  readonly type: Type;
-  readonly payload: Payload;
-  readonly metadata?: QueryMetadata;
-}
-
-/**
- * Legacy DomainEvent interface for backward compatibility
- */
-export interface DomainEvent {
-  readonly type: string;
-  readonly data: unknown;
-  readonly metadata: EventMetadata;
-}
+// Note: Legacy interfaces removed to avoid conflicts with schema-based types above

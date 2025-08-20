@@ -85,8 +85,7 @@ export type CausationId = Schema.Schema.Type<typeof CausationId>;
 /**
  * Version - Aggregate version for optimistic concurrency
  */
-export const Version = Object.assign(
-  pipe(
+export const Version = pipe(
     Schema.Number,
     Schema.int(),
     Schema.greaterThanOrEqualTo(0),
@@ -94,13 +93,7 @@ export const Version = Object.assign(
     Schema.annotations({
       title: "Version",
       description: "Version number for optimistic concurrency control",
-    }),
-  ),
-  {
-    // Helper methods for backward compatibility
-    initial: (): Version => 0 as Version,
-    increment: (v: Version): Version => ((v as number) + 1) as Version,
-  },
+  }),
 );
 export type Version = Schema.Schema.Type<typeof Version>;
 
@@ -450,16 +443,6 @@ export const email = (value: string): Email => Schema.decodeSync(Email)(value);
  * Create username safely
  */
 export const username = (value: string): Username => Schema.decodeSync(Username)(value);
-
-/**
- * Create first name safely
- */
-export const firstName = (value: string): FirstName => Schema.decodeSync(FirstName)(value);
-
-/**
- * Create last name safely
- */
-export const lastName = (value: string): LastName => Schema.decodeSync(LastName)(value);
 
 /**
  * Create stream name safely

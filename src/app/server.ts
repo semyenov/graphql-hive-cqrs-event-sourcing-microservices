@@ -1,74 +1,107 @@
 /**
  * Application Server
  * 
- * Main server using the CQRS/Event Sourcing framework with restructured users domain.
+ * Main server using the CQRS/Event Sourcing framework.
  */
 
 import { createYoga } from 'graphql-yoga';
-import { BrandedTypes } from '@cqrs/framework/core/branded/factories';
 import { makeExecutableSchema } from '@graphql-tools/schema';
+import { createAggregateId, createEventId, now, email, username } from '@cqrs/framework';
 
-// User domain - new structure
-import { 
-  userGraphQLSchema,
-  initializeUserDomain,
-  UserCommandType,
-  UserQueryType,
-  // Import command and query handlers directly
-  createUserHandler,
-  updateUserHandler,
-  deleteUserHandler,
-  verifyEmailHandler,
-  updateProfileHandler,
-  getUserByIdHandler,
-  getUserByEmailHandler,
-  listUsersHandler,
-  getUserStatsHandler,
-  type GetUserByEmailQuery,
-  type GetUserStatsQuery,
-  type CreateUserCommand,
-  type UpdateUserCommand,
-  type DeleteUserCommand,
-  type VerifyEmailCommand,
-  type UpdateProfileCommand,
-  type GetUserByIdQuery,
-  type ListUsersQuery,
-  UserTypes,
-  type UserQueryResults
-} from '../domains/users/index.ts';
-import { MockProjectionStore, createMockUserDTO } from '../domains/users/mocks.ts';
-import * as Effect from 'effect/Effect';
-import * as Option from 'effect/Option';
+// Simple GraphQL schema
+const typeDefs = `
+  type User {
+    id: String!
+    email: String!
+    username: String!
+    firstName: String
+    lastName: String
+    isActive: Boolean!
+    isEmailVerified: Boolean!
+    createdAt: String!
+    updatedAt: String!
+  }
 
-// Initialize mock projection store for testing
-const mockProjectionStore = new MockProjectionStore();
+  type UserList {
+    users: [User!]!
+    total: Int!
+    offset: Int!
+    limit: Int!
+    hasNext: Boolean!
+    hasPrevious: Boolean!
+  }
 
-// Initialize user domain
-const userDomain = await initializeUserDomain({
-  enableCache: true,  
-  enableProjections: true,
-  enableValidation: true,
-});
+  type MutationResult {
+    success: Boolean!
+    message: String!
+    userId: String
+    error: String
+  }
 
-const { repository, projections } = userDomain;
-
-// Base GraphQL schema
-const baseSchema = `
   type Query {
-    _empty: String
+    user(id: String!): User
+    users(
+      offset: Int = 0
+      limit: Int = 10
+      sortBy: String
+      sortOrder: String
+    ): UserList!
+    userByEmail(email: String!): User
+    userStats: UserStats!
   }
-  
+
+  type UserStats {
+    total: Int!
+    active: Int!
+    verified: Int!
+    suspended: Int!
+  }
+
   type Mutation {
-    _empty: String
+    createUser(input: CreateUserInput!): MutationResult!
+    updateUser(userId: String!, input: UpdateUserInput!): MutationResult!
+    deleteUser(userId: String!, reason: String): MutationResult!
+    verifyUserEmail(id: String!, token: String!): MutationResult!
+    updateUserProfile(id: String!, input: UpdateProfileInput!): MutationResult!
   }
-  
-  type Subscription {
-    _empty: String
+
+  input CreateUserInput {
+    email: String!
+    username: String!
+    password: String!
+    firstName: String!
+    lastName: String!
+  }
+
+  input UpdateUserInput {
+    name: String
+    email: String
+  }
+
+  input UpdateProfileInput {
+    bio: String
+    avatar: String
+    location: String
   }
 `;
 
-// Combine schemas
-const typeDefs = [baseSchema, userGraphQLSchema].join('\n');
+// Mock data store
+const mockUsers = new Map<string, any>();
+
+// Initialize with some test data
+const testUser = {
+  id: createAggregateId(),
+  email: email('test@example.com'),
+  username: username('testuser'),
+  firstName: 'Test',
+  lastName: 'User',
+  isActive: true,
+  isEmailVerified: true,
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+};
+
+mockUsers.set(testUser.id, testUser);
 
 // Create GraphQL schema
 const schema = makeExecutableSchema({
@@ -76,16 +109,9 @@ const schema = makeExecutableSchema({
   resolvers: {
     Query: {
       user: async (_: unknown, { id }: { id: string }) => {
-        const userOption = await Effect.runPromise(
-          mockProjectionStore.getUserById(UserTypes.userId(id))
-        );
+        const user = mockUsers.get(id);
+        if (!user) return null;
         
-        if (Option.isNone(userOption)) {
-          return null;
-        }
-        
-        // Convert branded types to plain strings for GraphQL
-        const user = userOption.value;
         return {
           ...user,
           id: user.id as string,
@@ -93,41 +119,34 @@ const schema = makeExecutableSchema({
           username: user.username as string
         };
       },
-      users: async (_: unknown, { pagination, includeDeleted }: { 
-        pagination?: { offset?: number; limit?: number; sortBy?: string; sortOrder?: 'asc' | 'desc' }; 
-        includeDeleted?: boolean 
+      users: async (_: unknown, { offset = 0, limit = 10 }: { 
+        offset?: number; 
+        limit?: number; 
+        sortBy?: string; 
+        sortOrder?: string; 
       }) => {
-        const result = await Effect.runPromise(
-          mockProjectionStore.listUsers({
-            offset: pagination?.offset || 0,
-            limit: pagination?.limit || 10,
-            sortBy: pagination?.sortBy,
-            sortOrder: pagination?.sortOrder
-          })
-        );
+        const users = Array.from(mockUsers.values());
+        const total = users.length;
+        const paginatedUsers = users.slice(offset, offset + limit);
         
-        // Convert branded types to plain strings for GraphQL
         return {
-          ...result,
-          users: result.users.map(user => ({
+          users: paginatedUsers.map(user => ({
             ...user,
             id: user.id as string,
             email: user.email as string,
             username: user.username as string
-          }))
+          })),
+          total,
+          offset,
+          limit,
+          hasNext: offset + limit < total,
+          hasPrevious: offset > 0
         };
       },
-      userByEmail: async (_: unknown, { email }: { email: string }) => {
-        const userOption = await Effect.runPromise(
-          mockProjectionStore.getUserByEmail(UserTypes.email(email))
-        );
+      userByEmail: async (_: unknown, { email: emailParam }: { email: string }) => {
+        const user = Array.from(mockUsers.values()).find(u => u.email === emailParam);
+        if (!user) return null;
         
-        if (Option.isNone(userOption)) {
-          return null;
-        }
-        
-        // Convert branded types to plain strings for GraphQL
-        const user = userOption.value;
         return {
           ...user,
           id: user.id as string,
@@ -136,130 +155,137 @@ const schema = makeExecutableSchema({
         };
       },
       userStats: async () => {
-        const stats = await Effect.runPromise(
-          mockProjectionStore.getUserStats({})
-        );
-        return stats;
+        const users = Array.from(mockUsers.values());
+        return {
+          total: users.length,
+          active: users.filter(u => u.isActive).length,
+          verified: users.filter(u => u.isEmailVerified).length,
+          suspended: users.filter(u => !u.isActive).length
+        };
       },
     },
     Mutation: {
       createUser: async (_: unknown, { input }: { input: { email: string; username: string; password: string; firstName: string; lastName: string } }) => {
-        const userId = UserTypes.userId(crypto.randomUUID());
+        const userId = createAggregateId();
         
-        // Create mock user
-        const newUser = createMockUserDTO({
+        const newUser = {
           id: userId,
-          email: UserTypes.email(input.email),
-          username: UserTypes.username(input.username),
-          profile: {
-            firstName: input.firstName,
-            lastName: input.lastName,
-            displayName: `${input.firstName} ${input.lastName}`,
-            bio: '',
-            avatarUrl: '',
-            location: '',
-            website: ''
-          }
-        });
-        
-        // Add to mock store
-        mockProjectionStore.addUser(newUser);
-        
-        // Return with plain strings for GraphQL
-        return {
-          ...newUser,
-          id: newUser.id as string,
-          email: newUser.email as string,
-          username: newUser.username as string
-        };
-      },
-      updateUser: async (_: unknown, { userId, input }: { userId: string; input: { name?: string; email?: string } }) => {
-        // Get existing user from mock store
-        const userOption = await Effect.runPromise(
-          mockProjectionStore.getUserById(UserTypes.userId(userId))
-        );
-        
-        if (Option.isNone(userOption)) {
-          throw new Error('User not found');
-        }
-        
-        // Update and return
-        const updatedUser = {
-          ...userOption.value,
-          email: input.email ? UserTypes.email(input.email) : userOption.value.email,
-          username: input.name ? UserTypes.username(input.name) : userOption.value.username,
+          email: email(input.email),
+          username: username(input.username),
+          firstName: input.firstName,
+          lastName: input.lastName,
+          isActive: true,
+          isEmailVerified: false,
+          createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         };
         
-        mockProjectionStore.addUser(updatedUser);
+        mockUsers.set(userId, newUser);
         
-        return {
-          ...updatedUser,
-          id: updatedUser.id as string,
-          email: updatedUser.email as string,
-          username: updatedUser.username as string
+        return { 
+          success: true, 
+          message: 'User created successfully',
+          userId: userId as string
+        };
+      },
+      updateUser: async (_: unknown, { userId, input }: { userId: string; input: { name?: string; email?: string } }) => {
+        const user = mockUsers.get(userId);
+        
+        if (!user) {
+          return { 
+            success: false, 
+            message: 'User not found',
+            error: 'User not found'
+          };
+        }
+        
+        const updatedUser = {
+          ...user,
+          email: input.email ? email(input.email) : user.email,
+          username: input.name ? username(input.name) : user.username,
+          updatedAt: new Date().toISOString()
+        };
+        
+        mockUsers.set(userId, updatedUser);
+        
+        return { 
+          success: true, 
+          message: 'User updated successfully',
+          userId
         };
       },
       deleteUser: async (_: unknown, { userId, reason }: { userId: string; reason?: string }) => {
-        const command = {
-          type: UserCommandType.DELETE_USER,
-          aggregateId: BrandedTypes.aggregateId(userId),
-          payload: { reason }
-        };
+        const user = mockUsers.get(userId);
         
-        try {
-          await deleteUserHandler.handle(command as DeleteUserCommand);
-          return { 
-            success: true, 
-            message: 'User deleted successfully'
-          };
-        } catch (error) {
+        if (!user) {
           return { 
             success: false, 
-            message: error instanceof Error ? error.message : 'Failed to delete user'
+            message: 'User not found',
+            error: 'User not found'
           };
         }
+        
+        mockUsers.delete(userId);
+        
+        return { 
+          success: true, 
+          message: 'User deleted successfully'
+        };
       },
       verifyUserEmail: async (_: unknown, { id, token }: { id: string; token: string }) => {
-        const command = {
-          type: UserCommandType.VERIFY_EMAIL,
-          aggregateId: BrandedTypes.aggregateId(id),
-          payload: { verificationToken: token }
-        };
+        const user = mockUsers.get(id);
         
-        try {
-          const result = await verifyEmailHandler.handle(command as VerifyEmailCommand);
+        if (!user) {
+          return { 
+            success: false, 
+            error: 'User not found'
+          };
+        }
+        
+        // Simple token validation (in real app, validate against stored token)
+        if (token === 'valid-token') {
+          const updatedUser = {
+            ...user,
+            isEmailVerified: true,
+            updatedAt: new Date().toISOString()
+          };
+          mockUsers.set(id, updatedUser);
+          
           return { 
             success: true, 
             userId: id,
             message: 'Email verified successfully'
           };
-        } catch (error) {
-          return { 
-            success: false, 
-            error: error instanceof Error ? error.message : 'Unknown error'
-          };
         }
+        
+        return { 
+          success: false, 
+          error: 'Invalid verification token'
+        };
       },
       updateUserProfile: async (_: unknown, { id, input }: { id: string; input: { bio?: string; avatar?: string; location?: string } }) => {
-        const command = {
-          type: UserCommandType.UPDATE_PROFILE,
-          aggregateId: BrandedTypes.aggregateId(id),
-          payload: input
-        };
+        const user = mockUsers.get(id);
         
-        try {
-          await updateProfileHandler.handle(command as UpdateProfileCommand);
-          return { 
-            success: true, 
-            message: 'Profile updated successfully'
-          };
-        } catch (error) {
+        if (!user) {
           return { 
             success: false, 
-            message: error instanceof Error ? error.message : 'Failed to update profile'
+            message: 'User not found',
+            error: 'User not found'
           };
         }
+        
+        const updatedUser = {
+          ...user,
+          ...input,
+          updatedAt: new Date().toISOString()
+        };
+        
+        mockUsers.set(id, updatedUser);
+        
+        return { 
+          success: true, 
+          message: 'Profile updated successfully'
+        };
       },
     },
   },
@@ -273,7 +299,7 @@ const yoga = createYoga({
 
 // Create Bun server configuration
 const serverConfig = {
-  port: process.env.PORT || 3005,
+  port: process.env.PORT || 3006,
   async fetch(req: Request) {
     const url = new URL(req.url);
 
@@ -283,18 +309,13 @@ const serverConfig = {
         JSON.stringify({
           status: 'ok',
           framework: {
-            initialized: true,
-            eventStore: userDomain.eventStore ? 'active' : 'inactive',
-            commandBus: userDomain.commandBus ? 'active' : 'inactive',
-            eventBus: userDomain.eventBus ? 'active' : 'inactive',
-            queryBus: userDomain.queryBus ? 'active' : 'inactive',
+            name: '@cqrs/framework',
+            version: '3.0.0',
+            features: ['schema-first', 'pure-functional', 'effect-native'],
           },
-          domains: {
-            users: {
-              status: 'active',
-              projections: Object.keys(userDomain.projections),
-              validators: Object.keys(userDomain.validators),
-            }
+          users: {
+            total: mockUsers.size,
+            active: Array.from(mockUsers.values()).filter(u => u.isActive).length,
           },
           timestamp: new Date().toISOString(),
         }),
@@ -322,6 +343,7 @@ if (import.meta.main) {
   console.log(`🚀 Server running at http://localhost:${server.port}`);
   console.log(`📊 GraphQL endpoint: http://localhost:${server.port}/graphql`);
   console.log(`❤️  Health check: http://localhost:${server.port}/health`);
+  console.log(`👤 Test user ID: ${testUser.id}`);
 }
 
 export default serverConfig;

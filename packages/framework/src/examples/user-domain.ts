@@ -1,598 +1,592 @@
 /**
- * User Domain Example
+ * Complete User Domain Example
  * 
- * Complete domain implementation using the ultra-clean architecture
- * Demonstrates schema-first, pure functional, and Effect-native patterns
+ * Demonstrates CQRS/Event Sourcing with the framework
  */
 
 import * as Effect from "effect/Effect"
-import * as Schema from "@effect/schema/Schema"
-import * as Option from "effect/Option"
 import * as Layer from "effect/Layer"
-import * as Context from "effect/Context"
+import * as Duration from "effect/Duration"
+import * as Option from "effect/Option"
+import * as S from "@effect/schema/Schema"
 import { pipe } from "effect/Function"
-import { match, P } from "ts-pattern"
-
-// Import core schemas
 import {
+  // Core
   AggregateId,
-  Email,
-  Username,
-  Timestamp,
+  EventId,
+  CommandId,
+  UserId,
   Version,
-  createAggregateId,
-  createEventId,
-  createCommandId,
-  now
-} from "../schema/core/primitives"
-
-import {
-  createEventSchema,
-  createCommandSchema,
-  createQuerySchema,
+  Timestamp,
+  CorrelationId,
+  CausationId,
+  
+  // Messages
+  event,
+  command,
+  query,
+  DomainEvent,
+  Command,
+  Query,
   EventMetadata,
   CommandMetadata,
-  createPaginatedResultSchema
-} from "../schema/core/messages"
-
-// Import pure functions
-import {
-  createAggregate,
-  createEventApplicator,
-  createCommandHandler,
-  executeCommand,
-  loadFromEvents,
-  createProjection,
-  type EventSourcedAggregate,
-  type CommandDecision
-} from "../functions/event-sourcing"
-
-// Import Effect services
-import {
+  QueryMetadata,
+  
+  // Domain
+  aggregate,
+  Aggregate,
+  AggregateState,
+  BusinessRuleViolationError,
+  InvalidStateError,
+  validateRule,
+  
+  // Application
+  commandHandler,
+  CommandHandler,
+  queryHandler,
+  QueryHandler,
+  projection,
+  Projection,
+  readModel,
+  ReadModelProjection,
+  PaginatedResult,
+  
+  // Infrastructure
+  InMemoryEventStore,
+  InMemoryEventStoreLive,
   EventStore,
-  CommandBus,
-  QueryBus,
-  ProjectionStore,
-  createRepository,
-  type CommandHandler as ServiceCommandHandler,
-  type QueryHandler as ServiceQueryHandler
-} from "../effects/services"
-
-// Import GraphQL
-import {
-  createEntityResolver,
-  type FederationEntity
-} from "../graphql/federation"
+  StreamName,
+  
+  // Effect exports
+  Data,
+  Context,
+  Schedule,
+} from "@cqrs/framework"
 
 // ============================================================================
-// Domain Schemas (Single Source of Truth)
+// Domain Types
 // ============================================================================
 
-/**
- * User State Schema
- */
-const UserState = Schema.Struct({
-  id: AggregateId,
-  email: Email,
-  username: Username,
-  emailVerified: Schema.Boolean,
-  status: Schema.Literal("active", "suspended", "deleted"),
-  createdAt: Timestamp,
-  updatedAt: Timestamp
-})
-export type UserState = Schema.Schema.Type<typeof UserState>
-
-/**
- * User Events
- */
-export const UserCreated = createEventSchema(
-  "UserCreated",
-  Schema.Struct({
-    email: Email,
-    username: Username
-  })
-)
-
-export const EmailVerified = createEventSchema(
-  "EmailVerified",
-  Schema.Struct({
-    verifiedAt: Timestamp
-  })
-)
-
-export const UserSuspended = createEventSchema(
-  "UserSuspended",
-  Schema.Struct({
-    reason: Schema.String,
-    suspendedAt: Timestamp
-  })
-)
-
-export const UserDeleted = createEventSchema(
-  "UserDeleted",
-  Schema.Struct({
-    deletedAt: Timestamp
-  })
-)
-
-// Union of all user events
-export const UserEvent = Schema.Union(
-  UserCreated,
-  EmailVerified,
-  UserSuspended,
-  UserDeleted
-)
-export type UserEvent = Schema.Schema.Type<typeof UserEvent>
-
-/**
- * User Commands
- */
-export const CreateUser = createCommandSchema(
-  "CreateUser",
-  Schema.Struct({
-    email: Email,
-    username: Username
-  })
-)
-
-export const VerifyEmail = createCommandSchema(
-  "VerifyEmail",
-  Schema.Struct({
-    verificationToken: Schema.String
-  })
-)
-
-export const SuspendUser = createCommandSchema(
-  "SuspendUser",
-  Schema.Struct({
-    reason: Schema.String
-  })
-)
-
-export const DeleteUser = createCommandSchema(
-  "DeleteUser",
-  Schema.Struct({
-    confirmation: Schema.Literal("DELETE")
-  })
-)
-
-// Union of all user commands
-export const UserCommand = Schema.Union(
-  CreateUser,
-  VerifyEmail,
-  SuspendUser,
-  DeleteUser
-)
-export type UserCommand = Schema.Schema.Type<typeof UserCommand>
-
-/**
- * User Queries
- */
-export const GetUserById = createQuerySchema(
-  "GetUserById",
-  Schema.Struct({
-    userId: AggregateId
-  })
-)
-
-export const FindUserByEmail = createQuerySchema(
-  "FindUserByEmail",
-  Schema.Struct({
-    email: Email
-  })
-)
-
-export const ListUsers = createQuerySchema(
-  "ListUsers",
-  Schema.Struct({
-    status: Schema.optional(Schema.Literal("active", "suspended", "deleted")),
-    emailVerified: Schema.optional(Schema.Boolean)
-  })
-)
-
-export const UserQuery = Schema.Union(
-  GetUserById,
-  FindUserByEmail,
-  ListUsers
-)
-export type UserQuery = Schema.Schema.Type<typeof UserQuery>
-
-// ============================================================================
-// Domain Errors
-// ============================================================================
-
-export class UserNotFound {
-  readonly _tag = "UserNotFound"
-  constructor(readonly userId: AggregateId) {}
+interface UserState extends AggregateState {
+  readonly email: string
+  readonly username: string
+  readonly fullName: string
+  readonly emailVerified: boolean
+  readonly active: boolean
+  readonly roles: ReadonlyArray<string>
+  readonly lastLogin?: Timestamp
 }
 
-export class EmailAlreadyExists {
-  readonly _tag = "EmailAlreadyExists"
-  constructor(readonly email: Email) {}
+// ============================================================================
+// Domain Events
+// ============================================================================
+
+const UserRegisteredEvent = event(
+  "UserRegistered",
+  S.Struct({
+    userId: S.String,
+    email: S.String,
+    username: S.String,
+    fullName: S.String,
+  })
+).createClass()
+
+const UserEmailVerifiedEvent = event(
+  "UserEmailVerified",
+  S.Struct({
+    userId: S.String,
+    verifiedAt: S.Number,
+  })
+).createClass()
+
+const UserProfileUpdatedEvent = event(
+  "UserProfileUpdated",
+  S.Struct({
+    userId: S.String,
+    fullName: S.String,
+    updatedAt: S.Number,
+  })
+).createClass()
+
+const UserRoleGrantedEvent = event(
+  "UserRoleGranted",
+  S.Struct({
+    userId: S.String,
+    role: S.String,
+    grantedBy: S.String,
+  })
+).createClass()
+
+const UserDeactivatedEvent = event(
+  "UserDeactivated",
+  S.Struct({
+    userId: S.String,
+    reason: S.String,
+    deactivatedAt: S.Number,
+  })
+).createClass()
+
+const UserLoggedInEvent = event(
+  "UserLoggedIn",
+  S.Struct({
+    userId: S.String,
+    loginAt: S.Number,
+    ipAddress: S.String,
+  })
+).createClass()
+
+type UserEvent =
+  | InstanceType<typeof UserRegisteredEvent>
+  | InstanceType<typeof UserEmailVerifiedEvent>
+  | InstanceType<typeof UserProfileUpdatedEvent>
+  | InstanceType<typeof UserRoleGrantedEvent>
+  | InstanceType<typeof UserDeactivatedEvent>
+  | InstanceType<typeof UserLoggedInEvent>
+
+// ============================================================================
+// Domain Commands
+// ============================================================================
+
+interface RegisterUserCommand {
+  type: "RegisterUser"
+  email: string
+  username: string
+  fullName: string
 }
 
-export class InvalidVerificationToken {
-  readonly _tag = "InvalidVerificationToken"
-  constructor(readonly token: string) {}
+interface VerifyEmailCommand {
+  type: "VerifyEmail"
+  verificationToken: string
 }
 
-export class UserAlreadyVerified {
-  readonly _tag = "UserAlreadyVerified"
-  constructor(readonly userId: AggregateId) {}
+interface UpdateProfileCommand {
+  type: "UpdateProfile"
+  fullName: string
 }
 
-export type UserError = 
-  | UserNotFound
-  | EmailAlreadyExists
-  | InvalidVerificationToken
-  | UserAlreadyVerified
+interface GrantRoleCommand {
+  type: "GrantRole"
+  role: string
+  grantedBy: string
+}
 
-// ============================================================================
-// Pure Event Application
-// ============================================================================
+interface DeactivateUserCommand {
+  type: "DeactivateUser"
+  reason: string
+}
 
-/**
- * Apply user events to state
- */
-export const applyUserEvent = createEventApplicator<UserState, UserEvent>({
-  UserCreated: (state, event) => ({
-    id: event.metadata.aggregateId,
-    email: event.data.email,
-    username: event.data.username,
-    emailVerified: false,
-    status: "active" as const,
-    createdAt: event.metadata.timestamp,
-    updatedAt: event.metadata.timestamp
-  }),
-  
-  EmailVerified: (state, event) =>
-    state ? {
-      ...state,
-      emailVerified: true,
-      updatedAt: event.data.verifiedAt
-    } : null,
-  
-  UserSuspended: (state, event) =>
-    state ? {
-      ...state,
-      status: "suspended" as const,
-      updatedAt: event.data.suspendedAt
-    } : null,
-  
-  UserDeleted: (state, _event) => null // Soft delete returns null
-})
+interface RecordLoginCommand {
+  type: "RecordLogin"
+  ipAddress: string
+}
 
-// ============================================================================
-// Pure Command Handling
-// ============================================================================
-
-/**
- * Handle user commands
- */
-export const handleUserCommand = createCommandHandler<
-  UserState,
-  UserCommand,
-  UserEvent,
-  UserError
->({
-  CreateUser: (state, command) =>
-    Effect.gen(function* () {
-      // Check if user already exists
-      if (state !== null) {
-        return {
-          type: "failure" as const,
-          error: new EmailAlreadyExists(command.payload.email)
-        }
-      }
-      
-      // Create user created event
-      const event: Schema.Schema.Type<typeof UserCreated> = {
-        type: "UserCreated" as const,
-        data: {
-          email: command.payload.email,
-          username: command.payload.username
-        },
-        metadata: {
-          eventId: createEventId(),
-          aggregateId: command.aggregateId,
-          version: 0 as Version,
-          timestamp: now(),
-          correlationId: command.metadata.correlationId,
-          causationId: command.metadata.commandId,
-          actor: command.metadata.actor
-        }
-      }
-      
-      return {
-        type: "success" as const,
-        events: [event]
-      }
-    }),
-  
-  VerifyEmail: (state, command) =>
-    Effect.gen(function* () {
-      if (!state) {
-        return {
-          type: "failure" as const,
-          error: new UserNotFound(command.aggregateId)
-        }
-      }
-      
-      if (state.emailVerified) {
-        return {
-          type: "failure" as const,
-          error: new UserAlreadyVerified(command.aggregateId)
-        }
-      }
-      
-      // In real app, would validate token
-      if (command.payload.verificationToken !== "valid-token") {
-        return {
-          type: "failure" as const,
-          error: new InvalidVerificationToken(command.payload.verificationToken)
-        }
-      }
-      
-      const event: Schema.Schema.Type<typeof EmailVerified> = {
-        type: "EmailVerified" as const,
-        data: {
-          verifiedAt: now()
-        },
-        metadata: {
-          eventId: createEventId(),
-          aggregateId: command.aggregateId,
-          version: (state as any).version + 1,
-          timestamp: now(),
-          correlationId: command.metadata.correlationId,
-          causationId: command.metadata.commandId,
-          actor: command.metadata.actor
-        }
-      }
-      
-      return {
-        type: "success" as const,
-        events: [event]
-      }
-    }),
-  
-  SuspendUser: (state, command) =>
-    Effect.succeed({
-      type: "success" as const,
-      events: [] // Implementation omitted for brevity
-    }),
-  
-  DeleteUser: (state, command) =>
-    Effect.succeed({
-      type: "success" as const,
-      events: [] // Implementation omitted for brevity
-    })
-})
+type UserCommand =
+  | RegisterUserCommand
+  | VerifyEmailCommand
+  | UpdateProfileCommand
+  | GrantRoleCommand
+  | DeactivateUserCommand
+  | RecordLoginCommand
 
 // ============================================================================
 // User Aggregate
 // ============================================================================
 
-export type UserAggregate = EventSourcedAggregate<UserState, UserEvent>
-
-export const createUserAggregate = (
-  id: AggregateId = createAggregateId()
-): UserAggregate =>
-  createAggregate<UserState, UserEvent>({
-    id,
-    email: "" as Email,
-    username: "" as Username,
+const UserAggregate = aggregate<UserState, UserEvent, UserCommand>({
+  name: "User",
+  
+  initialState: (id) => ({
+    aggregateId: id,
+    version: Version.initial(),
+    email: "",
+    username: "",
+    fullName: "",
     emailVerified: false,
-    status: "active",
-    createdAt: now(),
-    updatedAt: now()
-  })
-
-export const loadUserFromEvents = (events: ReadonlyArray<UserEvent>): UserAggregate =>
-  loadFromEvents(applyUserEvent)(events)
-
-export const executeUserCommand = (
-  aggregate: UserAggregate,
-  command: UserCommand
-): Effect.Effect<UserAggregate, UserError, never> =>
-  executeCommand(handleUserCommand, applyUserEvent)(aggregate, command)
-
-// ============================================================================
-// Projections
-// ============================================================================
-
-/**
- * User list projection
- */
-export const UserListProjection = createProjection(
-  "UserList",
-  [] as Array<{
-    id: AggregateId
-    email: Email
-    username: Username
-    status: string
-    emailVerified: boolean
-    createdAt: Timestamp
-  }>,
-  {
-    UserCreated: (state, event) => [
+    active: false,
+    roles: [],
+    createdAt: Timestamp.now(),
+    updatedAt: Timestamp.now(),
+  }),
+  
+  eventHandlers: {
+    UserRegistered: (state, event) => ({
       ...state,
-      {
-        id: event.metadata.aggregateId,
-        email: event.data.email,
-        username: event.data.username,
-        status: "active",
-        emailVerified: false,
-        createdAt: event.metadata.timestamp
-      }
-    ],
+      email: event.payload.email,
+      username: event.payload.username,
+      fullName: event.payload.fullName,
+      active: true,
+      updatedAt: Timestamp.now(),
+    }),
     
-    EmailVerified: (state, event) =>
-      state.map(user =>
-        user.id === event.metadata.aggregateId
-          ? { ...user, emailVerified: true }
-          : user
-      ),
+    UserEmailVerified: (state, event) => ({
+      ...state,
+      emailVerified: true,
+      updatedAt: event.payload.verifiedAt as Timestamp,
+    }),
     
-    UserSuspended: (state, event) =>
-      state.map(user =>
-        user.id === event.metadata.aggregateId
-          ? { ...user, status: "suspended" }
-          : user
-      ),
+    UserProfileUpdated: (state, event) => ({
+      ...state,
+      fullName: event.payload.fullName,
+      updatedAt: event.payload.updatedAt as Timestamp,
+    }),
     
-    UserDeleted: (state, event) =>
-      state.filter(user => user.id !== event.metadata.aggregateId)
-  }
-)
-
-/**
- * Email index projection
- */
-export const EmailIndexProjection = createProjection(
-  "EmailIndex",
-  new Map<Email, AggregateId>(),
-  {
-    UserCreated: (state, event) => {
-      const newState = new Map(state)
-      newState.set(event.data.email, event.metadata.aggregateId)
-      return newState
+    UserRoleGranted: (state, event) => ({
+      ...state,
+      roles: [...state.roles, event.payload.role],
+      updatedAt: Timestamp.now(),
+    }),
+    
+    UserDeactivated: (state, event) => ({
+      ...state,
+      active: false,
+      updatedAt: event.payload.deactivatedAt as Timestamp,
+    }),
+    
+    UserLoggedIn: (state, event) => ({
+      ...state,
+      lastLogin: event.payload.loginAt as Timestamp,
+      updatedAt: Timestamp.now(),
+    }),
+  },
+  
+  commandHandlers: {
+    RegisterUser: {
+      validate: (state, cmd) =>
+        state.email
+          ? Effect.fail(
+              new InvalidStateError({
+                aggregateId: state.aggregateId,
+                reason: "User already registered",
+              })
+            )
+          : Effect.succeed(undefined),
+      
+      execute: (state, cmd) =>
+        Effect.succeed([
+          UserRegisteredEvent.create(
+            {
+              userId: state.aggregateId,
+              email: cmd.email,
+              username: cmd.username,
+              fullName: cmd.fullName,
+            },
+            createEventMetadata(state.aggregateId)
+          ),
+        ]),
     },
     
-    UserDeleted: (state, event) => {
-      const newState = new Map(state)
-      // Would need to know email to remove from index
-      return newState
-    }
-  }
-)
-
-// ============================================================================
-// Service Layer
-// ============================================================================
-
-/**
- * User command handlers for command bus
- */
-export const UserCommandHandlers = {
-  CreateUser: ((command: Schema.Schema.Type<typeof CreateUser>) =>
-    Effect.gen(function* () {
-      const eventStore = yield* EventStore
-      const aggregate = createUserAggregate(command.aggregateId)
-      const result = yield* executeUserCommand(aggregate, command)
-      
-      const streamName = `User-${command.aggregateId}` as any
-      yield* eventStore.append(
-        streamName,
-        result.uncommittedEvents,
-        result.version
-      )
-      
-      return { success: true, aggregateId: command.aggregateId }
-    })) as ServiceCommandHandler<any, any>,
-  
-  VerifyEmail: ((command: Schema.Schema.Type<typeof VerifyEmail>) =>
-    Effect.succeed({ success: true })) as ServiceCommandHandler<any, any>
-}
-
-/**
- * User query handlers for query bus
- */
-export const UserQueryHandlers = {
-  GetUserById: ((query: Schema.Schema.Type<typeof GetUserById>) =>
-    Effect.gen(function* () {
-      const projectionStore = yield* ProjectionStore
-      const userList = yield* projectionStore.load<any>("UserList")
-      
-      return Option.match(userList, {
-        onNone: () => null,
-        onSome: (list) =>
-          list.find((u: any) => u.id === query.params.userId) || null
-      })
-    })) as ServiceQueryHandler<any, any>,
-  
-  ListUsers: ((query: Schema.Schema.Type<typeof ListUsers>) =>
-    Effect.gen(function* () {
-      const projectionStore = yield* ProjectionStore
-      const userList = yield* projectionStore.load<any>("UserList")
-      
-      return Option.match(userList, {
-        onNone: () => [],
-        onSome: (list) => {
-          let filtered = list
-          
-          if (query.params.status) {
-            filtered = filtered.filter((u: any) => u.status === query.params.status)
-          }
-          
-          if (query.params.emailVerified !== undefined) {
-            filtered = filtered.filter((u: any) => 
-              u.emailVerified === query.params.emailVerified
+    VerifyEmail: {
+      validate: (state, cmd) =>
+        pipe(
+          validateRule(
+            state.active,
+            state.aggregateId,
+            "User must be active to verify email"
+          ),
+          Effect.flatMap(() =>
+            validateRule(
+              !state.emailVerified,
+              state.aggregateId,
+              "Email already verified"
             )
-          }
-          
-          return filtered
-        }
-      })
-    })) as ServiceQueryHandler<any, any>
+          )
+        ),
+      
+      execute: (state, cmd) =>
+        Effect.succeed([
+          UserEmailVerifiedEvent.create(
+            {
+              userId: state.aggregateId,
+              verifiedAt: Date.now(),
+            },
+            createEventMetadata(state.aggregateId)
+          ),
+        ]),
+    },
+    
+    UpdateProfile: {
+      validate: (state, cmd) =>
+        validateRule(
+          state.active,
+          state.aggregateId,
+          "User must be active to update profile"
+        ),
+      
+      execute: (state, cmd) =>
+        Effect.succeed([
+          UserProfileUpdatedEvent.create(
+            {
+              userId: state.aggregateId,
+              fullName: cmd.fullName,
+              updatedAt: Date.now(),
+            },
+            createEventMetadata(state.aggregateId)
+          ),
+        ]),
+    },
+    
+    GrantRole: {
+      validate: (state, cmd) =>
+        pipe(
+          validateRule(
+            state.active,
+            state.aggregateId,
+            "User must be active to grant roles"
+          ),
+          Effect.flatMap(() =>
+            validateRule(
+              !state.roles.includes(cmd.role),
+              state.aggregateId,
+              `User already has role: ${cmd.role}`
+            )
+          )
+        ),
+      
+      execute: (state, cmd) =>
+        Effect.succeed([
+          UserRoleGrantedEvent.create(
+            {
+              userId: state.aggregateId,
+              role: cmd.role,
+              grantedBy: cmd.grantedBy,
+            },
+            createEventMetadata(state.aggregateId)
+          ),
+        ]),
+    },
+    
+    DeactivateUser: {
+      validate: (state, cmd) =>
+        validateRule(
+          state.active,
+          state.aggregateId,
+          "User is already deactivated"
+        ),
+      
+      execute: (state, cmd) =>
+        Effect.succeed([
+          UserDeactivatedEvent.create(
+            {
+              userId: state.aggregateId,
+              reason: cmd.reason,
+              deactivatedAt: Date.now(),
+            },
+            createEventMetadata(state.aggregateId)
+          ),
+        ]),
+    },
+    
+    RecordLogin: {
+      validate: (state, cmd) =>
+        pipe(
+          validateRule(
+            state.active,
+            state.aggregateId,
+            "User must be active to login"
+          ),
+          Effect.flatMap(() =>
+            validateRule(
+              state.emailVerified,
+              state.aggregateId,
+              "Email must be verified to login"
+            )
+          )
+        ),
+      
+      execute: (state, cmd) =>
+        Effect.succeed([
+          UserLoggedInEvent.create(
+            {
+              userId: state.aggregateId,
+              loginAt: Date.now(),
+              ipAddress: cmd.ipAddress,
+            },
+            createEventMetadata(state.aggregateId)
+          ),
+        ]),
+    },
+  },
+}).build()
+
+// ============================================================================
+// Read Models
+// ============================================================================
+
+interface UserReadModel {
+  readonly id: string
+  readonly email: string
+  readonly username: string
+  readonly fullName: string
+  readonly emailVerified: boolean
+  readonly active: boolean
+  readonly roles: ReadonlyArray<string>
+  readonly lastLogin?: Date
+  readonly createdAt: Date
+  readonly updatedAt: Date
 }
 
+const userProjection = projection<UserReadModel, UserEvent>()
+  .withName("UserProjection")
+  .withInitialState({
+    id: "",
+    email: "",
+    username: "",
+    fullName: "",
+    emailVerified: false,
+    active: false,
+    roles: [],
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  })
+  .on("UserRegistered", (state, event) =>
+    Effect.succeed({
+      ...state,
+      id: event.payload.userId,
+      email: event.payload.email,
+      username: event.payload.username,
+      fullName: event.payload.fullName,
+      active: true,
+      createdAt: new Date(event.metadata.timestamp),
+      updatedAt: new Date(),
+    })
+  )
+  .on("UserEmailVerified", (state, event) =>
+    Effect.succeed({
+      ...state,
+      emailVerified: true,
+      updatedAt: new Date(event.payload.verifiedAt),
+    })
+  )
+  .on("UserProfileUpdated", (state, event) =>
+    Effect.succeed({
+      ...state,
+      fullName: event.payload.fullName,
+      updatedAt: new Date(event.payload.updatedAt),
+    })
+  )
+  .on("UserRoleGranted", (state, event) =>
+    Effect.succeed({
+      ...state,
+      roles: [...state.roles, event.payload.role],
+      updatedAt: new Date(),
+    })
+  )
+  .on("UserDeactivated", (state, event) =>
+    Effect.succeed({
+      ...state,
+      active: false,
+      updatedAt: new Date(event.payload.deactivatedAt),
+    })
+  )
+  .on("UserLoggedIn", (state, event) =>
+    Effect.succeed({
+      ...state,
+      lastLogin: new Date(event.payload.loginAt),
+      updatedAt: new Date(),
+    })
+  )
+  .build()
+
 // ============================================================================
-// GraphQL Federation Entity
+// Queries
 // ============================================================================
 
-export const UserEntity: FederationEntity<UserState> = {
-  typename: "User",
-  key: "id",
-  schema: UserState,
-  
-  resolveReference: (reference) =>
-    Effect.gen(function* () {
-      const eventStore = yield* EventStore
-      const streamName = `User-${reference.id}` as any
-      
-      const events = yield* pipe(
-        eventStore.read<UserEvent>(streamName),
-        Effect.map(Array.from),
-        Effect.orElseSucceed(() => [])
-      )
-      
-      if (events.length === 0) {
-        return yield* Effect.fail(
-          new UserNotFound(reference.id)
-        )
-      }
-      
-      const aggregate = loadUserFromEvents(events)
-      return aggregate.state
-    }),
-  
-  fields: {
-    fullName: (user) => `${user.username}`,
-    isActive: (user) => user.status === "active"
+const GetUserByIdQuery = query(
+  "GetUserById",
+  S.Struct({ userId: S.String }),
+  S.Union(S.Struct({ found: S.Literal(true), user: S.Any }), S.Struct({ found: S.Literal(false) }))
+).createClass()
+
+const ListActiveUsersQuery = query(
+  "ListActiveUsers",
+  S.Struct({ 
+    offset: S.Number,
+    limit: S.Number,
+  }),
+  S.Array(S.Any)
+).createClass()
+
+const SearchUsersQuery = query(
+  "SearchUsers",
+  S.Struct({ searchTerm: S.String }),
+  S.Array(S.Any)
+).createClass()
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+function createEventMetadata(aggregateId: AggregateId): EventMetadata {
+  return {
+    eventId: EventId.generate(),
+    eventType: "" as any, // Will be set by event class
+    aggregateId,
+    aggregateVersion: Version.initial(),
+    correlationId: CorrelationId.generate(),
+    causationId: CausationId.generate(),
+    timestamp: Timestamp.now(),
   }
 }
 
 // ============================================================================
-// Service Layer Configuration
+// Example Usage
 // ============================================================================
 
-/**
- * Register all user domain handlers
- */
-export const registerUserDomain = Effect.gen(function* () {
-  const commandBus = yield* CommandBus
-  const queryBus = yield* QueryBus
+const example = Effect.gen(function* () {
+  // Create user aggregate
+  const userId = AggregateId.generate()
+  const user = UserAggregate.create(userId)
   
-  // Register command handlers
-  yield* commandBus.register("CreateUser", UserCommandHandlers.CreateUser)
-  yield* commandBus.register("VerifyEmail", UserCommandHandlers.VerifyEmail)
+  // Register user
+  yield* user.handle({
+    type: "RegisterUser",
+    email: "john@example.com",
+    username: "johndoe",
+    fullName: "John Doe",
+  })
   
-  // Register query handlers
-  yield* queryBus.register("GetUserById", UserQueryHandlers.GetUserById)
-  yield* queryBus.register("ListUsers", UserQueryHandlers.ListUsers)
+  // Verify email
+  yield* user.handle({
+    type: "VerifyEmail",
+    verificationToken: "token123",
+  })
+  
+  // Grant admin role
+  yield* user.handle({
+    type: "GrantRole",
+    role: "admin",
+    grantedBy: "system",
+  })
+  
+  // Record login
+  yield* user.handle({
+    type: "RecordLogin",
+    ipAddress: "192.168.1.1",
+  })
+  
+  // Get uncommitted events
+  const events = user.getUncommittedEvents()
+  console.log(`Generated ${events.length} events`)
+  
+  // Get current state
+  const state = user.getState()
+  console.log("Current user state:", state)
+  
+  return state
 })
 
-/**
- * User domain layer
- */
-export const UserDomainLive = Layer.effectDiscard(registerUserDomain)
+// Run the example
+if (import.meta.main) {
+  Effect.runPromise(example)
+    .then((state) => console.log("Success:", state))
+    .catch((error) => console.error("Error:", error))
+}
+
+export {
+  UserAggregate,
+  UserState,
+  UserEvent,
+  UserCommand,
+  UserReadModel,
+  userProjection,
+}

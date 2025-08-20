@@ -42,22 +42,22 @@ export interface ProjectionState<State> {
 /**
  * Event processor function type - pure function
  */
-export type EventProcessor<State, Event extends DomainEvent> = (
+export type EventProcessor<State, Event extends DomainEvent, R = never> = (
   state: State,
   event: Event
-) => Effect.Effect<State, ProjectionError>
+) => Effect.Effect<State, ProjectionError, R>
 
 /**
  * Projection interface - functional approach
  */
-export interface Projection<State, Event extends DomainEvent> {
+export interface Projection<State, Event extends DomainEvent, R = never> {
   readonly process: (
     fromPosition?: bigint
-  ) => Effect.Effect<void, ProjectionError, EventStore | CheckpointStore>
+  ) => Effect.Effect<void, ProjectionError, EventStore | CheckpointStore | R>
   
   readonly processStream: (
     events: Stream.Stream<Event, any>
-  ) => Effect.Effect<void, ProjectionError>
+  ) => Effect.Effect<void, ProjectionError, R>
   
   readonly getState: () => Effect.Effect<ProjectionState<State>, never>
   
@@ -115,10 +115,10 @@ export const CheckpointStore = Context.GenericTag<CheckpointStore>("CheckpointSt
  * ✅ Create projection with pure functions - NO classes, NO "this"
  * REPLACES: The class-based Projection with "const self = this" issues
  */
-export const createProjection = <State, Event extends DomainEvent>(
+export const createProjection = <State, Event extends DomainEvent, R = never>(
   config: ProjectionConfig<State>,
-  processor: EventProcessor<State, Event>
-): Effect.Effect<Projection<State, Event>, never> =>
+  processor: EventProcessor<State, Event, R>
+): Effect.Effect<Projection<State, Event, R>, never, R> =>
   Effect.gen(function* () {
     // Create state reference
     const stateRef = yield* Ref.make<ProjectionState<State>>({
@@ -129,7 +129,7 @@ export const createProjection = <State, Event extends DomainEvent>(
     })
     
     // ✅ Pure function to process single event - NO "this" keyword
-    const processEvent = (event: Event): Effect.Effect<void, ProjectionError> =>
+    const processEvent = (event: Event): Effect.Effect<void, ProjectionError, R> =>
       Effect.gen(function* () {
         const currentState = yield* Ref.get(stateRef)
         
@@ -152,7 +152,7 @@ export const createProjection = <State, Event extends DomainEvent>(
     // ✅ Pure function to process stream - NO "this" keyword issues
     const processStream = (
       events: Stream.Stream<Event, any>
-    ): Effect.Effect<void, ProjectionError> =>
+    ): Effect.Effect<void, ProjectionError, R> =>
       pipe(
         events,
         // ✅ NO "this" keyword - direct function reference works perfectly
@@ -174,7 +174,7 @@ export const createProjection = <State, Event extends DomainEvent>(
     // ✅ Pure function to process from position - NO "this" issues
     const process = (
       fromPosition?: bigint
-    ): Effect.Effect<void, ProjectionError, EventStore | CheckpointStore> =>
+    ): Effect.Effect<void, ProjectionError, EventStore | CheckpointStore | R> =>
       Effect.gen(function* () {
         // ✅ NO "this" keyword - all parameters are explicit
         const eventStore = yield* EventStore
@@ -196,9 +196,7 @@ export const createProjection = <State, Event extends DomainEvent>(
         })
         
         // Process all events from position
-        const events = eventStore.readAll<Event>({
-          fromPosition: startPosition,
-        })
+        const events = eventStore.readAll<Event>(startPosition)
         
         // ✅ NO "this" keyword - direct function call
         yield* processStream(events)
@@ -207,7 +205,11 @@ export const createProjection = <State, Event extends DomainEvent>(
         if (config.saveCheckpointEvery && config.saveCheckpointEvery > 0) {
           const currentState = yield* Ref.get(stateRef)
           if (currentState.eventCount % config.saveCheckpointEvery === 0) {
-            yield* checkpoint()
+            yield* checkpoint().pipe(
+              Effect.mapError((error) => 
+                new ProjectionError("CheckpointFailed", error.message, error)
+              )
+            )
           }
         }
       })
@@ -218,7 +220,7 @@ export const createProjection = <State, Event extends DomainEvent>(
       processStream,
       getState: () => Ref.get(stateRef),
       checkpoint,
-    }
+    } as Projection<State, Event, R>
   })
 
 // ============================================================================
@@ -240,7 +242,7 @@ export const createReducerProjection = <State, Event extends DomainEvent>(
 export const createEffectProjection = <State, Event extends DomainEvent, R>(
   config: ProjectionConfig<State>,
   processor: (state: State, event: Event) => Effect.Effect<State, ProjectionError, R>
-): Effect.Effect<Projection<State, Event>, never, R> =>
+): Effect.Effect<Projection<State, Event, R>, never, R> =>
   createProjection(config, processor)
 
 // ============================================================================
@@ -301,56 +303,56 @@ export const fromClassProjection = <State, Event extends DomainEvent>(
 // Example Usage - Shows the benefits
 // ============================================================================
 
-/**
- * ✅ Example: User count projection using functional approach
- * NO "this" keyword issues, pure functions throughout
- */
-export const createUserCountProjection = () => {
-  interface UserCountState {
-    totalUsers: number
-    activeUsers: number
-    deletedUsers: number
-  }
+// /**
+//  * ✅ Example: User count projection using functional approach
+//  * NO "this" keyword issues, pure functions throughout
+//  */
+// export const createUserCountProjection = () => {
+//   interface UserCountState {
+//     totalUsers: number
+//     activeUsers: number
+//     deletedUsers: number
+//   }
   
-  const config: ProjectionConfig<UserCountState> = {
-    name: "user-count",
-    initialState: {
-      totalUsers: 0,
-      activeUsers: 0,
-      deletedUsers: 0,
-    },
-    batchSize: 100,
-    saveCheckpointEvery: 1000,
-  }
+//   const config: ProjectionConfig<UserCountState> = {
+//     name: "user-count",
+//     initialState: {
+//       totalUsers: 0,
+//       activeUsers: 0,
+//       deletedUsers: 0,
+//     },
+//     batchSize: 100,
+//     saveCheckpointEvery: 1000,
+//   }
   
-  // ✅ Pure reducer function - NO classes, NO "this"
-  const reducer = (state: UserCountState, event: any): UserCountState => {
-    switch (event.type) {
-      case "UserRegistered":
-        return {
-          ...state,
-          totalUsers: state.totalUsers + 1,
-        }
+//   // ✅ Pure reducer function - NO classes, NO "this"
+//   const reducer = (state: UserCountState, event: any): UserCountState => {
+//     switch (event.type) {
+//       case "UserRegistered":
+//         return {
+//           ...state,
+//           totalUsers: state.totalUsers + 1,
+//         }
       
-      case "UserActivated":
-        return {
-          ...state,
-          activeUsers: state.activeUsers + 1,
-        }
+//       case "UserActivated":
+//         return {
+//           ...state,
+//           activeUsers: state.activeUsers + 1,
+//         }
       
-      case "UserDeleted":
-        return {
-          ...state,
-          activeUsers: state.activeUsers - 1,
-          deletedUsers: state.deletedUsers + 1,
-        }
+//       case "UserDeleted":
+//         return {
+//           ...state,
+//           activeUsers: state.activeUsers - 1,
+//           deletedUsers: state.deletedUsers + 1,
+//         }
       
-      default:
-        return state
-    }
-  }
+//       default:
+//         return state
+//     }
+//   }
   
-  return createReducerProjection(config, reducer)
-}
+//   return createReducerProjection(config, reducer)
+// }
 
 // All exports are already handled above in individual declarations

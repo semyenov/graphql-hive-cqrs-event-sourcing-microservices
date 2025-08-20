@@ -27,8 +27,6 @@ export {
   nonEmptyString,
   email,
   username,
-  firstName,
-  lastName,
   streamName
 } from "./schema/core/primitives"
 

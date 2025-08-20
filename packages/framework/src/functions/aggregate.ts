@@ -15,7 +15,14 @@ import type {
   AggregateId,
   Version,
   Timestamp,
+  Username,
+  NonEmptyString,
+  EventId,
+  Email,
+  CorrelationId,
+  CausationId,
 } from "../schema/core/primitives"
+import type { UserEvent, UserState } from "../domain/handlers/user-handlers-pipe"
 
 // ============================================================================
 // Aggregate Errors (using Data.TaggedError for discriminated unions)
@@ -424,31 +431,53 @@ export const executeCommandWithEvents = <State, Command, Event>(
  * const userList = UserListProjection.rebuild(events)
  * ```
  */
-export const createSimpleProjection = <State, Event>(
+export const createSimpleProjection = <State, Event extends { type: string; aggregateId: string; data: Record<string, unknown> }>(
   name: string,
   initialState: State,
   handlers: {
-    [K in Event extends { type: infer T } ? T : never]?: (
+    [K in Event["type"]]: (
       state: State,
-      event: Extract<Event, { type: K }>
+      event: Extract<Event, { type: Event["type"] }>
     ) => State
   }
 ) => ({
   name,
   initialState,
   apply: (state: State, event: Event): State => {
-    const handler = handlers[(event as any).type]
-    return handler ? handler(state, event as any) : state
+    const handler = handlers[event.type as keyof typeof handlers]
+    return handler ? handler(state, event as Extract<Event, { type: Event["type"] }>) : state
   },
-  rebuild: (events: ReadonlyArray<Event>): State =>
-    pipe(
+  rebuild: (events: ReadonlyArray<Event>): State => {
+    return pipe(
       events,
       ReadonlyArray.reduce(initialState, (state, event) => {
-        const handler = handlers[(event as any).type]
-        return handler ? handler(state, event as any) : state
-      })
-    ),
+        const handler = handlers[event.type as keyof typeof handlers]
+        return handler ? handler(state, event as Extract<Event, { type: Event["type"] }>) : state
+        })
+      )
+    }
 })
+
+
+const events: ReadonlyArray<UserEvent>  = [
+  { type: "UserRegistered", aggregateId: "1" as AggregateId, data: { username: "test" as Username, email: "test@test.com" as Email, passwordHash: "password" as NonEmptyString }, metadata: { aggregateId: "1" as AggregateId, eventId: "1" as EventId, version: 0 as Version, timestamp: Date.now() as Timestamp, correlationId: "1" as CorrelationId, causationId: "1" as CausationId, actor: { id: "1" as ActorId, name: "system" as NonEmptyString } } },
+  { type: "UserActivated", aggregateId: "1" as AggregateId, data: { activatedBy: "system" as NonEmptyString }, metadata: { aggregateId: "1" as AggregateId, eventId: "1" as EventId, version: 0 as Version, timestamp: Date.now() as Timestamp, correlationId: "1" as CorrelationId, causationId: "1" as CausationId, actor: { id: "1" as ActorId, name: "system" as NonEmptyString } } },
+]
+
+const projection = createSimpleProjection("UserList", [] as ReadonlyArray<UserState>, {
+  UserRegistered: (state, event) => {
+    return [event.data as UserState, ...state]
+  },
+  UserActivated: (state, event) => {
+    return state.filter(u => u.username !== (event.data as UserState).username)
+  }
+})  
+
+console.log(projection.apply(projection.initialState, events[0]))
+console.log(projection.apply(projection.initialState, events[1]))
+const newState = projection.rebuild(events)
+
+console.log(newState)
 
 // ============================================================================
 // Usage Example
